@@ -100,7 +100,7 @@ async function renderPourBatch(id) {
     ${bt.trucks.map((t, i) => { const j = pourJudge(bt, t); return `<a class="rec" href="#/pour/${esc(bt.id)}/truck/${esc(t.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>第 ${i + 1} 車　${esc(t.plate || "（未填車號）")}</b>${pourBadge(j.st)}</div>
       <small>到場 ${esc(t.arrive || "—")}・${esc(t.volume || "—")} m³${t.slump ? "・坍度 " + esc(t.slump) : ""}${t.chloride ? "・Cl⁻ " + esc(t.chloride) : ""}${t.sampled ? "・試體 " + esc(t.specimen || "✓") : ""}${t.disp === "reject" ? `・<span style="color:#c0392b">退料</span>` : ""}${t.sigs?.tester && t.sigs?.driver ? "・✔簽名" : ""}</small></a>`; }).join("")}
     <div class="row"><button id="pjTruck">＋ 新增一車</button></div>
-    ${attBlock("檢附文件／照片（配比設計書、試驗報告等）", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="bjCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="bjFile"></label><div class="thumbs" id="bjTh"></div></div>`)}
+    ${attBlock("檢附文件／照片", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="bjCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="bjFile"></label><div class="thumbs" id="bjTh"></div></div>`)}
     <div class="row"><button class="sec" id="pjPrint">👁 預覽／列印（A4 橫式）</button><button class="sec" id="pjShare">📤 分享摘要</button></div>
     <div class="row"><button class="danger" id="pjDel">刪除這次澆置（含全部車次）</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => { bt[el.dataset.f] = el.value; save(); });
