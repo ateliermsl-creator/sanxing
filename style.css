@@ -187,3 +187,5 @@ details>summary{cursor:pointer}
 .pbar{display:flex;height:12px;background:#e3e6ea;border-radius:6px;overflow:hidden;margin-top:4px}
 .pbar i{background:#3b6b22;display:block}.pbar i.b2{background:#9cc47a}
 .psum td{vertical-align:middle}
+.pb{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700}
+.pb.ok{background:#e1f2e1;color:#1d6b1d}.pb.ng{background:#fde4e1;color:#c0392b}.pb.na{background:#eceff3;color:#778}
