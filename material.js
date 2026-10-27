@@ -37,6 +37,11 @@ async function matSeed() {
     await DB.put("matcats", { id: "__seed2", updated: 0 });
   }
   // 舊版內建過「預拌混凝土」類別：沒被改過、也沒有任何進場紀錄使用，就移除
+  // 一次性：不論有沒有改過，都移除「預拌混凝土」類別（已存的進場紀錄仍保留 catName，只是不再歸在這個類別）
+  if (!(await DB.get("matcats", "__seed4"))) {
+    for (const c of await matCats()) if (c.name === "預拌混凝土") await DB.del("matcats", c.id);
+    await DB.put("matcats", { id: "__seed4", updated: 0 });
+  }
   if (!(await DB.get("matcats", "__seed3"))) {
     const old = await DB.get("matcats", "c_v2_0");
     if (old && old.name === "預拌混凝土" && !old.updated && !(await DB.all("matrecs")).some(r => r.catId === old.id)) await DB.del("matcats", "c_v2_0");
