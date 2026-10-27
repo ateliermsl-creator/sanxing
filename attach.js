@@ -10,14 +10,28 @@ const attFilesOf = async recId => (await DB.all("files")).filter(f => f.recId ==
 async function attPurge(ids) { const set = new Set([].concat(ids)); for (const f of await DB.all("files")) if (set.has(f.recId)) await DB.del("files", f.id); }
 async function attTotal() { const fs = await DB.all("files"); return { n: fs.length, size: fs.reduce((a, f) => a + (f.size || 0), 0) }; }
 const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
+// 取出附加檔案中的圖片（縮到長邊 1600px、轉 JPEG），讓列印與 PDF 可以直接顯示
+const ATT_IMG = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+async function attImages(ids) {
+  const set = new Set([].concat(ids)), out = [];
+  for (const f of (await DB.all("files")).filter(f => set.has(f.recId) && ATT_IMG.includes(f.type) && f.blob).sort((a, b) => a.created - b.created)) {
+    try {
+      const bmp = await createImageBitmap(f.blob), k = Math.min(1, 1600 / Math.max(bmp.width, bmp.height)), c = document.createElement("canvas");
+      c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+      const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+      out.push({ recId: f.recId, name: f.name, data: c.toDataURL("image/jpeg", 0.85) });
+    } catch { /* 讀不出來的圖就略過，仍會在檔名清單中註明 */ }
+  }
+  return out;
+}
 // 列印時在單據下方註明有哪些附加的電子檔（檔案本身不會印出）
-async function attNamesLine(ids) {
-  const set = new Set([].concat(ids)), fs = (await DB.all("files")).filter(f => set.has(f.recId)).sort((a, b) => a.created - b.created);
+async function attNamesLine(ids, skipImages) {
+  const set = new Set([].concat(ids)), fs = (await DB.all("files")).filter(f => set.has(f.recId) && !(skipImages && ATT_IMG.includes(f.type))).sort((a, b) => a.created - b.created);
   return fs.length ? `<p class="cnote" style="margin-top:3mm">附加電子檔（不隨本單印出）：${fs.map(f => `${esc(f.name)}（${attMB(f.size)}）`).join("、")}</p>` : "";
 }
 
-function attBlock(title = "附加檔案") {
-  return `<div class="panel" id="attBox"><b>📎 ${esc(title)}</b> <small style="color:var(--mut)">PDF、Word、Excel、圖片，單檔 10 MB 以內；也可以改用拍照</small>
+function attBlock(title = "附加檔案", top = "") {
+  return `<div class="panel" id="attBox"><b>${top ? esc(title) : "📎 " + esc(title)}</b>${top} <small style="color:var(--mut)">PDF、Word、Excel、圖片，單檔 10 MB 以內；也可以改用拍照</small>
     <div style="margin-top:8px"><label class="phbtn" style="display:inline-flex">📎 選擇檔案<input type="file" id="attInput" multiple accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,image/*" hidden></label></div>
     <div id="attList" style="margin-top:8px"></div></div>`;
 }

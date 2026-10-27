@@ -148,8 +148,7 @@ async function renderPourTruck(id, tid) {
       <div id="ptSpec" ${t.sampled ? "" : "hidden"}>${inp("specimen", "試體編號", "例：3F-01～03")}</div>
       <div class="field" style="margin:8px 0 0"><label>處置</label><select data-t="disp">${Object.entries(POUR_DISP).map(([k, l]) => `<option value="${k}" ${t.disp === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
       <div class="field" style="margin:8px 0 0"><label>備註</label><input data-t="note" placeholder="例：加藥劑調整、退料原因" value="${esc(t.note || "")}"></div></div>
-    <div class="panel"><b>送貨單／試驗照片</b><div class="phrow"><button type="button" class="phbtn" id="ptCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="ptFile"></label><div class="thumbs" id="ptTh"></div></div></div>
-    ${attBlock("附加檔案（送貨單、試驗報告等）")}
+    ${attBlock("送貨單／試驗報告", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="ptCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="ptFile"></label><div class="thumbs" id="ptTh"></div></div>`)}
     ${[["tester", "試驗人員"], ["driver", "司機"]].map(([k, l]) => `<div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(t.names[k])}"></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l}簽名</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div></div>`).join("")}
     <div class="row"><button id="ptDone">✔ 完成（回澆置表）</button></div>
@@ -207,11 +206,12 @@ async function renderPourPrint(id) {
   if (!bt) { goReplace("#/pour"); return; }
   const site = sites.find(s => s.id === bt.siteId), company = ls.get("company", ""), s = pourStats([bt]);
   const photos = (await DB.all("photos")).filter(p => bt.trucks.some(t => t.id === p.recId)).sort((a, b) => a.created - b.created);
+  const aimgs = await attImages([bt.id, ...bt.trucks.map(t => t.id)]), nImg = photos.length + aimgs.length;
   const std = [pourNum(bt.slumpMin) !== null || pourNum(bt.slumpMax) !== null ? `坍度 ${bt.slumpMin || "—"}～${bt.slumpMax || "—"} cm` : "", pourNum(bt.clMax) !== null ? `氯離子 ≤ ${bt.clMax} kg/m³` : "", pourNum(bt.limitMin) !== null ? `出廠→到場 ≤ ${bt.limitMin} 分` : ""].filter(Boolean).join("　");
   const sigCell = (t, k) => `${t.sigs?.[k] ? `<img src="${safeImg(t.sigs[k])}" style="max-height:9mm;max-width:24mm;display:block;margin:0 auto">` : ""}<small>${esc(t.names?.[k] || "")}</small>`;
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
-    <label class="noprint" style="display:flex;gap:8px;align-items:center;margin:0 12px 8px;font-size:15px"><input type="checkbox" id="pvPh" style="width:22px;height:22px" ${pourPrintPhoto ? "checked" : ""}> 附送貨單／試驗照片頁（${photos.length} 張）</label>
+    <label class="noprint" style="display:flex;gap:8px;align-items:center;margin:0 12px 8px;font-size:15px"><input type="checkbox" id="pvPh" style="width:22px;height:22px" ${pourPrintPhoto ? "checked" : ""}> 附送貨單／試驗報告頁（${nImg} 張）</label>
     <div class="paper psum">
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}<div class="ptitle">混凝土澆置與進場材料抽驗紀錄</div>
       <table class="pt"><tr><th>工程名稱</th><td colspan="3">${esc(site?.name)}</td><th>日期</th><td>${esc(pRoc(bt.date))}</td></tr>
@@ -221,9 +221,9 @@ async function renderPourPrint(id) {
         ${bt.trucks.map((t, i) => { const j = pourJudge(bt, t), el = pourMin(t.leave, t.arrive); return `<tr><td class="c">${i + 1}</td><td class="nw">${esc(t.plate)}</td><td>${esc(t.ticket)}</td><td class="c nw">${esc(t.leave)}</td><td class="c nw">${esc(t.arrive)}</td><td class="c">${el ?? ""}</td><td class="c">${esc(t.volume)}</td><td class="c">${esc(t.slump)}</td><td class="c">${esc(t.chloride)}</td><td class="c">${esc(t.temp)}</td><td>${t.sampled ? esc(t.specimen || "✓") : ""}</td><td class="c nw" style="${t.disp === "reject" ? "color:#c0392b" : ""}">${POUR_DISP[t.disp] || ""}</td><td class="c nw" style="${j.st === "ng" ? "color:#c0392b;font-weight:700" : ""}">${j.st === "ok" ? "合格" : j.st === "ng" ? "不合格" : "—"}</td><td class="c">${sigCell(t, "tester")}</td><td class="c">${sigCell(t, "driver")}</td></tr>${t.note ? `<tr><td></td><td colspan="14" style="font-size:11px;color:#444">備註：${esc(t.note)}</td></tr>` : ""}`; }).join("") || `<tr><td colspan="15" class="c" style="color:#777">尚無車次</td></tr>`}</table>
       <p style="margin-top:3mm;font-size:13px">合計：<b>${s.trucks}</b> 車，澆置方量 <b>${pourVol(s.vol)}</b> m³${s.rej ? `（退料 ${s.rejTrucks} 車、${pourVol(s.rej)} m³，不計入）` : ""}；已判定 ${s.judged} 車，合格 ${s.ok}、不合格 ${s.ng}，抽驗合格率 <b>${pourRate(s)}</b>；取樣試體 ${s.samples} 組。</p>
     </div>
-    ${pourPrintPhoto && photos.length ? `<div class="paper gallery psum"><div class="ptitle">附件：送貨單／試驗照片</div><div class="gal">${photos.map(p => { const i = bt.trucks.findIndex(t => t.id === p.recId); return `<figure><img src="${safeImg(p.data)}"><figcaption>第 ${i + 1} 車　${esc(bt.trucks[i]?.plate || "")}</figcaption></figure>`; }).join("")}</div></div>` : ""}`;
+    ${pourPrintPhoto && nImg ? `<div class="paper gallery psum"><div class="ptitle">附件：送貨單／試驗報告</div><div class="gal">${[...photos.map(p => ({ recId: p.recId, data: p.data })), ...aimgs].map(p => { const i = bt.trucks.findIndex(t => t.id === p.recId); return `<figure><img src="${safeImg(p.data)}"><figcaption>${i >= 0 ? `第 ${i + 1} 車　${esc(bt.trucks[i]?.plate || "")}` : "整批附件"}${p.name ? `　${esc(p.name)}` : ""}</figcaption></figure>`; }).join("")}</div></div>` : ""}`;
   pourLandscape();
-  { const ln = await attNamesLine([bt.id, ...bt.trucks.map(t => t.id)]); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
+  { const ln = await attNamesLine([bt.id, ...bt.trucks.map(t => t.id)], pourPrintPhoto); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/pour/" + id);
   $("#pvPrint").onclick = doPrint;
   $("#pvPh").onchange = e => { pourPrintPhoto = e.target.checked; renderPourPrint(id); };
