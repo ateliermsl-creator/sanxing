@@ -262,8 +262,19 @@ async function renderForm(id) {
     let stream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
-    } catch {
-      alert("無法開啟相機。請到 iPhone「設定 → Safari → 相機」改成「詢問」或「允許」，或改用「相簿」按鈕。");
+    } catch (err) {
+      // 內建相機開不起來：說明原因，並提供「改用手機原本的相機 App」備用按鈕（需使用者再點一次）
+      const ua = navigator.userAgent;
+      const hint = /Android/i.test(ua)
+        ? "請點網址列左邊的鎖頭圖示 →「權限」→「相機」→「允許」。若是從主畫面圖示開啟：長按圖示 →「應用程式資訊」→「權限」→「相機」→「允許」。"
+        : /iPhone|iPad/i.test(ua) ? "請到 iPhone「設定 → Safari → 相機」改成「詢問」或「允許」。"
+        : "請在瀏覽器網址列允許使用相機。";
+      $("#camErrMsg").textContent = `無法開啟內建相機（${err?.name || "未知錯誤"}）。${hint}`;
+      $("#camFb").onchange = async e => {
+        const files = [...e.target.files]; e.target.value = ""; $("#camErr").close();
+        for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請重新拍攝"); } }
+      };
+      $("#camErr").showModal();
       return;
     }
     v.srcObject = stream; cam.hidden = false;
