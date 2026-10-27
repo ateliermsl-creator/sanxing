@@ -65,7 +65,7 @@ const CLEAN = {
     disp: ce(x.disp, ["accept", "reject", "pending"], "accept"), note: cs(x.note, 1000), names: cnames(x.names, ["deliver", "inspector"]), sigs: csigs(x.sigs, ["deliver", "inspector"]), created: cn(x.created), updated: cn(x.updated) },
   matcats: x => x.id === "__cure" ? { id: "__cure", ages: arr(x.ages, 6).map(Number).filter(n => Number.isInteger(n) && n > 0 && n <= 365), forms: arr(x.forms, 20).map(f => ({ n: cs(obj(f).n, 30), d: cs(obj(f).d, 4) })).filter(f => f.n), updated: cn(x.updated) }
     : x.id === "__docs" ? { id: "__docs", docs: arr(x.docs, 50).map(d => cs(d, 100)).filter(Boolean), updated: cn(x.updated) }
-    : (x.id === "__deleted" || x.id === "__seed2") ? { id: x.id, updated: cn(x.updated) }
+    : (x.id === "__deleted" || x.id === "__seed2" || x.id === "__seed3") ? { id: x.id, updated: cn(x.updated) }
     : safeId(x.id) && { id: x.id, name: cs(x.name, 100), checks: arr(x.checks, 300).map(c => cs(c, 300)).filter(Boolean), order: cn(x.order), created: cn(x.created), updated: cn(x.updated) },
   shots: x => safeId(x.id) && safeId(x.siteId) && safeImg(x.data) && {
     id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), lat: cgeo(x.lat, 90), lng: cgeo(x.lng, 180), acc: Math.max(0, cn(x.acc)), item: cs(x.item, 100), part: cs(x.part, 100), spec: cs(x.spec, 200), vendor: cs(x.vendor, 100), note: cs(x.note, 300),

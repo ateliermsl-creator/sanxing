@@ -6,8 +6,8 @@
 
 const MAT_UNITS = ["支", "根", "片", "箱", "桶", "包", "袋", "卷", "m", "m²", "m³", "kg", "噸", "個", "組", "式", "其他"];
 // 內建類別與檢查項目：依使用者提供的現場查驗重點整理；只列查驗項目，不內建任何規範數值（標準值請在每筆「規格」或備註自行填寫）
+// 預拌混凝土由「混凝土澆置抽驗」處理，這裡不放。id 的編號從 1 開始，維持與舊版相同，備份互相匯入才不會對不上
 const MAT_DEFAULT_CATS = [
-  ["預拌混凝土", ["配比單強度與訂購相符", "出廠時間與到場時間（防逾時初凝）", "坍度試驗", "氯離子含量檢測", "混凝土溫度", "壓製抗壓圓柱試體（簽名、押日期）", "預拌廠品質保證書、配比設計報告", "7 天／28 天抗壓強度試驗報告"]],
   ["竹節鋼筋", ["表面無嚴重浮鏽或油污", "滾印標記（廠牌、鋼種、號數）", "游標卡尺量測竹節間距、節高、直徑", "切取試樣秤重，計算單位重", "出廠材質證明書（爐號核對）", "無輻射證明", "依規範噸數會同剪樣送驗（抗拉、抗彎、化學成分）"]],
   ["鋼筋續接器／植筋膠", ["續接器外觀、長度與外徑量測", "鋼筋車牙處以止通規（Go/No-Go）抽測牙規", "植筋膠／化學錨栓有效期限", "植筋膠批號、混合管完整性", "續接器出廠證明", "取同爐號鋼筋與續接器組裝送驗（單向拉伸、高週波反覆載重）"]],
   ["結構鋼材／高強螺栓", ["游標卡尺量測 H 型鋼翼板／腹板厚度", "鋼板厚度量測", "高強度螺栓批號、尺寸", "高強度螺栓表面處理", "鋼材出廠證明（Mill Sheet）", "鋼板拉伸、衝擊試驗報告", "螺栓軸力與扭矩試驗報告"]],
@@ -33,8 +33,14 @@ async function matSeed() {
     // 舊版內建類別若完全沒被改過（沒有項目、未編輯）就換成新版；使用者自己改過或新增的一律保留
     for (const c of cats) if (/^c_def\d$/.test(c.id) && !c.checks?.length && !c.updated) await DB.del("matcats", c.id);
     const have = new Set((await matCats()).map(c => c.name));
-    for (const [i, [n, chk]] of MAT_DEFAULT_CATS.entries()) if (!have.has(n)) await DB.put("matcats", { id: "c_v2_" + i, name: n, checks: chk, order: i, created: i, updated: 0 });
+    for (const [i, [n, chk]] of MAT_DEFAULT_CATS.entries()) if (!have.has(n)) await DB.put("matcats", { id: "c_v2_" + (i + 1), name: n, checks: chk, order: i, created: i, updated: 0 });
     await DB.put("matcats", { id: "__seed2", updated: 0 });
+  }
+  // 舊版內建過「預拌混凝土」類別：沒被改過、也沒有任何進場紀錄使用，就移除
+  if (!(await DB.get("matcats", "__seed3"))) {
+    const old = await DB.get("matcats", "c_v2_0");
+    if (old && old.name === "預拌混凝土" && !old.updated && !(await DB.all("matrecs")).some(r => r.catId === old.id)) await DB.del("matcats", "c_v2_0");
+    await DB.put("matcats", { id: "__seed3", updated: 0 });
   }
   if (!(await DB.get("matcats", "__docs"))) await DB.put("matcats", { id: "__docs", docs: MAT_DEFAULT_DOCS.slice(), updated: 0 });
 }
