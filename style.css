@@ -148,3 +148,5 @@ details .field{margin-top:6px}
 .vdims input[type=time]{padding:10px 8px;font-size:16px;min-width:0}
 .pt.sm th,.pt.sm td{font-size:12px;padding:4px 4px}
 .pt td.nw,.pt th.nw{white-space:nowrap}
+.wprice{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line)}
+.pt small{font-size:10px;color:#555}
