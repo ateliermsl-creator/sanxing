@@ -1,75 +1,51 @@
 "use strict";
 /* 工地隨身工程計算機（純前端，離線可用）
-   四個分頁：鋼筋長度速查、混凝土方數、坡度與高程、坪與才 */
+   四個分頁：鋼筋稱號、混凝土方數、坡度與高程、坪與才 */
 
 const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
 
-/* ---------- 鋼筋伸展／搭接長度 ----------
-   單位 kgf/cm²、cm。公式為 ACI 318 簡化式換算成 kgf/cm² 的形式（土木401 沿用同一體系）。
-   ※ 係數未能對照規範原文逐條核對，請由結構技師依現行「混凝土結構設計規範」與設計圖說確認。 */
-const COEF = {
-  tensionA: { small: 0.15, large: 0.19 },   // 淨間距≥db、保護層≥db 且箍筋符合最小量（直線受拉）
-  tensionB: { small: 0.22, large: 0.28 },   // 其他情況（直線受拉）
-  psiMax: 1.7,                              // ψt·ψe 上限
-  tensionMin: 30,                           // cm
-  hook: 0.075, hookMinDb: 8, hookMin: 15,   // 標準彎鉤 ldh = 0.075·ψe·fy/(λ√f'c)·db
-  comp: 0.075, compFy: 0.0043, compMin: 20, // 受壓 ldc = max(0.075 fy/(λ√f'c)·db, 0.0043 fy·db)
-  compSplice: 0.0071, compSpliceHi: [0.013, 24], compSpliceMin: 30,
-  smallBarDb: 1.91                          // #6 (D19) 及以下用較小係數
-};
-const BARS = [["#3", "D10", 0.953], ["#4", "D13", 1.27], ["#5", "D16", 1.59], ["#6", "D19", 1.91], ["#7", "D22", 2.22],
-  ["#8", "D25", 2.54], ["#9", "D29", 2.87], ["#10", "D32", 3.23], ["#11", "D36", 3.58], ["#14", "D43", 4.30], ["#18", "D57", 5.73]];
-const FCS = [210, 240, 280, 350, 420];
-const MODES = {
-  ld: "受拉直線伸展長度 ld", spA: "受拉搭接 A 級（1.0 ld）", spB: "受拉搭接 B 級（1.3 ld）",
-  ldh: "標準彎鉤伸展長度 ldh", ldc: "受壓伸展長度 ldc", spC: "受壓搭接長度"
-};
-function rebarLen(mode, db, fc, fy, o) {
-  const rt = Math.sqrt(fc), small = db <= COEF.smallBarDb + 1e-6;
-  const psi = Math.min(o.pt * o.pe, COEF.psiMax);
-  const tb = (o.cond === "A" ? COEF.tensionA : COEF.tensionB)[small ? "small" : "large"];
-  const ld = Math.max(tb * fy * psi / rt * db, COEF.tensionMin);
-  switch (mode) {
-    case "ld": return ld;
-    case "spA": return ld;
-    case "spB": return Math.max(1.3 * ld, COEF.tensionMin);
-    case "ldh": return Math.max(COEF.hook * o.pe * fy / rt * db, COEF.hookMinDb * db, COEF.hookMin);
-    case "ldc": return Math.max(COEF.comp * fy / rt * db, COEF.compFy * fy * db, COEF.compMin);
-    case "spC": return Math.max(fy <= 4200 ? COEF.compSplice * fy * db : (COEF.compSpliceHi[0] * fy - COEF.compSpliceHi[1]) * db, COEF.compSpliceMin);
-  }
-}
-const FORMULA = {
-  ld: o => { const k = o.cond === "A" ? COEF.tensionA : COEF.tensionB; return `ld = ${k.small}（≤D19）或 ${k.large}（≥D22）× fy·ψt·ψe ÷ (λ√f'c) × db，ψt·ψe ≤ ${COEF.psiMax}，λ = 1，且 ≥ ${COEF.tensionMin} cm`; },
-  spA: () => "A 級搭接 = 1.0 ld（配置鋼筋量 ≥ 需要量 2 倍，且搭接長度內搭接量 ≤ 全部的 1/2）",
-  spB: () => "B 級搭接 = 1.3 ld（不符合 A 級條件者），且 ≥ 30 cm",
-  ldh: () => `ldh = ${COEF.hook} × ψe·fy ÷ (λ√f'c) × db，且 ≥ ${COEF.hookMinDb}db、≥ ${COEF.hookMin} cm`,
-  ldc: () => `ldc = max(${COEF.comp}·fy ÷ (λ√f'c)·db，${COEF.compFy}·fy·db)，且 ≥ ${COEF.compMin} cm`,
-  spC: () => `受壓搭接：fy ≤ 4200 時 ${COEF.compSplice}·fy·db；fy > 4200 時 (${COEF.compSpliceHi[0]}·fy − ${COEF.compSpliceHi[1]})·db；且 ≥ ${COEF.compSpliceMin} cm`
-};
+/* ---------- 鋼筋稱號（單位重、直徑、斷面積、周長） ----------
+   ok = true：已與使用者提供的參考資料核對；false：依 Ab = πdb²/4、W = 0.785·Ab 推算，尚待核對；null 數值：資料待補。 */
+const REBARS = [
+  { d: "D10", mark: "#3", w: "0.56", db: 0.953, ab: "0.7133", ok: true },
+  { d: "D13", mark: "#4", w: "0.994", db: 1.27, ab: "1.267", ok: true },
+  { d: "D16", mark: "#5", w: "1.56", db: 1.59, ab: "1.986", ok: true },
+  { d: "D19", mark: "#6", w: "2.25", db: 1.91, ab: "2.865", ok: true },
+  { d: "D22", mark: "#7", w: "3.04", db: 2.22, ab: "3.871", ok: false },
+  { d: "D25", mark: "#8", w: "3.98", db: 2.54, ab: "5.067", ok: false },
+  { d: "D29", mark: "#9", w: "5.08", db: 2.87, ab: "6.469", ok: false },
+  { d: "D32", mark: "#10", w: "6.39", db: 3.22, ab: "8.143", ok: false },
+  { d: "D36", mark: "#11", w: "7.90", db: 3.58, ab: "10.07", ok: false },
+  { d: "D39", mark: null, w: null, db: null, ab: null, ok: false },
+  { d: "D43", mark: "#14", w: "11.4", db: 4.30, ab: "14.52", ok: false },
+  { d: "D50", mark: null, w: null, db: null, ab: null, ok: false },
+  { d: "D57", mark: "#18", w: "20.2", db: 5.73, ab: "25.79", ok: false }
+];
+const rebarCells = r => r.db == null ? ["—", "—", "—", "—"] : [r.mark, r.w, String(r.db), r.ab, String(Math.round(Math.PI * r.db))].slice(0, 5);
 function tabRebar(box) {
-  const st = tabRebar.st = tabRebar.st || { mode: "ld", fy: 4200, pt: 1, pe: 1, cond: "A" };
+  const st = tabRebar.st = tabRebar.st || { d: "" };
   box.innerHTML = `
-    <div class="panel calc-ctl">
-      <div class="field"><label>查詢項目</label><select id="rMode">${Object.entries(MODES).map(([k, v]) => `<option value="${k}" ${k === st.mode ? "selected" : ""}>${v}</option>`).join("")}</select></div>
-      <div class="field"><label>鋼筋降伏強度 fy</label><select id="rFy">${[[2800, "SD280（2800）"], [4200, "SD420（4200）"], [4900, "SD490（4900）"]].map(([v, l]) => `<option value="${v}" ${v === st.fy ? "selected" : ""}>${l} kgf/cm²</option>`).join("")}</select></div>
-      <details${st.pt !== 1 || st.pe !== 1 || st.cond !== "A" ? " open" : ""}><summary>進階條件（上層筋、環氧塗布、間距）</summary>
-      <div class="field"><label>澆置位置 ψt</label><select id="rPt"><option value="1" ${st.pt === 1 ? "selected" : ""}>一般（1.0）</option><option value="1.3" ${st.pt === 1.3 ? "selected" : ""}>上層筋：其下混凝土厚 &gt; 30 cm（1.3）</option></select></div>
-      <div class="field"><label>鋼筋塗布 ψe</label><select id="rPe"><option value="1" ${st.pe === 1 ? "selected" : ""}>無塗布（1.0）</option><option value="1.2" ${st.pe === 1.2 ? "selected" : ""}>環氧塗布，保護層 ≥ 3db 且淨距 ≥ 6db（1.2）</option><option value="1.5" ${st.pe === 1.5 ? "selected" : ""}>環氧塗布，其他情況（1.5）</option></select></div>
-      <div class="field"><label>間距與保護層條件（直線受拉用）</label><select id="rCond"><option value="A" ${st.cond === "A" ? "selected" : ""}>淨間距 ≥ db、保護層 ≥ db 且箍筋符合最小量</option><option value="B" ${st.cond === "B" ? "selected" : ""}>其他情況（較保守）</option></select></div>
-      </details>
-    </div>
-    <div class="panel" id="rOut"></div>
-    <div class="legend" style="margin:0 12px 12px">⚠ 這是<b>估算基準值</b>，不能取代設計圖說。公式係數依 ACI 318 簡化式換算，<b>尚未對照現行土木401 規範原文逐條核對</b>，請由結構技師確認後使用；實際施工以結構圖說標示為準。</div>`;
+    <div class="panel"><div class="field" style="margin:0"><label>鋼筋稱號</label>
+      <select id="rSel"><option value="">請選擇</option>${REBARS.map(r => `<option value="${r.d}" ${r.d === st.d ? "selected" : ""}>${r.d}</option>`).join("")}</select></div>
+      <div id="rDetail"></div></div>
+    <div class="panel"><h2>全部鋼筋稱號</h2><div class="tblwrap"><table class="ct" id="rAll">
+      <tr><th>稱號</th><th>標示<br>代號</th><th>W<br><small>kgf/m</small></th><th>d<sub>b</sub><br><small>cm</small></th><th>A<sub>b</sub><br><small>cm²</small></th><th>ℓ<br><small>cm</small></th></tr>
+      ${REBARS.map(r => `<tr data-d="${r.d}"><th>${r.d}${r.ok || r.db == null ? "" : "※"}</th>${r.db == null ? `<td colspan="5" style="color:var(--mut)">資料待補</td>` : rebarCells(r).map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>
+      <p class="cnote">W：單位重；d<sub>b</sub>：標稱直徑；A<sub>b</sub>：標稱斷面積；ℓ：標稱周長（= π·d<sub>b</sub>，四捨五入到整數）。<br>※ 尚待與規範原表核對，使用前請確認；D39、D50 資料待補。D10～D19 已與提供的參考資料核對。</p></div>`;
   const draw = () => {
-    st.mode = $("#rMode").value; st.fy = +$("#rFy").value; st.pt = +$("#rPt").value; st.pe = +$("#rPe").value; st.cond = $("#rCond").value;
-    const o = { pt: st.pt, pe: st.pe, cond: st.cond };
-    $("#rOut").innerHTML = `<h2>${MODES[st.mode]}（cm）</h2>
-      <div class="tblwrap"><table class="ct"><tr><th>鋼筋</th>${FCS.map(f => `<th>f'c<br>${f}</th>`).join("")}</tr>
-      ${BARS.map(([n, d, db]) => `<tr><th>${n}<br><small>${d}</small></th>${FCS.map(fc => `<td>${Math.ceil(rebarLen(st.mode, db, fc, st.fy, o) - 1e-9)}</td>`).join("")}</tr>`).join("")}</table></div>
-      <p class="cnote">數值為無條件進位到整數 cm。單位：f'c、fy 為 kgf/cm²；λ = 1（常重混凝土）；#號後為對應的 D 號。<br><b>公式：</b>${FORMULA[st.mode](o)}</p>`;
+    st.d = $("#rSel").value;
+    const r = REBARS.find(x => x.d === st.d);
+    $("#rDetail").innerHTML = !r ? "" : r.db == null ? `<p class="cnote">這個號數的資料尚未建立。</p>` : (() => { const c = rebarCells(r); return `
+      <div class="big"><span>稱號</span><b>${r.d}</b></div><div class="big"><span>標示代號</span><b>${c[0]}</b></div>
+      <div class="big"><span>單位重 W（kgf/m）</span><b>${c[1]}</b></div><div class="big"><span>標稱直徑 d<sub>b</sub>（cm）</span><b>${c[2]}</b></div>
+      <div class="big"><span>標稱斷面積 A<sub>b</sub>（cm²）</span><b>${c[3]}</b></div><div class="big"><span>標稱周長 ℓ（cm）</span><b>${c[4]}</b></div>
+      ${r.ok ? "" : `<p class="cnote">※ 這筆資料尚待與規範原表核對。</p>`}`; })();
+    box.querySelectorAll("#rAll tr[data-d]").forEach(tr => tr.classList.toggle("sel", tr.dataset.d === st.d));
   };
-  box.querySelector(".calc-ctl").oninput = draw; draw();
+  $("#rSel").onchange = draw;
+  $("#rAll").onclick = e => { const tr = e.target.closest("tr[data-d]"); if (!tr) return; $("#rSel").value = tr.dataset.d; draw(); $("#rSel").scrollIntoView({ block: "center", behavior: "smooth" }); };
+  draw();
 }
 
 /* ---------- 混凝土方數 ---------- */
@@ -179,7 +155,7 @@ function tabArea(box) {
 }
 
 /* ---------- 分頁 ---------- */
-const CALC_TABS = [["rebar", "鋼筋長度", tabRebar], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "坪與才", tabArea]];
+const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "坪與才", tabArea]];
 function renderCalc(tab) {
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
