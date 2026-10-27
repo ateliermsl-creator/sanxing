@@ -199,3 +199,5 @@ details>summary{cursor:pointer}
 .pdfmode .paper{margin:0;padding:0;border:0;font-size:10.5pt;overflow:visible;background:#fff}
 .pdfmode .pcomp{font-size:15pt}.pdfmode .ptitle{font-size:13pt}
 .pdfmode .noprint,.pdfmode #attBox{display:none!important}
+#copyright{max-width:720px;margin:24px auto 32px;padding:0 16px;text-align:center;font-size:12px;line-height:1.6;color:var(--mut)}
+@media print{#copyright{display:none!important}}

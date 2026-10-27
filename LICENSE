@@ -1,0 +1,6 @@
+Copyright (c) 2026 三星蔥營造工具箱. All rights reserved.
+
+未經著作權人書面同意，不得複製、修改、散布、再授權或作商業用途。
+Unauthorized copying, modification, distribution, sublicensing or commercial use is prohibited.
+
+lib/ 資料夾內的第三方函式庫（html2canvas、jsPDF）依其各自的 MIT 授權使用，授權文字見 lib/ 內的 LICENSE 檔。
