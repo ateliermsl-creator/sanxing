@@ -108,3 +108,12 @@ button.phbtn{border:0;min-height:44px;font:inherit;font-weight:600;font-size:15p
 #camShot{width:72px;height:72px;min-height:72px;padding:0;border-radius:50%;background:#fff;border:5px solid #888;box-shadow:0 0 0 3px #fff inset}
 #camShot:active{background:#ccc}
 #camDone{min-width:80px;background:#3b6b22}
+.th img{cursor:zoom-in}
+#lb{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.94);display:flex;align-items:center;justify-content:center}
+#lb[hidden]{display:none}
+#lbImg{max-width:100%;max-height:100%;object-fit:contain;touch-action:pinch-zoom}
+#lbClose{position:absolute;top:calc(env(safe-area-inset-top) + 10px);right:12px;width:52px;min-height:52px;height:52px;padding:0;border-radius:50%;background:rgba(255,255,255,.22);font-size:24px}
+#lbCount{position:absolute;top:calc(env(safe-area-inset-top) + 22px);left:16px;color:#fff;font-size:15px}
+#lbPrev,#lbNext{position:absolute;top:50%;transform:translateY(-50%);width:48px;min-height:64px;height:64px;padding:0;background:rgba(255,255,255,.18);font-size:30px;border-radius:12px}
+#lbPrev{left:6px}#lbNext{right:6px}
+#lbPrev[hidden],#lbNext[hidden]{display:none}

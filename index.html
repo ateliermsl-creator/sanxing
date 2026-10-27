@@ -27,6 +27,13 @@
   <video id="camV" autoplay playsinline muted></video>
   <div class="camBar"><span id="camCount"></span><button type="button" id="camShot" aria-label="拍照"></button><button type="button" id="camDone">完成</button></div>
 </div>
+<div id="lb" hidden>
+  <button type="button" id="lbClose" aria-label="關閉預覽">✕</button>
+  <div id="lbCount"></div>
+  <img id="lbImg" alt="照片預覽">
+  <button type="button" id="lbPrev" aria-label="上一張">‹</button>
+  <button type="button" id="lbNext" aria-label="下一張">›</button>
+</div>
 <dialog id="camErr">
   <p id="camErrMsg" style="margin:0 0 14px;line-height:1.6"></p>
   <label class="phbtn" style="width:100%;justify-content:center;margin-bottom:8px">📷 改用手機相機拍照<input type="file" id="camFb" accept="image/*" capture="environment" hidden></label>

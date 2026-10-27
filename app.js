@@ -143,6 +143,32 @@ async function makePhoto(file, stamp) {
 const nowStamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const photosOf = async recId => (await DB.all("photos")).filter(p => p.recId === recId).sort((a, b) => a.created - b.created);
 
+/* ---------- 照片放大預覽 ---------- */
+function openLightbox(list, idx) {
+  const lb = $("#lb"); let k = idx, x0 = null;
+  const show = () => {
+    $("#lbImg").src = list[k].data;
+    $("#lbCount").textContent = list.length > 1 ? `${k + 1} / ${list.length}` : "";
+    $("#lbPrev").hidden = $("#lbNext").hidden = list.length < 2;
+  };
+  const step = d => { k = (k + d + list.length) % list.length; show(); };
+  $("#lbPrev").onclick = () => step(-1);
+  $("#lbNext").onclick = () => step(1);
+  $("#lbClose").onclick = () => closeLightbox();
+  lb.onclick = e => { if (e.target === lb) closeLightbox(); };
+  lb.ontouchstart = e => { x0 = e.touches.length === 1 ? e.touches[0].clientX : null; };
+  lb.ontouchend = e => { if (x0 === null || list.length < 2) return; const dx = e.changedTouches[0].clientX - x0; if (Math.abs(dx) > 70 && !(window.visualViewport && window.visualViewport.scale > 1.05)) step(dx < 0 ? 1 : -1); x0 = null; };
+  show(); lb.hidden = false;
+  history.pushState({ lb: 1 }, "");   // 讓 Android 返回鍵先關閉預覽
+}
+function closeLightbox(fromPop) {
+  const lb = $("#lb"); if (lb.hidden) return;
+  lb.hidden = true; $("#lbImg").removeAttribute("src");
+  if (!fromPop && history.state?.lb) history.back();
+}
+window.addEventListener("popstate", () => closeLightbox(true));
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeLightbox(); });
+
 /* ---------- 檢查表列表 ---------- */
 let cat = "全部";
 const SYM = { ok: "○", ng: "✕", na: "／" };
@@ -242,6 +268,12 @@ async function renderForm(id) {
   };
   tpl.items.forEach((_, i) => drawThumbs(i));
   view.onclick = async e => {
+    const th = e.target.closest?.(".th img");
+    if (th) {
+      const id0 = th.parentElement.querySelector("[data-delph]").dataset.delph;
+      const cur = photos.find(x => x.id === id0), same = photos.filter(x => x.itemIdx === cur.itemIdx);
+      openLightbox(same, same.indexOf(cur)); return;
+    }
     const id = e.target.dataset?.delph; if (!id) return;
     if (!confirm("刪除這張照片？")) return;
     const p = photos.find(x => x.id === id); await DB.del("photos", id);
