@@ -228,10 +228,11 @@ details>summary{cursor:pointer}
 .sth.pick{outline:3px solid #6aa84f}.sth.pick i{background:#2e7d32}
 button.on.sec,.phrow button.on{background:var(--g);color:#fff}
 .shotal{break-after:page}.shotal:last-of-type{break-after:auto}
-.shotal .gal img{width:100%;object-fit:contain}
-.shotal.n2 .gal{grid-template-columns:1fr}.shotal.n2 .gal img{height:105mm;max-height:none}
-.shotal.n4 .gal img{height:100mm;max-height:none}
-.shotal.n6 .gal img{height:66mm;max-height:none}
+/* 照片格一律橫式 4:3（配合橫拍的照片）；直拍的照片會完整縮放在格子內 */
+.shotal .gal img{width:100%;height:auto;aspect-ratio:4/3;max-height:none;object-fit:contain;background:#f6f6f6}
+.shotal.n2 .gal{grid-template-columns:1fr;justify-items:center;gap:8mm}.shotal.n2 .gal figure{width:min(150mm,100%)}
+.shotal.n4 .gal{align-content:start;row-gap:16mm}
+.shotal.n6 .gal{align-content:start}
 #shotCam .scTop small{font-size:12px;opacity:.85}
 #shotCam .scOpt button[data-t]{background:#3a3a3a}
 /* 橫拿手機：畫面放到最大，拍照鈕移到右側 */
