@@ -85,7 +85,23 @@ $("#setupForm").addEventListener("submit", async e => {
 });
 $("#addSiteBtn").onclick = () => openSetup("add");
 $("#setBtn").onclick = () => openSetup(siteId ? "edit" : "first");
-$("#backBtn").onclick = () => history.length > 1 ? history.back() : (location.hash = "#/");
+// 返回：真的退回上一頁（讓瀏覽紀錄保持乾淨，系統返回鍵才會一致）；沒有上一頁可退、或退了沒變化時，才改成回到上一層
+const goReplace = h => location.replace(h);
+function goBack(fallback) {
+  if (history.length <= 1) { goReplace(fallback); return; }
+  const before = location.hash;
+  history.back();
+  setTimeout(() => { if (location.hash === before) goReplace(fallback); }, 300);
+}
+function parentHash() {
+  const [, page, a, b] = location.hash.split("/");
+  if (page === "checklist") return a ? (b === "preview" ? "#/checklist/" + a : "#/checklist") : "#/";
+  if (page === "workorder") return a ? (b === "preview" ? "#/workorder/" + a : "#/workorder") : "#/";
+  if (page === "punch") return a ? "#/punch" : "#/";
+  if (page === "template") return "#/checklist";
+  return "#/";
+}
+$("#backBtn").onclick = () => { if (!$("#lb").hidden) { closeLightbox(); return; } goBack(parentHash()); };
 
 /* ---------- 路由 ---------- */
 window.addEventListener("hashchange", route);
@@ -253,7 +269,7 @@ async function renderChecklist() {
 const TIMING = [["before", "施工前"], ["during", "施工中"], ["after", "施工完成"]];
 async function loadRec(id) {
   const rec = await DB.get("records", id);
-  if (!rec) { location.hash = "#/checklist"; return []; }
+  if (!rec) { goReplace("#/checklist"); return []; }
   rec.timing = rec.timing || {}; rec.items = rec.items || {}; rec.sigs = rec.sigs || {};
   return [rec, TEMPLATES.find(t => t.id === rec.templateId)];
 }
@@ -347,7 +363,7 @@ async function renderForm(id) {
   $("#delBtn").onclick = async () => {
     if (!confirm("確定刪除這份紀錄？")) return;
     for (const p of photos) await DB.del("photos", p.id);
-    await DB.del("records", rec.id); location.hash = "#/checklist";
+    await DB.del("records", rec.id); goBack("#/checklist");
   };
 }
 
@@ -398,7 +414,7 @@ async function renderPreview(id) {
       <div class="psigs">${[["worker", "檢查人員"], ["manager", "工地主任"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${rec.sigs[k]}">` : "<br><br>"}${l}</div>`).join("")}</div>
     </div>
     ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${p.data}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
-  $("#pvBack").onclick = () => location.hash = "#/checklist/" + id;
+  $("#pvBack").onclick = () => goBack("#/checklist/" + id);
   $("#pvPrint").onclick = () => window.print();
 }
 
@@ -407,7 +423,7 @@ async function renderTemplateEditor(id) {
   const isNew = id === "new";
   const tpl = isNew ? { id: uid(), custom: true, cat: "", name: "", sub: "", items: [{ t: "", std: "" }], created: Date.now() }
     : structuredClone(TEMPLATES.find(t => t.id === id && t.custom));
-  if (!tpl.id) { location.hash = "#/checklist"; return; }
+  if (!tpl.id) { goReplace("#/checklist"); return; }
   // 已有紀錄使用時，不可刪除或搬動項目（紀錄以項目順序對應），只能改文字與新增
   const used = isNew ? 0 : (await DB.all("records")).filter(r => r.templateId === tpl.id).length;
   const cats = [...new Set(TEMPLATES.map(t => t.cat))];
@@ -440,12 +456,12 @@ async function renderTemplateEditor(id) {
       tpl.items = items.map(i => ({ t: i.t.trim(), std: i.std.trim() })); tpl.updated = Date.now();
       delete tpl.origLen;
       await DB.put("templates", tpl); await loadTemplates();
-      location.hash = "#/checklist";
+      goBack("#/checklist");
     };
     $("#tDel")?.addEventListener("click", async () => {
       if (used) { alert(`已有 ${used} 筆紀錄使用這張表，請先刪除那些紀錄`); return; }
       if (!confirm("確定刪除這張檢查表？")) return;
-      await DB.del("templates", tpl.id); await loadTemplates(); location.hash = "#/checklist";
+      await DB.del("templates", tpl.id); await loadTemplates(); goBack("#/checklist");
     });
   };
   const sync = () => {

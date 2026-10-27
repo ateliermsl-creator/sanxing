@@ -204,5 +204,6 @@ function renderCalc(tab) {
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
     <div class="chips">${CALC_TABS.map(([k, l]) => `<a class="chip ${k === cur[0] ? "on" : ""}" href="#/calc/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${l}</a>`).join("")}</div>
     <div id="calcBox"></div>`;
+  view.querySelectorAll(".chips a.chip").forEach(a => a.onclick = e => { e.preventDefault(); goReplace(a.getAttribute("href")); });   // 切換分頁不累積瀏覽紀錄
   cur[2]($("#calcBox"));
 }

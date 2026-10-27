@@ -69,7 +69,7 @@ async function renderWorkorderList() {
 /* ---------- 填寫 ---------- */
 async function renderWorkorderForm(id) {
   const rec = await DB.get("workorders", id);
-  if (!rec) { location.hash = "#/workorder"; return; }
+  if (!rec) { goReplace("#/workorder"); return; }
   rec.lines = rec.lines || []; rec.names = rec.names || {}; rec.sigs = rec.sigs || {}; rec.log = rec.log || [];
   const locked = rec.status === "signed";
   const dis = locked ? "disabled" : "";
@@ -180,7 +180,7 @@ async function renderWorkorderForm(id) {
   $("#woDel").onclick = async () => {
     if (locked) { alert("已簽認的單據不能直接刪除，請先解除鎖定。"); return; }
     if (!confirm("確定刪除這張點工單？")) return;
-    await DB.del("workorders", id); location.hash = "#/workorder";
+    await DB.del("workorders", id); goBack("#/workorder");
   };
 }
 
@@ -195,7 +195,7 @@ function woSummaryText(rec) {
 /* ---------- 預覽／列印 ---------- */
 async function renderWorkorderPreview(id) {
   const rec = await DB.get("workorders", id);
-  if (!rec) { location.hash = "#/workorder"; return; }
+  if (!rec) { goReplace("#/workorder"); return; }
   const site = sites.find(s => s.id === rec.siteId), company = ls.get("company", ""), t = woTotals(rec), signed = rec.status === "signed";
   const showPrice = ls.get("woShowPrice", "") === "1", amt = woAmount(rec), cols = showPrice ? 10 : 8;
   const d = rec.date ? rec.date.replace(/^(\d+)-(\d+)-(\d+)$/, "$1 年 $2 月 $3 日") : "";
@@ -220,7 +220,7 @@ async function renderWorkorderPreview(id) {
       <div class="psigs">${[["vendor", "廠商代表"], ["site", "我方現場人員"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${rec.sigs[k]}">` : "<br><br>"}${l}${rec.names[k] ? "：" + esc(rec.names[k]) : ""}</div>`).join("")}</div>
       <p style="margin-top:6mm;font-size:12px">${signed ? `簽認時間：${esc(woStamp(rec.signedAt))}（手機電子簽認，簽認後鎖定）` : "※ 尚未完成簽認"}</p>
     </div>`;
-  $("#pvBack").onclick = () => location.hash = "#/workorder/" + id;
+  $("#pvBack").onclick = () => goBack("#/workorder/" + id);
   $("#pvPrice").onchange = e => { ls.set("woShowPrice", e.target.checked ? "1" : ""); renderWorkorderPreview(id); };
   $("#pvPrint").onclick = () => window.print();
 }
@@ -228,7 +228,7 @@ async function renderWorkorderPreview(id) {
 /* ---------- 月結彙總 ---------- */
 let woMonth = "", woVendor = "";
 async function renderWorkorderSummary() {
-  if (!siteId) { location.hash = "#/workorder"; return; }
+  if (!siteId) { goReplace("#/workorder"); return; }
   if (!woMonth) woMonth = today().slice(0, 7);
   const all = (await DB.all("workorders")).filter(o => o.siteId === siteId && o.date.startsWith(woMonth)).sort((a, b) => a.date.localeCompare(b.date) || a.docNo.localeCompare(b.docNo));
   const vendors = [...new Set(all.map(o => o.vendor || "（未填廠商）"))];

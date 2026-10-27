@@ -100,7 +100,7 @@ async function renderPunchList() {
 /* ---------- 單筆缺失 ---------- */
 async function renderPunchForm(id) {
   const it = await DB.get("punch", id);
-  if (!it) { location.hash = "#/punch"; return; }
+  if (!it) { goReplace("#/punch"); return; }
   it.log = it.log || [];
   const site = sites.find(s => s.id === it.siteId);
   let photos = await pPhotosOf(it.id), timer;
@@ -163,14 +163,14 @@ async function renderPunchForm(id) {
     it.status = "open"; it.rejects = (it.rejects || 0) + 1; it.fixedAt = ""; logAdd("複驗不合格・退回" + (why.trim() ? "：" + why.trim() : "")); await flush(); renderPunchForm(id);
   });
   $("#pReopen")?.addEventListener("click", async () => { if (!confirm("重新開啟這筆缺失？")) return; it.status = "open"; it.closedAt = ""; it.closedBy = ""; logAdd("重新開啟"); await flush(); renderPunchForm(id); });
-  $("#pNext").onclick = async () => { await flush(); const n = pNew({ no: await pNextNo(), location: it.location, seedLoc: it.location, trade: it.trade, due: it.due, foundDate: it.foundDate, foundBy: it.foundBy }); await DB.put("punch", n); location.hash = "#/punch/" + n.id; };
-  $("#pDel").onclick = async () => { if (!confirm("確定刪除這筆缺失？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await DB.del("punch", id); location.hash = "#/punch"; };
+  $("#pNext").onclick = async () => { await flush(); const n = pNew({ no: await pNextNo(), location: it.location, seedLoc: it.location, trade: it.trade, due: it.due, foundDate: it.foundDate, foundBy: it.foundBy }); await DB.put("punch", n); goReplace("#/punch/" + n.id); };
+  $("#pDel").onclick = async () => { if (!confirm("確定刪除這筆缺失？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await DB.del("punch", id); goBack("#/punch"); };
 }
 
 /* ---------- 工班通知單 ---------- */
 let pRepTrade = "", pRepStatus = { open: true, fixed: true, closed: false }, pRepPhoto = true;
 async function renderPunchReport() {
-  if (!siteId) { location.hash = "#/punch"; return; }
+  if (!siteId) { goReplace("#/punch"); return; }
   const all = (await DB.all("punch")).filter(x => x.siteId === siteId && (x.desc.trim() || x.location.trim()));
   const items = all.filter(x => pRepStatus[x.status] && (!pRepTrade || (pRepTrade === "__none" ? !x.trade : x.trade === pRepTrade)))
     .sort((x, y) => (x.due || "9999").localeCompare(y.due || "9999") || x.created - y.created);
