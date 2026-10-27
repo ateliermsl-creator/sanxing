@@ -63,6 +63,9 @@ const CLEAN = {
   matcats: x => x.id === "__docs" ? { id: "__docs", docs: arr(x.docs, 50).map(d => cs(d, 100)).filter(Boolean), updated: cn(x.updated) }
     : (x.id === "__deleted" || x.id === "__seed2") ? { id: x.id, updated: cn(x.updated) }
     : safeId(x.id) && { id: x.id, name: cs(x.name, 100), checks: arr(x.checks, 300).map(c => cs(c, 300)).filter(Boolean), order: cn(x.order), created: cn(x.created), updated: cn(x.updated) },
+  shots: x => safeId(x.id) && safeId(x.siteId) && safeImg(x.data) && {
+    id: x.id, siteId: x.siteId, date: cdate(x.date), item: cs(x.item, 100), part: cs(x.part, 100), spec: cs(x.spec, 200), vendor: cs(x.vendor, 100), note: cs(x.note, 300),
+    data: x.data, raw: safeImg(x.raw) || x.data, thumb: safeImg(x.thumb), created: cn(x.created), updated: cn(x.updated) },
   files: x => safeId(x.id) && safeId(x.recId) && typeof x.data === "string" && x.data.length < 20e6 && SAFE_DATA.test(x.data) && {
     id: x.id, recId: x.recId, name: cname(x.name) || "檔案", type: SAFE_FILE_TYPES.includes(x.type) ? x.type : "application/octet-stream", size: cn(x.size), created: cn(x.created), data: x.data }
 };

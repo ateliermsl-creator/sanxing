@@ -72,9 +72,9 @@ function renderInstall() {
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("avocado-toolbox", 8);
+  const r = indexedDB.open("avocado-toolbox", 9);
   r.onupgradeneeded = () => {
-    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats", "files"])
+    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats", "files", "shots"])
       if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
   };
   r.onsuccess = () => res(r.result);
@@ -148,13 +148,13 @@ $("#setupForm").addEventListener("submit", async e => {
 // 刪除工地：連同底下所有檢查表、點工單、缺失、澆置、材料進場、照片與附加檔案一併刪除
 $("#sDel").onclick = async () => {
   const cur = sites.find(x => x.id === siteId); if (!cur) return;
-  const stores = ["records", "workorders", "punch", "pours", "matrecs"], mine = {}, ids = new Set();
+  const stores = ["records", "workorders", "punch", "pours", "matrecs", "shots"], mine = {}, ids = new Set();
   for (const st of stores) {
     mine[st] = (await DB.all(st)).filter(x => x.siteId === cur.id);
     for (const x of mine[st]) { ids.add(x.id); for (const t of x.trucks || []) ids.add(t.id); }
   }
   const total = stores.reduce((a, st) => a + mine[st].length, 0);
-  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
+  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
   const typed = prompt(`為了避免誤刪，請輸入工地名稱確認：\n${cur.name}`);
   if (typed === null) return;
   if (typed.trim() !== cur.name) { alert("名稱不符，沒有刪除。"); return; }
@@ -190,6 +190,7 @@ function parentHash() {
   if (page === "punch") return a ? "#/punch" : "#/";
   if (page === "material") return !a ? "#/" : b === "print" ? "#/material/" + a : "#/material";
   if (page === "pour") return a === "summary" ? "#/pour" : !a ? "#/" : b === "truck" || b === "print" ? "#/pour/" + a : "#/pour";
+  if (page === "shot") return a ? "#/shot" : "#/";
   if (page === "template") return "#/checklist";
   return "#/";
 }
@@ -217,6 +218,7 @@ async function route() {
     return location.hash.endsWith("/preview") ? renderPreview(a) : renderForm(a);
   }
   if (page === "pour") return renderPour(a, b2, c2);
+  if (page === "shot") return renderShot(a, b2);
   if (page === "material") return renderMaterial(a, b2);
   if (page === "install") return renderInstall();
   if (page === "punch") return renderPunch(a);
@@ -238,6 +240,7 @@ async function renderHome() {
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/material"><div class="ph">📦</div><div><b>材料進場驗收</b><small>類別檢查項目・簽名・照片・進場台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/pour"><div class="ph">🚛</div><div><b>混凝土澆置抽驗</b><small>車號・坍度・氯離子・試體・簽名・方量統計</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/shot"><div class="ph">📷</div><div><b>施工照片（電子黑板）</b><small>黑板合成在照片上・照片冊・分享 PDF</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・面積換算</small></div><span class="arrow">›</span></a>
@@ -601,7 +604,7 @@ async function renderBackup() {
   $("#expBtn").onclick = async () => {
     const withFiles = $("#bkFiles") ? $("#bkFiles").checked : true;
     const files = []; if (withFiles) for (const f of await DB.all("files")) files.push({ id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, data: await blobToDataURL(f.blob) });
-    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), shots: await DB.all("shots"), sites: await DB.all("sites"), records: await DB.all("records") };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     a.download = `三星蔥工具箱備份_${today()}.json`;
@@ -662,8 +665,14 @@ async function renderBackup() {
         if (old && (old.updated || 0) >= (x.updated || 0)) continue;
         x.siteId = map[x.siteId] || x.siteId; await DB.put("matrecs", x); mn++;
       }
+      let sn = 0;
+      for (const x of d.shots || []) {
+        const old = await DB.get("shots", x.id);
+        if (old && (old.updated || 0) >= (x.updated || 0)) continue;
+        x.siteId = map[x.siteId] || x.siteId; await DB.put("shots", x); sn++;
+      }
       await loadSites();
-      alert(`${d.dropped ? `（有 ${d.dropped} 筆資料格式不正確，已略過）\n` : ""}匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}`);
+      alert(`${d.dropped ? `（有 ${d.dropped} 筆資料格式不正確，已略過）\n` : ""}匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}${sn ? `、${sn} 張施工照片` : ""}`);
     } catch { alert("這不是有效的備份檔"); }
     e.target.value = "";
   };

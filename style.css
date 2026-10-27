@@ -201,3 +201,34 @@ details>summary{cursor:pointer}
 .pdfmode .noprint,.pdfmode #attBox{display:none!important}
 #copyright{max-width:720px;margin:24px auto 32px;padding:0 16px;text-align:center;font-size:12px;line-height:1.6;color:var(--mut)}
 @media print{#copyright{display:none!important}}
+/* 施工照片（電子黑板） */
+#shotCam{position:fixed;inset:0;z-index:55;background:#000;display:flex;flex-direction:column;color:#fff}
+#shotCam.flash{background:#fff}
+#shotCam .scTop{display:flex;align-items:center;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px}
+#shotCam .scTop b{flex:1}
+#shotCam .scTop button{min-height:40px;padding:0 14px;font-size:15px}
+#shotCam .scEditor{position:absolute;top:calc(env(safe-area-inset-top) + 56px);left:8px;right:8px;z-index:3;background:rgba(0,0,0,.82);border-radius:14px;padding:10px 12px;max-height:60%;overflow:auto}
+#shotCam .scEditor[hidden]{display:none}
+#shotCam .scEditor label{display:block;font-size:13px;margin-bottom:6px}
+#shotCam .scEditor input{width:100%;min-height:40px;margin-top:2px;font-size:16px}
+#shotCam .scOpt{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:6px}
+#shotCam .scOpt button{min-height:36px;padding:0 12px;font-size:14px;background:#3a3a3a;color:#fff}
+#shotCam .scOpt button.on{background:#6aa84f}
+#shotCam .scStage{position:relative;flex:1;min-height:0}
+#shotCam video{width:100%;height:100%;object-fit:contain;background:#000}
+#shotCam canvas{position:absolute;pointer-events:none}
+#scShot{width:72px;height:72px;min-height:72px;padding:0;border-radius:50%;background:#fff;border:5px solid #888;box-shadow:0 0 0 3px #fff inset}
+#scShot:active{background:#ccc}
+#scCount{width:64px;font-size:13px}
+.sgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:8px 0}
+.sth{position:relative;padding:0;min-height:0;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;text-align:left;color:var(--ink,#222)}
+.sth img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover}
+.sth small{display:block;padding:2px 4px;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sth i{position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.45);border:2px solid #fff;color:#fff;font-style:normal;font-size:14px;line-height:20px;text-align:center}
+.sth.pick{outline:3px solid #6aa84f}.sth.pick i{background:#2e7d32}
+button.on.sec,.phrow button.on{background:var(--g);color:#fff}
+.shotal{break-after:page}.shotal:last-of-type{break-after:auto}
+.shotal .gal img{width:100%;object-fit:contain}
+.shotal.n2 .gal{grid-template-columns:1fr}.shotal.n2 .gal img{height:105mm;max-height:none}
+.shotal.n4 .gal img{height:100mm;max-height:none}
+.shotal.n6 .gal img{height:66mm;max-height:none}
