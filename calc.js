@@ -12,8 +12,8 @@ const REBARS = [
   { d: "D13", mark: "#4", w: "0.994", db: 1.27, ab: "1.267", ok: true },
   { d: "D16", mark: "#5", w: "1.56", db: 1.59, ab: "1.986", ok: true },
   { d: "D19", mark: "#6", w: "2.25", db: 1.91, ab: "2.865", ok: true },
-  { d: "D22", mark: "#7", w: "3.04", db: 2.22, ab: "3.871", ok: false },
-  { d: "D25", mark: "#8", w: "3.98", db: 2.54, ab: "5.067", ok: false },
+  { d: "D22", mark: "#7", w: "3.04", db: 2.22, ab: "3.871", ok: true },
+  { d: "D25", mark: "#8", w: "3.98", db: 2.54, ab: "5.067", ok: true },
   { d: "D29", mark: "#9", w: "5.08", db: 2.87, ab: "6.469", ok: false },
   { d: "D32", mark: "#10", w: "6.39", db: 3.22, ab: "8.143", ok: false },
   { d: "D36", mark: "#11", w: "7.90", db: 3.58, ab: "10.07", ok: false },
@@ -32,7 +32,7 @@ function tabRebar(box) {
     <div class="panel"><h2>全部鋼筋稱號</h2><div class="tblwrap"><table class="ct" id="rAll">
       <tr><th>稱號</th><th>標示<br>代號</th><th>W<br><small>kgf/m</small></th><th>d<sub>b</sub><br><small>cm</small></th><th>A<sub>b</sub><br><small>cm²</small></th><th>ℓ<br><small>cm</small></th></tr>
       ${REBARS.map(r => `<tr data-d="${r.d}"><th>${r.d}${r.ok || r.db == null ? "" : "※"}</th>${r.db == null ? `<td colspan="5" style="color:var(--mut)">資料待補</td>` : rebarCells(r).map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>
-      <p class="cnote">W：單位重；d<sub>b</sub>：標稱直徑；A<sub>b</sub>：標稱斷面積；ℓ：標稱周長（= π·d<sub>b</sub>，四捨五入到整數）。<br>※ 尚待與規範原表核對，使用前請確認；D39、D50 資料待補。D10～D19 已與提供的參考資料核對。</p></div>`;
+      <p class="cnote">W：單位重；d<sub>b</sub>：標稱直徑；A<sub>b</sub>：標稱斷面積；ℓ：標稱周長（= π·d<sub>b</sub>，四捨五入到整數）。<br>※ 尚待與規範原表核對，使用前請確認；D39、D50 資料待補。D10～D25 已與提供的參考資料核對。</p></div>`;
   const draw = () => {
     st.d = $("#rSel").value;
     const r = REBARS.find(x => x.d === st.d);
