@@ -1,0 +1,462 @@
+"use strict";
+const $ = (s, el = document) => el.querySelector(s);
+const view = $("#view");
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const today = () => new Date().toISOString().slice(0, 10);
+const ls = {
+  get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }
+};
+
+/* ---------- IndexedDB ---------- */
+const dbp = new Promise((res, rej) => {
+  const r = indexedDB.open("avocado-toolbox", 3);
+  r.onupgradeneeded = () => {
+    for (const n of ["sites", "records", "templates", "photos"])
+      if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
+  };
+  r.onsuccess = () => res(r.result);
+  r.onerror = () => rej(r.error);
+});
+async function tx(store, mode, fn) {
+  const db = await dbp;
+  return new Promise((res, rej) => {
+    const t = db.transaction(store, mode);
+    const out = fn(t.objectStore(store));
+    t.oncomplete = () => res(out.result);
+    t.onerror = () => rej(t.error);
+  });
+}
+const DB = {
+  all: s => tx(s, "readonly", o => o.getAll()),
+  get: (s, id) => tx(s, "readonly", o => o.get(id)),
+  put: (s, v) => tx(s, "readwrite", o => o.put(v)),
+  del: (s, id) => tx(s, "readwrite", o => o.delete(id))
+};
+
+/* ---------- 範本（內建 + 自訂） ---------- */
+const BUILTIN = window.TEMPLATES.slice();
+async function loadTemplates() {
+  const custom = (await DB.all("templates")).sort((a, b) => a.created - b.created);
+  window.TEMPLATES = BUILTIN.concat(custom);
+}
+
+/* ---------- 工地 ---------- */
+let sites = [];
+let siteId = ls.get("siteId", "");
+async function loadSites() {
+  sites = (await DB.all("sites")).sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  if (!sites.find(s => s.id === siteId)) siteId = sites[0]?.id || "";
+  ls.set("siteId", siteId);
+  const sel = $("#siteSelect");
+  sel.innerHTML = sites.length
+    ? sites.map(s => `<option value="${s.id}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")
+    : `<option value="">尚未建立工地</option>`;
+}
+$("#siteSelect").onchange = e => { siteId = e.target.value; ls.set("siteId", siteId); route(); };
+/* mode: "first" 第一次使用（不可取消）／"add" 新增工地／"edit" 修改目前工地與公司 */
+function openSetup(mode) {
+  const d = $("#setup"), cur = sites.find(x => x.id === siteId);
+  $("#setupTitle").textContent = { first: "開始使用：先填寫工地", add: "新增工地", edit: "工地與公司設定" }[mode];
+  $("#setupHint").hidden = mode !== "first";
+  $("#sName").value = mode === "edit" && cur ? cur.name : "";
+  $("#sCompany").value = ls.get("company", "");
+  $("#sOk").textContent = mode === "first" ? "開始填表" : "儲存";
+  $("#sCancel").hidden = mode === "first";
+  d.dataset.mode = mode;
+  d.showModal();
+}
+$("#setup").addEventListener("cancel", e => { if ($("#setup").dataset.mode === "first") e.preventDefault(); });
+$("#sCancel").onclick = () => $("#setup").close();
+$("#setupForm").addEventListener("submit", async e => {
+  const name = $("#sName").value.trim();
+  if (!name) { e.preventDefault(); return; }
+  const mode = $("#setup").dataset.mode;
+  ls.set("company", $("#sCompany").value.trim());
+  if (mode === "edit" && siteId) {
+    const s = sites.find(x => x.id === siteId); s.name = name; await DB.put("sites", s);
+  } else {
+    let s = sites.find(x => x.name === name);
+    if (!s) { s = { id: uid(), name }; await DB.put("sites", s); }
+    siteId = s.id; ls.set("siteId", siteId);
+  }
+  await loadSites(); route();
+});
+$("#addSiteBtn").onclick = () => openSetup("add");
+$("#setBtn").onclick = () => openSetup(siteId ? "edit" : "first");
+$("#backBtn").onclick = () => history.length > 1 ? history.back() : (location.hash = "#/");
+
+/* ---------- 路由 ---------- */
+window.addEventListener("hashchange", route);
+async function route() {
+  const [, page, a] = location.hash.split("/");
+  $("#topbar").hidden = !page;
+  window.scrollTo(0, 0);
+  if (page === "checklist") {
+    if (!a) return renderChecklist();
+    return location.hash.endsWith("/preview") ? renderPreview(a) : renderForm(a);
+  }
+  if (page === "template") return renderTemplateEditor(a);
+  if (page === "backup") return renderBackup();
+  return renderHome();
+}
+
+/* ---------- 首頁 ---------- */
+async function renderHome() {
+  let updates = [];
+  try { updates = await (await fetch("updates.json")).json(); } catch {}
+  view.innerHTML = `
+    <section class="hero"><img src="leek.png" alt=""><h1>三星蔥營造工具箱</h1><p>工地隨身工具・沒有網路也能用</p></section>
+    <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/backup"><div class="ph">💾</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
+    <div class="card soon"><div class="ph">＋</div><div><b>更多工具開發中</b><small>敬請期待</small></div></div>
+    <section class="panel"><h2>📢 最新更新</h2>${updates.map(u => `<div class="d">${esc(u.date)}</div><ul>${u.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`).join("")}</section>`;
+  checkBackup();
+}
+function checkBackup() {
+  const last = ls.get("lastBackup", "");
+  const w = $("#backupWarn");
+  const days = last ? (Date.now() - Date.parse(last)) / 864e5 : Infinity;
+  if (days > 7) {
+    w.hidden = false;
+    w.innerHTML = `💾 ${last ? "已超過 7 天沒備份" : "還沒有備份過"}，<a href="#/backup">現在備份</a>`;
+  } else w.hidden = true;
+}
+
+/* ---------- 照片 ---------- */
+// 縮圖壓縮並蓋上日期時間與工地名稱（存證用），存成 JPEG dataURL
+async function makePhoto(file, stamp) {
+  let bmp;
+  try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
+  catch { bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); }); }
+  const w0 = bmp.width, h0 = bmp.height, k = Math.min(1, 1280 / Math.max(w0, h0));
+  const c = document.createElement("canvas"); c.width = Math.round(w0 * k); c.height = Math.round(h0 * k);
+  const g = c.getContext("2d"); g.drawImage(bmp, 0, 0, c.width, c.height);
+  const fs = Math.max(14, Math.round(c.width / 38));
+  g.font = `600 ${fs}px sans-serif`; g.textBaseline = "bottom";
+  const tw = g.measureText(stamp).width;
+  g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, c.height - fs * 1.6, tw + fs, fs * 1.6);
+  g.fillStyle = "#fff"; g.fillText(stamp, fs / 2, c.height - fs * 0.3);
+  return c.toDataURL("image/jpeg", 0.72);
+}
+const nowStamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const photosOf = async recId => (await DB.all("photos")).filter(p => p.recId === recId).sort((a, b) => a.created - b.created);
+
+/* ---------- 檢查表列表 ---------- */
+let cat = "全部";
+const SYM = { ok: "○", ng: "✕", na: "／" };
+const doneCount = r => Object.values(r.items || {}).filter(i => i.r).length;
+async function renderChecklist() {
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  const recs = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
+  const pc = {}; for (const p of await DB.all("photos")) pc[p.recId] = (pc[p.recId] || 0) + 1;
+  const cats = ["全部", ...new Set(TEMPLATES.map(t => t.cat))];
+  if (!cats.includes(cat)) cat = "全部";
+  const list = TEMPLATES.filter(t => cat === "全部" || t.cat === cat);
+  view.innerHTML = `
+    <h2 class="t">自主檢查表（${TEMPLATES.length}）</h2>
+    <div class="row" style="margin-top:0"><a class="btnlink" href="#/template/new">📋 自訂空白檢查表</a></div>
+    <div class="chips">${cats.map(c => `<button class="chip ${c === cat ? "on" : ""}" data-cat="${esc(c)}">${esc(c)}（${c === "全部" ? TEMPLATES.length : TEMPLATES.filter(t => t.cat === c).length}）</button>`).join("")}</div>
+    ${list.map(t => {
+      const mine = recs.filter(r => r.templateId === t.id), last = mine[0];
+      const st = !last ? "未填" : doneCount(last) >= t.items.length ? "已完成" : "填寫中";
+      return `<div class="trow"><div class="tinfo"><span class="tag">${esc(t.cat)}</span>${t.custom ? `<span class="tag" style="color:var(--g)">自訂</span>` : ""}<b>${esc(t.name.replace("施工自主檢查表", "").replace("自主檢查表", ""))}</b>
+        <small>${last ? `${esc(last.location || "未填位置")}・${esc(last.date)}・共 ${mine.length} 筆` : "尚無紀錄"}</small></div>
+        <span class="st st-${st}">${st}</span>${t.custom ? `<a class="btnlink sm" href="#/template/${t.id}" aria-label="編輯範本">✎</a>` : ""}<button data-new="${t.id}">填表</button></div>`;
+    }).join("")}
+    <h2 class="t">已填寫紀錄</h2>
+    ${recs.length ? recs.filter(r => cat === "全部" || TEMPLATES.find(x => x.id === r.templateId)?.cat === cat).map(r => {
+      const t = TEMPLATES.find(x => x.id === r.templateId);
+      const ng = Object.values(r.items || {}).filter(i => i.r === "ng").length;
+      return `<a class="rec" href="#/checklist/${r.id}"><b>${esc(t?.name || r.templateId)}</b><br><small>${esc(r.date)}${r.location ? "・" + esc(r.location) : ""}・已標記 ${doneCount(r)}/${t?.items.length ?? "?"} 項${pc[r.id] ? `・📷${pc[r.id]}` : ""}${ng ? `・<span style="color:var(--bad)">有缺失 ${ng} 項</span>` : ""}</small></a>`;
+    }).join("") : `<div class="panel" style="color:var(--mut)">這個工地還沒有紀錄</div>`}`;
+  view.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; renderChecklist(); });
+  view.querySelectorAll("[data-new]").forEach(b => b.onclick = async () => {
+    const rec = { id: uid(), siteId, templateId: b.dataset.new, docNo: "", contractor: ls.get("contractor", ""), subcontractor: "", date: today(), location: "", timing: {}, items: {}, sigs: {}, updated: Date.now() };
+    await DB.put("records", rec);
+    location.hash = "#/checklist/" + rec.id;
+  });
+}
+
+/* ---------- 填寫表單 ---------- */
+const TIMING = [["before", "施工前"], ["during", "施工中"], ["after", "施工完成"]];
+async function loadRec(id) {
+  const rec = await DB.get("records", id);
+  if (!rec) { location.hash = "#/checklist"; return []; }
+  rec.timing = rec.timing || {}; rec.items = rec.items || {}; rec.sigs = rec.sigs || {};
+  return [rec, TEMPLATES.find(t => t.id === rec.templateId)];
+}
+async function renderForm(id) {
+  const [rec, tpl] = await loadRec(id);
+  if (!rec) return;
+  let timer;
+  let photos = await photosOf(rec.id);
+  const save = () => { clearTimeout(timer); timer = setTimeout(flush, 300); };
+  const flush = () => { clearTimeout(timer); rec.updated = Date.now(); return DB.put("records", rec); };
+  const prog = () => `已標記 ${doneCount(rec)}/${tpl.items.length} 項`;
+  const inp = (k, lab, ph) => `<div class="field"><label>${lab}</label><input data-f="${k}" value="${esc(rec[k])}" placeholder="${ph || ""}"></div>`;
+  view.innerHTML = `
+    <h2 class="t" style="margin-bottom:0">${esc(tpl.name)}</h2>
+    <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#c77d00;font-weight:700">${prog()}</span></div>
+    <div class="panel">
+      ${inp("contractor", "承攬廠商", "廠商名稱")}${inp("subcontractor", "協力廠商", "協力廠商（如有）")}
+      ${inp("location", "檢查位置", "例如：2F、B1 東側")}
+      <div class="field"><label>檢查日期</label><input type="date" data-f="date" value="${esc(rec.date)}"></div>
+      ${inp("docNo", "編號", "表單編號（可空白）")}
+      <div class="field"><label>檢查時機</label><div class="timing">${TIMING.map(([k, l]) => `<label><input type="checkbox" data-t="${k}" ${rec.timing[k] ? "checked" : ""}> ${l}</label>`).join("")}</div></div>
+    </div>
+    <div class="legend">結果標記：<b style="color:var(--ok)">○ 合格</b>　<b style="color:var(--bad)">✕ 不合格</b>　<b style="color:var(--mut)">／ 不適用</b></div>
+    ${tpl.items.map((it, i) => {
+      const v = rec.items[i] || {};
+      return `<div class="item" data-i="${i}"><div class="top"><div><div class="t"><span class="n">${i + 1}.</span> ${esc(it.t)}</div><div class="m">規定標準：${esc(it.std)}</div></div>
+        <div class="sym">${["ok", "ng", "na"].map(k => `<button class="${v.r === k ? "on" : ""}" data-r="${k}" aria-label="${k}">${SYM[k]}</button>`).join("")}</div></div>
+        <input class="note" placeholder="實際檢查情形（可空白）" value="${esc(v.actual ?? v.note)}">
+        <div class="phrow"><button type="button" class="phbtn" data-cam="${i}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-ph="${i}"></label><div class="thumbs" data-th="${i}"></div></div></div>`;
+    }).join("")}
+    ${[["worker", "檢查人員簽名"], ["manager", "工地主任簽名"]].map(([k, l]) => `
+      <div class="sigbox"><div class="bar"><b>${l}</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div>`).join("")}
+    <div class="row"><button id="previewBtn">👁 預覽／列印</button></div>
+    <div class="row"><button class="danger" id="delBtn">刪除這份紀錄</button></div>`;
+
+  view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => {
+    rec[el.dataset.f] = el.value;
+    if (el.dataset.f === "contractor") ls.set("contractor", el.value);
+    save();
+  });
+  view.querySelectorAll("[data-t]").forEach(el => el.onchange = () => { rec.timing[el.dataset.t] = el.checked; save(); });
+  view.querySelectorAll(".item").forEach(el => {
+    const i = el.dataset.i, note = $(".note", el);
+    el.querySelectorAll(".sym button").forEach(b => b.onclick = () => {
+      const cur = rec.items[i] = rec.items[i] || {};
+      cur.r = cur.r === b.dataset.r ? "" : b.dataset.r;
+      el.querySelectorAll(".sym button").forEach(x => x.classList.toggle("on", x.dataset.r === cur.r));
+      $("#prog").textContent = prog();
+      save();
+    });
+    note.oninput = () => { (rec.items[i] = rec.items[i] || {}).actual = note.value; save(); };
+  });
+  const drawThumbs = i => {
+    $(`[data-th="${i}"]`).innerHTML = photos.filter(p => p.itemIdx === i).map(p =>
+      `<span class="th"><img src="${p.data}" alt="照片"><button data-delph="${p.id}" aria-label="刪除照片">✕</button></span>`).join("");
+  };
+  tpl.items.forEach((_, i) => drawThumbs(i));
+  view.onclick = async e => {
+    const id = e.target.dataset?.delph; if (!id) return;
+    if (!confirm("刪除這張照片？")) return;
+    const p = photos.find(x => x.id === id); await DB.del("photos", id);
+    photos = photos.filter(x => x.id !== id); drawThumbs(p.itemIdx);
+  };
+  const addPhoto = async (i, file) => {
+    const site = sites.find(s => s.id === rec.siteId);
+    const p = { id: uid(), recId: rec.id, itemIdx: i, data: await makePhoto(file, `${nowStamp()} ${site?.name || ""}`), created: Date.now() };
+    await DB.put("photos", p); photos.push(p); drawThumbs(i);
+  };
+  view.querySelectorAll("input[data-ph]").forEach(inp => inp.onchange = async () => {
+    const i = +inp.dataset.ph, files = [...inp.files]; inp.value = "";
+    for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請換一張或重新拍攝"); } }
+  });
+  // 網頁內建相機：直接開鏡頭、可連續拍攝（iPhone 主畫面 App 不支援直接開相機的 capture 屬性）
+  view.querySelectorAll("[data-cam]").forEach(btn => btn.onclick = async () => {
+    const i = +btn.dataset.cam, cam = $("#cam"), v = $("#camV");
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+    } catch {
+      alert("無法開啟相機。請到 iPhone「設定 → Safari → 相機」改成「詢問」或「允許」，或改用「相簿」按鈕。");
+      return;
+    }
+    v.srcObject = stream; cam.hidden = false;
+    let n = 0, busy = false;
+    $("#camTitle").textContent = `第 ${i + 1} 項：${tpl.items[i].t}`;
+    $("#camCount").textContent = "已拍 0 張";
+    const close = () => { stream.getTracks().forEach(t => t.stop()); v.srcObject = null; cam.hidden = true; };
+    $("#camDone").onclick = close;
+    $("#camShot").onclick = async () => {
+      if (busy || !v.videoWidth) return;
+      busy = true;
+      const c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
+      c.getContext("2d").drawImage(v, 0, 0);
+      const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
+      cam.classList.add("flash"); setTimeout(() => cam.classList.remove("flash"), 120);
+      try { await addPhoto(i, blob); n++; $("#camCount").textContent = `已拍 ${n} 張`; } catch { alert("存檔失敗"); }
+      busy = false;
+    };
+  });
+  view.querySelectorAll("canvas").forEach(c => setupSig(c, rec, save));
+  view.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => {
+    const c = $(`canvas[data-sig=${b.dataset.clear}]`);
+    c.getContext("2d").clearRect(0, 0, c.width, c.height);
+    delete rec.sigs[b.dataset.clear]; save();
+  });
+  $("#previewBtn").onclick = async () => { await flush(); location.hash = "#/checklist/" + rec.id + "/preview"; };
+  $("#delBtn").onclick = async () => {
+    if (!confirm("確定刪除這份紀錄？")) return;
+    for (const p of photos) await DB.del("photos", p.id);
+    await DB.del("records", rec.id); location.hash = "#/checklist";
+  };
+}
+
+function setupSig(c, rec, save) {
+  const k = c.dataset.sig, ratio = window.devicePixelRatio || 1;
+  c.width = c.clientWidth * ratio; c.height = c.clientHeight * ratio;
+  const g = c.getContext("2d");
+  g.scale(ratio, ratio); g.lineWidth = 2.5; g.lineCap = g.lineJoin = "round"; g.strokeStyle = "#111";
+  if (rec.sigs[k]) { const im = new Image(); im.onload = () => g.drawImage(im, 0, 0, c.clientWidth, c.clientHeight); im.src = rec.sigs[k]; }
+  let drawing = false;
+  const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+  c.onpointerdown = e => { drawing = true; c.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...pos(e)); };
+  c.onpointermove = e => { if (!drawing) return; g.lineTo(...pos(e)); g.stroke(); };
+  const end = () => { if (!drawing) return; drawing = false; rec.sigs[k] = c.toDataURL("image/png"); save(); };
+  c.onpointerup = c.onpointercancel = end;
+}
+
+/* ---------- 預覽／列印 ---------- */
+async function renderPreview(id) {
+  const [rec, tpl] = await loadRec(id);
+  if (!rec) return;
+  const site = sites.find(s => s.id === rec.siteId);
+  const company = ls.get("company", "");
+  const d = rec.date ? rec.date.replace(/^(\d+)-(\d+)-(\d+)$/, "$1 年 $2 月 $3 日") : "";
+  const box = k => (rec.timing[k] ? "☑" : "□");
+  const photos = await photosOf(rec.id);
+  view.innerHTML = `
+    <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回填表</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
+    <div class="noprint" style="margin:0 12px 8px;color:var(--mut);font-size:13px">顯示目前填寫的內容。iPhone：按列印後，在預覽縮圖上用兩指放大，即可「儲存到檔案」成 PDF。</div>
+    <div class="paper">
+      ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}
+      <div class="ptitle">${esc(tpl.name)}</div>
+      <div class="pno">編號：<span>${esc(rec.docNo)}</span></div>
+      <table class="pt">
+        <tr><th>工程名稱</th><td colspan="3">${esc(site?.name)}</td></tr>
+        <tr><th>分項工程名稱</th><td colspan="3">${esc(tpl.sub)}</td></tr>
+        <tr><th>承攬廠商</th><td>${esc(rec.contractor)}</td><th>協力廠商</th><td>${esc(rec.subcontractor)}</td></tr>
+        <tr><th>檢查位置</th><td>${esc(rec.location)}</td><th>檢查日期</th><td>${esc(d)}</td></tr>
+        <tr><th>檢查時機</th><td colspan="3">${TIMING.map(([k, l]) => `${box(k)}${l}`).join("　")}</td></tr>
+        <tr><th>檢查結果</th><td colspan="3">○ 檢查合格　✕ 有缺失需改正　／ 無此檢查項目</td></tr>
+      </table>
+      <table class="pt items">
+        <tr><th>檢查項目</th><th>管理標準</th><th>實際檢查結果<br>(量化檢查數據)</th><th style="width:16mm">檢查結果</th></tr>
+        ${tpl.items.map((it, i) => { const v = rec.items[i] || {}; return `<tr><td>${esc(it.t)}</td><td>${esc(it.std)}</td><td>${esc(v.actual ?? v.note)}</td><td class="c">${SYM[v.r] || ""}</td></tr>`; }).join("")}
+        <tr><td colspan="4" class="recheck">缺失複查結果：<br>□已完成改善（檢附改善前中後照片）<br>□未完成改善，填具「缺失改善追蹤表」進行追蹤改善<br><br>複查日期：　　　年　　月　　日　　複查人員職稱：　　　　　　　　簽名：</td></tr>
+        <tr><td colspan="4" class="recheck">備註：<br>1.檢查結果合格者註明「○」，不合格者註明「✕」，如無需檢查之項目則打「／」。</td></tr>
+      </table>
+      <div class="psigs">${[["worker", "檢查人員"], ["manager", "工地主任"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${rec.sigs[k]}">` : "<br><br>"}${l}</div>`).join("")}</div>
+    </div>
+    ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${p.data}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
+  $("#pvBack").onclick = () => location.hash = "#/checklist/" + id;
+  $("#pvPrint").onclick = () => window.print();
+}
+
+/* ---------- 自訂範本編輯 ---------- */
+async function renderTemplateEditor(id) {
+  const isNew = id === "new";
+  const tpl = isNew ? { id: uid(), custom: true, cat: "", name: "", sub: "", items: [{ t: "", std: "" }], created: Date.now() }
+    : structuredClone(TEMPLATES.find(t => t.id === id && t.custom));
+  if (!tpl.id) { location.hash = "#/checklist"; return; }
+  // 已有紀錄使用時，不可刪除或搬動項目（紀錄以項目順序對應），只能改文字與新增
+  const used = isNew ? 0 : (await DB.all("records")).filter(r => r.templateId === tpl.id).length;
+  const cats = [...new Set(TEMPLATES.map(t => t.cat))];
+  const draw = () => {
+    view.innerHTML = `
+      <h2 class="t">${isNew ? "自訂空白檢查表" : "編輯檢查表"}</h2>
+      <div class="panel">
+        <div class="field"><label>類別</label><input id="tCat" list="catList" value="${esc(tpl.cat)}" placeholder="例如：鋼筋、泥作、機電"><datalist id="catList">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist></div>
+        <div class="field"><label>表單名稱（必填）</label><input id="tName" value="${esc(tpl.name)}" placeholder="例如：磁磚工程施工自主檢查表"></div>
+        <div class="field"><label>分項工程名稱</label><input id="tSub" value="${esc(tpl.sub)}" placeholder="例如：磁磚工程"></div>
+      </div>
+      ${used ? `<div class="legend">已有 ${used} 筆紀錄使用這張表，為避免對錯項目，只能修改文字或新增項目，不能刪除。</div>` : ""}
+      <h2 class="t" style="font-size:17px">檢查項目</h2>
+      ${tpl.items.map((it, i) => `<div class="item" data-i="${i}">
+        <div class="top"><b class="n" style="padding-top:10px">${i + 1}.</b>
+        <div style="flex:1;min-width:0"><input class="note" style="margin:0 0 8px" data-k="t" placeholder="檢查項目" value="${esc(it.t)}"><input class="note" style="margin:0" data-k="std" placeholder="管理標準（例如：誤差5mm以內）" value="${esc(it.std)}"></div>
+        ${used && i < tpl.origLen ? "" : `<button class="danger" data-del="${i}" style="min-width:44px;padding:0" aria-label="刪除此項">✕</button>`}</div></div>`).join("")}
+      <div class="row"><button class="sec" id="addItem">＋ 新增檢查項目</button></div>
+      <div class="row"><button id="tSave">儲存</button></div>
+      ${isNew ? "" : `<div class="row"><button class="danger" id="tDel">刪除這張檢查表</button></div>`}`;
+    $("#addItem").onclick = () => { sync(); tpl.items.push({ t: "", std: "" }); draw(); view.querySelector(".item:last-of-type .note")?.focus(); };
+    view.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { sync(); tpl.items.splice(+b.dataset.del, 1); if (!tpl.items.length) tpl.items.push({ t: "", std: "" }); draw(); });
+    $("#tSave").onclick = async () => {
+      sync();
+      const items = tpl.items.filter(i => i.t.trim());
+      if (!tpl.name.trim()) { alert("請輸入表單名稱"); return; }
+      if (!items.length) { alert("至少要有一個檢查項目"); return; }
+      if (used && items.length !== tpl.items.length) { alert("已有紀錄使用這張表，不能留下空白項目，請填寫或刪除空白列"); return; }
+      tpl.name = tpl.name.trim(); tpl.cat = tpl.cat.trim() || "自訂"; tpl.sub = tpl.sub.trim() || tpl.name.replace(/施工自主檢查表|自主檢查表/, "");
+      tpl.items = items.map(i => ({ t: i.t.trim(), std: i.std.trim() })); tpl.updated = Date.now();
+      delete tpl.origLen;
+      await DB.put("templates", tpl); await loadTemplates();
+      location.hash = "#/checklist";
+    };
+    $("#tDel")?.addEventListener("click", async () => {
+      if (used) { alert(`已有 ${used} 筆紀錄使用這張表，請先刪除那些紀錄`); return; }
+      if (!confirm("確定刪除這張檢查表？")) return;
+      await DB.del("templates", tpl.id); await loadTemplates(); location.hash = "#/checklist";
+    });
+  };
+  const sync = () => {
+    tpl.cat = $("#tCat").value; tpl.name = $("#tName").value; tpl.sub = $("#tSub").value;
+    view.querySelectorAll(".item").forEach(el => { const it = tpl.items[+el.dataset.i]; it.t = $('[data-k=t]', el).value; it.std = $('[data-k=std]', el).value; });
+  };
+  tpl.origLen = tpl.items.length;
+  draw();
+}
+
+/* ---------- 備份 ---------- */
+async function renderBackup() {
+  const last = ls.get("lastBackup", "");
+  view.innerHTML = `
+    <h2 class="t">備份與還原</h2>
+    <div class="panel">上次備份：${last ? esc(new Date(last).toLocaleString("zh-TW")) : "尚未備份"}<br><small style="color:var(--mut)">資料只存在這支手機。換手機或清除瀏覽器資料前，請先下載備份檔。</small></div>
+    <div class="row"><button id="expBtn">💾 下載備份檔</button></div>
+    <div class="row"><button class="sec" id="impBtn">📂 匯入備份檔</button></div>
+    <input type="file" id="impFile" accept=".json,application/json" hidden>`;
+  $("#expBtn").onclick = async () => {
+    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+    a.download = `三星蔥工具箱備份_${today()}.json`;
+    a.click();
+    ls.set("lastBackup", new Date().toISOString());
+    renderBackup(); checkBackup();
+  };
+  $("#impBtn").onclick = () => $("#impFile").click();
+  $("#impFile").onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    try {
+      const d = JSON.parse(await f.text());
+      if (d.app !== "avocado-toolbox") throw 0;
+      // 同名工地合併：把匯入紀錄改掛到本機同名工地底下
+      const local = await DB.all("sites"), map = {};
+      for (const s of d.sites) {
+        const same = local.find(x => x.name === s.name);
+        if (same) map[s.id] = same.id; else { await DB.put("sites", s); map[s.id] = s.id; local.push(s); }
+      }
+      if (d.company && !ls.get("company", "")) ls.set("company", d.company);
+      for (const t of d.templates || []) {
+        const old = await DB.get("templates", t.id);
+        if (!old || (old.updated || 0) < (t.updated || 0) || !old.updated) await DB.put("templates", t);
+      }
+      await loadTemplates();
+      for (const p of d.photos || []) if (!(await DB.get("photos", p.id))) await DB.put("photos", p);
+      let n = 0;
+      for (const r of d.records) {
+        const old = await DB.get("records", r.id);
+        if (old && old.updated >= r.updated) continue;
+        r.siteId = map[r.siteId] || r.siteId; await DB.put("records", r); n++;
+      }
+      await loadSites();
+      alert(`匯入完成，更新了 ${n} 份紀錄`);
+    } catch { alert("這不是有效的備份檔"); }
+    e.target.value = "";
+  };
+}
+
+/* ---------- 啟動 ---------- */
+(async () => {
+  await loadTemplates();
+  await loadSites();
+  route();
+  if (!sites.length) openSetup("first");
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();

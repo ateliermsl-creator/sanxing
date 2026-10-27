@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>三星蔥營造工具箱</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="theme-color" content="#3b6b22">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="三星蔥工具箱">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header id="topbar" hidden>
+  <button id="backBtn" aria-label="返回">‹</button>
+  <select id="siteSelect" aria-label="選擇工地"></select>
+  <button id="addSiteBtn" aria-label="新增工地">＋</button>
+  <button id="setBtn" aria-label="工地與公司設定">✎</button>
+</header>
+<div id="backupWarn" hidden></div>
+<main id="view"></main>
+<div id="cam" hidden>
+  <div id="camTitle"></div>
+  <video id="camV" autoplay playsinline muted></video>
+  <div class="camBar"><span id="camCount"></span><button type="button" id="camShot" aria-label="拍照"></button><button type="button" id="camDone">完成</button></div>
+</div>
+<dialog id="setup">
+  <form method="dialog" id="setupForm">
+    <h2 id="setupTitle" style="margin:0 0 6px;font-size:20px">開始使用：先填寫工地</h2>
+    <p id="setupHint" style="margin:0 0 12px;font-size:13px;color:var(--mut)">工地名稱會印在每張檢查表的「工程名稱」，請先填好再開始填表。之後可以按上方 ✎ 修改，或按 ＋ 新增其他工地。</p>
+    <div class="field" style="margin:0 0 10px"><label>工地名稱（必填）</label><input id="sName" placeholder="例如：宜蘭三星蔥新建工程" required></div>
+    <div class="field" style="margin:0 0 14px"><label>公司名稱（印在檢查表最上方，可空白）</label><input id="sCompany" placeholder="例如：○○營造有限公司"></div>
+    <button class="full" id="sOk">開始填表</button>
+    <button type="button" class="sec full" id="sCancel" style="margin-top:8px" hidden>取消</button>
+  </form>
+</dialog>
+<script src="templates.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
