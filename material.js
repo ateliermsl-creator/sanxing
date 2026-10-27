@@ -59,7 +59,7 @@ async function renderMatList() {
   const cats = await matCats();
   // 清掉按了新增卻沒填任何內容的空白紀錄
   for (const x of (await DB.all("matrecs")).filter(x => x.siteId === siteId && !x.name.trim() && !x.spec.trim() && !x.vendor.trim() && !x.qty && !(x.checks || []).some(c => c.r) && !x.sigs?.inspector)) {
-    if (!(await DB.all("photos")).some(p => p.recId === x.id)) await DB.del("matrecs", x.id);
+    if (!(await DB.all("photos")).some(p => p.recId === x.id) && !(await attFilesOf(x.id)).length) await DB.del("matrecs", x.id);
   }
   const all = (await DB.all("matrecs")).filter(x => x.siteId === siteId).sort((p, q) => q.date.localeCompare(p.date) || (q.time || "").localeCompare(p.time || "") || q.created - p.created);
   if (seq !== renderMatList.seq) return;
@@ -111,6 +111,7 @@ async function renderMatForm(id) {
       <div class="grid2">${inp("ticket", "送貨單號", "")}${inp("lot", "批號／爐號", "")}</div>
       <div class="field" style="margin-bottom:0"><label>存放位置</label><input data-f="location" placeholder="例：1F 材料區" value="${esc(r.location)}"></div></div>
     ${r.docs.length ? `<div class="panel"><b>檢附文件</b><div class="timing" style="margin-top:8px">${r.docs.map((d, i) => `<label><input type="checkbox" data-d="${i}" ${d.v ? "checked" : ""}> ${esc(d.n)}</label>`).join("")}</div></div>` : ""}
+    ${attBlock("檢附文件電子檔（出廠證明、檢驗報告等）")}
     <h2 class="t" style="font-size:17px;margin-bottom:0">檢查項目</h2>
     <div class="legend" style="margin-top:6px">結果標記：<b style="color:var(--ok)">○ 合格</b>　<b style="color:var(--bad)">✕ 不合格</b>　<b style="color:var(--mut)">／ 不適用</b></div>
     <div id="mChecks">${r.checks.length ? r.checks.map(chk).join("") : `<div class="panel" style="color:var(--mut)">這個類別還沒有設定檢查項目。可到「類別與檢查項目設定」新增，或在下方增加本次要檢查的項目。</div>`}</div>
@@ -166,10 +167,11 @@ async function renderMatForm(id) {
     const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
+  attBind(view, r.id);
   $("#mDone").onclick = async () => { await flush(); goBack("#/material"); };
   $("#mPrint").onclick = async () => { await flush(); location.hash = "#/material/" + id + "/print"; };
   $("#mNext").onclick = async () => { await flush(); const n = await matNew({ catId: r.catId, vendor: r.vendor, date: r.date, location: r.location, names: { deliver: "", inspector: r.names.inspector || "" } }); goReplace("#/material/" + n.id); };
-  $("#mDel").onclick = async () => { if (!confirm("確定刪除這筆進場紀錄？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await DB.del("matrecs", id); goBack("#/material"); };
+  $("#mDel").onclick = async () => { if (!confirm("確定刪除這筆進場紀錄？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("matrecs", id); goBack("#/material"); };
 }
 
 /* ---------- 驗收單預覽／列印（A4） ---------- */
@@ -197,6 +199,7 @@ async function renderMatPrint(id) {
       <div class="psigs tall">${sig("deliver")}${sig("inspector")}</div>
     </div>
     ${matPrintPhoto && photos.length ? `<div class="paper gallery"><div class="ptitle">附件：照片</div><div class="gal">${photos.map(p => `<figure><img src="${p.data}"><figcaption>${esc(matName(r))}</figcaption></figure>`).join("")}</div></div>` : ""}`;
+  { const ln = await attNamesLine(r.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/material/" + id);
   $("#pvPrint").onclick = doPrint;
   $("#pvPh").onchange = e => { matPrintPhoto = e.target.checked; renderMatPrint(id); };

@@ -100,6 +100,7 @@ async function renderPourBatch(id) {
     ${bt.trucks.map((t, i) => { const j = pourJudge(bt, t); return `<a class="rec" href="#/pour/${bt.id}/truck/${t.id}"><div style="display:flex;justify-content:space-between;gap:8px"><b>第 ${i + 1} 車　${esc(t.plate || "（未填車號）")}</b>${pourBadge(j.st)}</div>
       <small>到場 ${esc(t.arrive || "—")}・${esc(t.volume || "—")} m³${t.slump ? "・坍度 " + esc(t.slump) : ""}${t.chloride ? "・Cl⁻ " + esc(t.chloride) : ""}${t.sampled ? "・試體 " + esc(t.specimen || "✓") : ""}${t.disp === "reject" ? `・<span style="color:#c0392b">退料</span>` : ""}${t.sigs?.tester && t.sigs?.driver ? "・✔簽名" : ""}</small></a>`; }).join("")}
     <div class="row"><button id="pjTruck">＋ 新增一車</button></div>
+    ${attBlock("附加檔案（配比設計書、試驗報告等）")}
     <div class="row"><button class="sec" id="pjPrint">👁 預覽／列印（A4 橫式）</button><button class="sec" id="pjShare">📤 分享摘要</button></div>
     <div class="row"><button class="danger" id="pjDel">刪除這次澆置（含全部車次）</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => { bt[el.dataset.f] = el.value; save(); });
@@ -108,6 +109,7 @@ async function renderPourBatch(id) {
     const t = { id: uid(), plate: "", ticket: "", leave: "", arrive: pourNow(), volume: prev?.volume || "", slump: "", chloride: "", temp: "", sampled: false, specimen: "", disp: "use", note: "", names: { tester: ls.get("pourTester", ""), driver: "" }, sigs: {}, created: Date.now() };
     bt.trucks.push(t); await flush(); location.hash = `#/pour/${bt.id}/truck/${t.id}`;
   };
+  attBind(view, bt.id);
   $("#pjPrint").onclick = async () => { await flush(); location.hash = "#/pour/" + id + "/print"; };
   $("#pjShare").onclick = async () => {
     const s = pourStats([bt]), site = sites.find(x => x.id === bt.siteId);
@@ -120,7 +122,7 @@ async function renderPourBatch(id) {
   $("#pjDel").onclick = async () => {
     if (!confirm(`確定刪除這次澆置？含 ${bt.trucks.length} 車的全部紀錄與照片，無法復原。`)) return;
     const ph = await DB.all("photos"); for (const p of ph) if (bt.trucks.some(t => t.id === p.recId)) await DB.del("photos", p.id);
-    await DB.del("pours", id); goBack("#/pour");
+    await attPurge([id, ...bt.trucks.map(t => t.id)]); await DB.del("pours", id); goBack("#/pour");
   };
 }
 
@@ -147,6 +149,7 @@ async function renderPourTruck(id, tid) {
       <div class="field" style="margin:8px 0 0"><label>處置</label><select data-t="disp">${Object.entries(POUR_DISP).map(([k, l]) => `<option value="${k}" ${t.disp === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
       <div class="field" style="margin:8px 0 0"><label>備註</label><input data-t="note" placeholder="例：加藥劑調整、退料原因" value="${esc(t.note || "")}"></div></div>
     <div class="panel"><b>送貨單／試驗照片</b><div class="phrow"><button type="button" class="phbtn" id="ptCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="ptFile"></label><div class="thumbs" id="ptTh"></div></div></div>
+    ${attBlock("附加檔案（送貨單、試驗報告等）")}
     ${[["tester", "試驗人員"], ["driver", "司機"]].map(([k, l]) => `<div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(t.names[k])}"></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l}簽名</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div></div>`).join("")}
     <div class="row"><button id="ptDone">✔ 完成（回澆置表）</button></div>
@@ -179,6 +182,7 @@ async function renderPourTruck(id, tid) {
     const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
+  attBind(view, t.id);
   $("#ptDone").onclick = async () => { await flush(); goBack("#/pour/" + id); };
   $("#ptNext").onclick = async () => {
     await flush();
@@ -188,7 +192,7 @@ async function renderPourTruck(id, tid) {
   $("#ptDel").onclick = async () => {
     if (!confirm("確定刪除這一車？")) return;
     for (const p of photos) await DB.del("photos", p.id);
-    bt.trucks = bt.trucks.filter(x => x.id !== tid); await flush(); goBack("#/pour/" + id);
+    await attPurge(tid); bt.trucks = bt.trucks.filter(x => x.id !== tid); await flush(); goBack("#/pour/" + id);
   };
 }
 
@@ -219,6 +223,7 @@ async function renderPourPrint(id) {
     </div>
     ${pourPrintPhoto && photos.length ? `<div class="paper gallery psum"><div class="ptitle">附件：送貨單／試驗照片</div><div class="gal">${photos.map(p => { const i = bt.trucks.findIndex(t => t.id === p.recId); return `<figure><img src="${p.data}"><figcaption>第 ${i + 1} 車　${esc(bt.trucks[i]?.plate || "")}</figcaption></figure>`; }).join("")}</div></div>` : ""}`;
   pourLandscape();
+  { const ln = await attNamesLine([bt.id, ...bt.trucks.map(t => t.id)]); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/pour/" + id);
   $("#pvPrint").onclick = doPrint;
   $("#pvPh").onchange = e => { pourPrintPhoto = e.target.checked; renderPourPrint(id); };

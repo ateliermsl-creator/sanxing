@@ -190,3 +190,8 @@ details>summary{cursor:pointer}
 .pb{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700}
 .pb.ok{background:#e1f2e1;color:#1d6b1d}.pb.ng{background:#fde4e1;color:#c0392b}.pb.na{background:#eceff3;color:#778}
 .pb.pd{background:#fff3cd;color:#8a6200}
+.att{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.att:first-child{border-top:0}.aic{font-size:24px}
+.ainf{flex:1;min-width:0}.ainf b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ainf small{color:var(--mut)}
+.att button{min-height:40px;padding:0 12px;font-size:14px}
+@media print{#attBox{display:none!important}}

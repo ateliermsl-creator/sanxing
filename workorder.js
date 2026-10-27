@@ -106,6 +106,7 @@ async function renderWorkorderForm(id) {
     <div id="woLines">${rec.lines.map(lineHtml).join("")}</div>
     ${locked ? "" : `<div class="row"><button class="sec" id="woAddMan">＋ 人力</button><button class="sec" id="woAddMac">＋ 機械</button></div>`}
     <div class="panel" id="woTot"></div>
+    ${attBlock()}
     ${[["vendor", "廠商代表"], ["site", "我方現場人員"]].map(([k, l]) => `
       <div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(rec.names[k])}" ${dis}></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l}簽名</b>${locked ? "" : `<button class="sec" data-clear="${k}">清除</button>`}</div>
@@ -171,6 +172,7 @@ async function renderWorkorderForm(id) {
       rec.status = "draft"; rec.log.push({ at: new Date().toISOString(), text: "解除鎖定" }); await flush(); renderWorkorderForm(id);
     };
   }
+  attBind(view, rec.id, { readonly: locked });
   $("#woPreview").onclick = async () => { await flush(); location.hash = "#/workorder/" + id + "/preview"; };
   $("#woShare").onclick = async () => {
     const text = woSummaryText(rec);
@@ -180,7 +182,7 @@ async function renderWorkorderForm(id) {
   $("#woDel").onclick = async () => {
     if (locked) { alert("已簽認的單據不能直接刪除，請先解除鎖定。"); return; }
     if (!confirm("確定刪除這張點工單？")) return;
-    await DB.del("workorders", id); goBack("#/workorder");
+    await attPurge(id); await DB.del("workorders", id); goBack("#/workorder");
   };
 }
 
@@ -220,6 +222,7 @@ async function renderWorkorderPreview(id) {
       <div class="psigs">${[["vendor", "廠商代表"], ["site", "我方現場人員"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${rec.sigs[k]}">` : "<br><br>"}${l}${rec.names[k] ? "：" + esc(rec.names[k]) : ""}</div>`).join("")}</div>
       <p style="margin-top:6mm;font-size:12px">${signed ? `簽認時間：${esc(woStamp(rec.signedAt))}（手機電子簽認，簽認後鎖定）` : "※ 尚未完成簽認"}</p>
     </div>`;
+  { const ln = await attNamesLine(rec.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/workorder/" + id);
   $("#pvPrice").onchange = e => { ls.set("woShowPrice", e.target.checked ? "1" : ""); renderWorkorderPreview(id); };
   $("#pvPrint").onclick = doPrint;

@@ -72,9 +72,9 @@ function renderInstall() {
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("avocado-toolbox", 7);
+  const r = indexedDB.open("avocado-toolbox", 8);
   r.onupgradeneeded = () => {
-    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats"])
+    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats", "files"])
       if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
   };
   r.onsuccess = () => res(r.result);
@@ -389,6 +389,7 @@ async function renderForm(id) {
         <input class="note" placeholder="實際檢查情形（可空白）" value="${esc(v.actual ?? v.note)}">
         <div class="phrow"><button type="button" class="phbtn" data-cam="${i}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-ph="${i}"></label><div class="thumbs" data-th="${i}"></div></div></div>`;
     }).join("")}
+    ${attBlock()}
     ${[["worker", "檢查人員簽名"], ["manager", "工地主任簽名"]].map(([k, l]) => `
       <div class="sigbox"><div class="bar"><b>${l}</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div>`).join("")}
     <div class="row"><button id="previewBtn">👁 預覽／列印</button></div>
@@ -443,6 +444,7 @@ async function renderForm(id) {
       async files => { for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請重新拍攝"); } } });
   });
   view.querySelectorAll("canvas").forEach(c => setupSig(c, rec, save));
+  attBind(view, rec.id);
   view.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => {
     const c = $(`canvas[data-sig=${b.dataset.clear}]`);
     c.getContext("2d").clearRect(0, 0, c.width, c.height);
@@ -452,7 +454,7 @@ async function renderForm(id) {
   $("#delBtn").onclick = async () => {
     if (!confirm("確定刪除這份紀錄？")) return;
     for (const p of photos) await DB.del("photos", p.id);
-    await DB.del("records", rec.id); goBack("#/checklist");
+    await attPurge(rec.id); await DB.del("records", rec.id); goBack("#/checklist");
   };
 }
 
@@ -503,6 +505,7 @@ async function renderPreview(id) {
       <div class="psigs">${[["worker", "檢查人員"], ["manager", "工地主任"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${rec.sigs[k]}">` : "<br><br>"}${l}</div>`).join("")}</div>
     </div>
     ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${p.data}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
+  { const ln = await attNamesLine(rec.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/checklist/" + id);
   $("#pvPrint").onclick = doPrint;
 }
@@ -567,11 +570,16 @@ async function renderBackup() {
   view.innerHTML = `
     <h2 class="t">備份與還原</h2>
     <div class="panel">上次備份：${last ? esc(new Date(last).toLocaleString("zh-TW")) : "尚未備份"}<br><small style="color:var(--mut)">資料只存在這支手機。換手機或清除瀏覽器資料前，請先下載備份檔。</small></div>
+    <div class="panel" id="bkFilesBox" hidden></div>
     <div class="row"><button id="expBtn">💾 下載備份檔</button></div>
     <div class="row"><button class="sec" id="impBtn">📂 匯入備份檔</button></div>
     <input type="file" id="impFile" accept=".json,application/json" hidden>`;
+  attTotal().then(({ n, size }) => { if (!n) return; const box = $("#bkFilesBox"); if (!box) return; box.hidden = false;
+    box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkFiles" checked style="width:22px;height:22px"> 備份包含附加檔案（${n} 個、${attMB(size)}）</label>${size > 50 * 1048576 ? `<p class="cnote" style="color:#c0392b">附加檔案很大，備份檔會很大、匯出匯入會比較慢。可以取消勾選，只備份紀錄。</p>` : `<p class="cnote">取消勾選的話，備份檔只含紀錄與照片，不含附加的電子檔。</p>`}`; });
   $("#expBtn").onclick = async () => {
-    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const withFiles = $("#bkFiles") ? $("#bkFiles").checked : true;
+    const files = []; if (withFiles) for (const f of await DB.all("files")) files.push({ id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, data: await blobToDataURL(f.blob) });
+    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), sites: await DB.all("sites"), records: await DB.all("records") };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     a.download = `三星蔥工具箱備份_${today()}.json`;
@@ -621,6 +629,11 @@ async function renderBackup() {
         const old = await DB.get("pours", x.id);
         if (old && (old.updated || 0) >= (x.updated || 0)) continue;
         x.siteId = map[x.siteId] || x.siteId; await DB.put("pours", x); jn++;
+      }
+      for (const f of d.files || []) {
+        if (await DB.get("files", f.id)) continue;
+        const blob = await (await fetch(f.data)).blob();
+        await DB.put("files", { id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, blob: new File([blob], f.name, { type: f.type }) });
       }
       let mn = 0;
       for (const x of d.matcats || []) { const old = await DB.get("matcats", x.id); if (!old || (old.updated || 0) < (x.updated || 0)) await DB.put("matcats", x); }
