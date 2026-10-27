@@ -64,12 +64,12 @@ async function renderPunchList() {
       <div class="field" style="margin:0"><select id="pT"><option value="">全部工班</option><option value="__none" ${pTradeFilter === "__none" ? "selected" : ""}>未指定工班</option>${trades.map(t => `<option ${t === pTradeFilter ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div></div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><small style="color:var(--mut)">共 ${list.length} 筆</small><button class="sec" id="pBulkBtn" style="min-height:38px;font-size:14px">${pBulk ? "完成選取" : "☑ 批次指定工班／期限"}</button></div></div>
     ${pBulk ? `<div class="legend" style="margin-top:0">已選 <b id="pCnt">${pPicked.size}</b> 項　<button class="sec" id="pAll" style="min-height:36px;font-size:14px;padding:0 10px">全選</button> <button id="pAssign" style="min-height:36px;font-size:14px;padding:0 12px">指定工班／期限</button></div>` : ""}
-    <div id="pList">${list.length ? list.map(x => `<div class="rec pitem" data-id="${x.id}" role="button">
-      ${pBulk ? `<input type="checkbox" class="pchk" data-pick="${x.id}" ${pPicked.has(x.id) ? "checked" : ""}>` : ""}
-      ${x.thumb ? `<img class="pth" src="${x.thumb}" alt="">` : `<div class="pth ph0">📷</div>`}
+    <div id="pList">${list.length ? list.map(x => `<div class="rec pitem" data-id="${esc(x.id)}" role="button">
+      ${pBulk ? `<input type="checkbox" class="pchk" data-pick="${esc(x.id)}" ${pPicked.has(x.id) ? "checked" : ""}>` : ""}
+      ${x.thumb ? `<img class="pth" src="${safeImg(x.thumb)}" alt="">` : `<div class="pth ph0">📷</div>`}
       <div class="pbody"><div class="ptop"><b>${esc(x.location || "（未填位置）")}</b><span class="st st-${x.status === "closed" ? "已完成" : x.status === "fixed" ? "填寫中" : "未填"}" style="${x.status === "open" ? "color:#c0392b" : ""}">${PUNCH_STATUS[x.status]}</span></div>
         <div class="pdesc">${esc(x.desc || "（未填缺失內容）")}</div>
-        <small>${x.trade ? "👷 " + esc(x.trade) : `<span class="late">未指定工班</span>`}・期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `<span class="late">　逾期 ${pLate(x)} 天</span>` : ""}${x.rejects ? `　↩${x.rejects}` : ""}</small>
+        <small>${x.trade ? "👷 " + esc(x.trade) : `<span class="late">未指定工班</span>`}・期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `<span class="late">　逾期 ${pLate(x)} 天</span>` : ""}${x.rejects ? `　↩${esc(x.rejects)}` : ""}</small>
         ${pBulk ? "" : x.status === "open" ? `<div class="pact"><button data-pact="fix">✔ 回報改善</button></div>` : x.status === "fixed" ? `<div class="pact"><button data-pact="pass">✅ 結案</button><button class="danger" data-pact="reject">↩ 退回</button></div>` : ""}</div></div>`).join("")
       : `<div class="panel" style="color:var(--mut)">${all.length ? `這個條件下沒有缺失。<br><small>目前篩選：${esc(chips.find(c => c[0] === pFilter)?.[1])}${pTradeFilter ? "、工班＝" + esc(pTradeFilter === "__none" ? "未指定" : pTradeFilter) : ""}${q ? "、搜尋「" + esc(q) + "」" : ""}</small><br><button class="sec" id="pClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button>` : "還沒有缺失紀錄。到現場按「新增缺失」，記下位置、拍照、寫缺失內容，沒有網路也能用。"}</div>`}</div>`;
   $("#pAdd").onclick = async () => { const it = pNew({ no: await pNextNo() }); await DB.put("punch", it); location.hash = "#/punch/" + it.id; };
@@ -191,7 +191,7 @@ async function renderPunchForm(id) {
     ${it.log.length ? `<div class="panel"><small style="color:var(--mut)">紀錄<br>${it.log.map(x => `${esc(pStamp(x.at))}　${esc(x.text)}`).join("<br>")}</small></div>` : ""}
     <div class="row"><button class="danger" id="pDel">刪除這筆缺失</button></div>`;
 
-  const drawTh = slot => { const el = $(`[data-pth="${slot}"]`); if (el) el.innerHTML = photos.filter(p => p.itemIdx === slot).map(p => `<span class="th"><img src="${p.data}" alt="照片"><button data-pdel="${p.id}" aria-label="刪除照片">✕</button></span>`).join(""); };
+  const drawTh = slot => { const el = $(`[data-pth="${slot}"]`); if (el) el.innerHTML = photos.filter(p => p.itemIdx === slot).map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
   [0, 1].forEach(drawTh);
   const syncThumb = async () => { const f = photos.find(p => p.itemIdx === 0); it.thumb = f ? await pThumb(f.data) : ""; await flush(); };
   const addPhoto = async (slot, file) => {
@@ -262,7 +262,7 @@ async function renderPunchReport() {
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}<div class="ptitle">缺失改善通知單</div>
       <div style="margin:2mm 0 3mm;font-size:13px">工程：${esc(site?.name)}　工班／廠商：<b>${esc(tr)}</b>　製表：${pRoc(today())}　共 ${os.length} 項</div>
       <table class="pt items sm"><tr><th>編號</th><th>位置</th><th>缺失內容</th>${pRepPhoto ? "<th>照片</th>" : ""}<th>期限</th><th>狀態</th></tr>
-        ${os.map(x => `<tr><td class="c nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${x.rejects ? `<br><small>↩ 複驗退回 ${x.rejects} 次</small>` : ""}</td>${pRepPhoto ? `<td class="c">${photoMap[x.id] ? `<img src="${photoMap[x.id]}" style="width:26mm;max-height:26mm;object-fit:cover">` : ""}</td>` : ""}
+        ${os.map(x => `<tr><td class="c nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${x.rejects ? `<br><small>↩ 複驗退回 ${esc(x.rejects)} 次</small>` : ""}</td>${pRepPhoto ? `<td class="c">${photoMap[x.id] ? `<img src="${safeImg(photoMap[x.id])}" style="width:26mm;max-height:26mm;object-fit:cover">` : ""}</td>` : ""}
           <td class="c nw" style="${pOver(x) ? "color:#c0392b" : ""}">${x.due ? pRoc(x.due) : "—"}${pOver(x) ? `<br><small>逾期${pLate(x)}天</small>` : ""}</td><td class="c nw">${PUNCH_STATUS[x.status]}</td></tr>`).join("")}</table>
       <div class="psigs tall"><div>工班簽收／日期</div><div>工地主任</div></div></div>`).join("") : `<div class="panel noprint" style="color:var(--mut)">沒有符合條件的缺失。<br><small>這個工地共有 ${all.length} 筆：待改善 ${cnt.open}、待複驗 ${cnt.fixed}、已結案 ${cnt.closed}。<br>目前篩選：工班＝${pRepTrade ? esc(pRepTrade === "__none" ? "未指定" : pRepTrade) : "全部"}；狀態＝${Object.entries(PUNCH_STATUS).filter(([k]) => pRepStatus[k]).map(([, l]) => l).join("、") || "（都沒勾選）"}</small><br><button class="sec" id="rClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button></div>`}</div>`;
   $("#rTrade").onchange = e => { pRepTrade = e.target.value; renderPunchReport(); };
@@ -327,7 +327,7 @@ async function renderPunchSummary() {
       <div style="font-weight:700;margin:4mm 0 1mm">依位置（取位置的第一段，如樓層）</div><table class="pt items sm">${head("位置")}${statRows(x => pLoc1(x.location), locOrder)}${totRow}</table>
       <div style="font-weight:700;margin:4mm 0 1mm">缺失明細（${rows.length} 筆）</div>
       <table class="pt items sm"><tr><th>編號</th><th>位置</th><th>缺失內容</th><th>工班</th><th>期限</th><th>狀態</th><th>登記</th><th>改善回報</th><th>結案</th></tr>
-        ${rows.map(x => `<tr><td class="nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${x.rejects ? `<br><small>↩退回${x.rejects}次</small>` : ""}</td><td>${esc(x.trade)}</td>
+        ${rows.map(x => `<tr><td class="nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${x.rejects ? `<br><small>↩退回${esc(x.rejects)}次</small>` : ""}</td><td>${esc(x.trade)}</td>
           <td class="c nw" style="${pOver(x) ? "color:#c0392b" : ""}">${x.due ? pRoc(x.due) : "—"}${pOver(x) ? `<br><small>逾期${pLate(x)}天</small>` : ""}</td><td class="c nw">${PUNCH_STATUS[x.status]}</td>
           <td class="c nw">${x.foundDate ? pRoc(x.foundDate) : ""}</td><td class="c nw">${x.fixedAt ? pRoc(x.fixedAt) : ""}</td><td class="c nw">${x.closedAt ? pRoc(x.closedAt) : ""}</td></tr>`).join("") || `<tr><td colspan="9" class="c" style="color:#777">沒有符合條件的缺失</td></tr>`}</table>` : `<p style="color:var(--mut)">還沒有缺失紀錄。</p>`}
     </div>`;

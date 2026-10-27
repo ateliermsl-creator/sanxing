@@ -338,13 +338,13 @@ async function renderChecklist() {
       const st = !last ? "未填" : doneCount(last) >= t.items.length ? "已完成" : "填寫中";
       return `<div class="trow"><div class="tinfo"><span class="tag">${esc(t.cat)}</span>${t.custom ? `<span class="tag" style="color:var(--g)">自訂</span>` : ""}<b>${esc(t.name.replace("施工自主檢查表", "").replace("自主檢查表", ""))}</b>
         <small>${last ? `${esc(last.location || "未填位置")}・${esc(last.date)}・共 ${mine.length} 筆` : "尚無紀錄"}</small></div>
-        <span class="st st-${st}">${st}</span>${t.custom ? `<a class="btnlink sm" href="#/template/${t.id}" aria-label="編輯範本">✎</a>` : ""}<button data-new="${t.id}">填表</button></div>`;
+        <span class="st st-${st}">${st}</span>${t.custom ? `<a class="btnlink sm" href="#/template/${esc(t.id)}" aria-label="編輯範本">✎</a>` : ""}<button data-new="${esc(t.id)}">填表</button></div>`;
     }).join("")}
     <h2 class="t">已填寫紀錄</h2>
     ${recs.length ? recs.filter(r => cat === "全部" || TEMPLATES.find(x => x.id === r.templateId)?.cat === cat).map(r => {
       const t = TEMPLATES.find(x => x.id === r.templateId);
       const ng = Object.values(r.items || {}).filter(i => i.r === "ng").length;
-      return `<a class="rec" href="#/checklist/${r.id}"><b>${esc(t?.name || r.templateId)}</b><br><small>${esc(r.date)}${r.location ? "・" + esc(r.location) : ""}・已標記 ${doneCount(r)}/${t?.items.length ?? "?"} 項${pc[r.id] ? `・📷${pc[r.id]}` : ""}${ng ? `・<span style="color:var(--bad)">有缺失 ${ng} 項</span>` : ""}</small></a>`;
+      return `<a class="rec" href="#/checklist/${esc(r.id)}"><b>${esc(t?.name || r.templateId)}</b><br><small>${esc(r.date)}${r.location ? "・" + esc(r.location) : ""}・已標記 ${doneCount(r)}/${t?.items.length ?? "?"} 項${pc[r.id] ? `・📷${pc[r.id]}` : ""}${ng ? `・<span style="color:var(--bad)">有缺失 ${ng} 項</span>` : ""}</small></a>`;
     }).join("") : `<div class="panel" style="color:var(--mut)">這個工地還沒有紀錄</div>`}`;
   view.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; renderChecklist(); });
   view.querySelectorAll("[data-new]").forEach(b => b.onclick = async () => {
@@ -414,7 +414,7 @@ async function renderForm(id) {
   });
   const drawThumbs = i => {
     $(`[data-th="${i}"]`).innerHTML = photos.filter(p => p.itemIdx === i).map(p =>
-      `<span class="th"><img src="${p.data}" alt="照片"><button data-delph="${p.id}" aria-label="刪除照片">✕</button></span>`).join("");
+      `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-delph="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join("");
   };
   tpl.items.forEach((_, i) => drawThumbs(i));
   view.onclick = async e => {
@@ -502,9 +502,9 @@ async function renderPreview(id) {
         <tr><td colspan="4" class="recheck">缺失複查結果：<br>□已完成改善（檢附改善前中後照片）<br>□未完成改善，填具「缺失改善追蹤表」進行追蹤改善<br><br>複查日期：　　　年　　月　　日　　複查人員職稱：　　　　　　　　簽名：</td></tr>
         <tr><td colspan="4" class="recheck">備註：<br>1.檢查結果合格者註明「○」，不合格者註明「✕」，如無需檢查之項目則打「／」。</td></tr>
       </table>
-      <div class="psigs">${[["worker", "檢查人員"], ["manager", "工地主任"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${rec.sigs[k]}">` : "<br><br>"}${l}</div>`).join("")}</div>
+      <div class="psigs">${[["worker", "檢查人員"], ["manager", "工地主任"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${safeImg(rec.sigs[k])}">` : "<br><br>"}${l}</div>`).join("")}</div>
     </div>
-    ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${p.data}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
+    ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${safeImg(p.data)}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
   { const ln = await attNamesLine(rec.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/checklist/" + id);
   $("#pvPrint").onclick = doPrint;
@@ -591,10 +591,9 @@ async function renderBackup() {
   $("#impFile").onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try {
-      const d = JSON.parse(await f.text());
-      if (d.app !== "avocado-toolbox") throw 0;
+      const d = sanitizeBackup(JSON.parse(await f.text()));      // 備份檔視為不可信輸入，逐筆驗證後才寫入（見 safe.js）
       // 同名工地合併：把匯入紀錄改掛到本機同名工地底下
-      const local = await DB.all("sites"), map = {};
+      const local = await DB.all("sites"), map = Object.create(null);
       for (const s of d.sites) {
         const same = local.find(x => x.name === s.name);
         if (same) map[s.id] = same.id; else { await DB.put("sites", s); map[s.id] = s.id; local.push(s); }
@@ -632,8 +631,7 @@ async function renderBackup() {
       }
       for (const f of d.files || []) {
         if (await DB.get("files", f.id)) continue;
-        const blob = await (await fetch(f.data)).blob();
-        await DB.put("files", { id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, blob: new File([blob], f.name, { type: f.type }) });
+        await DB.put("files", { id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, blob: new File([dataURLtoBlob(f.data)], f.name, { type: f.type }) });
       }
       let mn = 0;
       for (const x of d.matcats || []) { const old = await DB.get("matcats", x.id); if (!old || (old.updated || 0) < (x.updated || 0)) await DB.put("matcats", x); }
@@ -643,13 +641,14 @@ async function renderBackup() {
         x.siteId = map[x.siteId] || x.siteId; await DB.put("matrecs", x); mn++;
       }
       await loadSites();
-      alert(`匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}`);
+      alert(`${d.dropped ? `（有 ${d.dropped} 筆資料格式不正確，已略過）\n` : ""}匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}`);
     } catch { alert("這不是有效的備份檔"); }
     e.target.value = "";
   };
 }
 
 /* ---------- 啟動 ---------- */
+$("#camErrClose").onclick = () => $("#camErr").close();
 (async () => {
   await loadTemplates();
   await loadSites();

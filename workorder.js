@@ -59,7 +59,7 @@ async function renderWorkorderList() {
     <div class="chips">${[["all", "全部"], ["draft", "未簽認"], ["signed", "已簽認"]].map(([k, l]) => `<button class="chip ${k === woFilter ? "on" : ""}" data-f="${k}">${l}（${n(k)}）</button>`).join("")}</div>
     ${list.length ? list.map(o => {
       const t = woTotals(o), names = (o.lines || []).filter(l => l.name).map(l => l.name).slice(0, 3).join("、");
-      return `<a class="rec" href="#/workorder/${o.id}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(o.vendor || "（未填廠商）")}</b><span class="st ${o.status === "signed" ? "st-已完成" : "st-填寫中"}">${o.status === "signed" ? "✔ 已簽認" : "未簽認"}</span></div>
+      return `<a class="rec" href="#/workorder/${esc(o.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(o.vendor || "（未填廠商）")}</b><span class="st ${o.status === "signed" ? "st-已完成" : "st-填寫中"}">${o.status === "signed" ? "✔ 已簽認" : "未簽認"}</span></div>
         <small>${esc(o.date)}・${esc(o.docNo)}${names ? "・" + esc(names) : ""}<br>${t.man ? `人力 ${woH(t.man)} 工時` : ""}${t.man && t.mac ? "　" : ""}${t.mac ? `機械 ${woH(t.mac)} 台時` : ""}${!t.man && !t.mac ? "尚未填工時" : ""}${woAmount(o) ? "　" + woMoney(woAmount(o)) : ""}${o.location ? "・" + esc(o.location) : ""}</small></a>`;
     }).join("") : `<div class="panel" style="color:var(--mut)">${all.length ? "這個分類沒有單據" : "這個工地還沒有點工單。現場臨時叫吊車、怪手或點工時，按「新增點工單」，收工前請廠商代表當場簽名。"}</div>`}`;
   $("#woAdd").onclick = async () => { location.hash = "#/workorder/" + await woNew(); };
@@ -110,7 +110,7 @@ async function renderWorkorderForm(id) {
     ${[["vendor", "廠商代表"], ["site", "我方現場人員"]].map(([k, l]) => `
       <div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(rec.names[k])}" ${dis}></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l}簽名</b>${locked ? "" : `<button class="sec" data-clear="${k}">清除</button>`}</div>
-      ${locked ? (rec.sigs[k] ? `<img src="${rec.sigs[k]}" style="width:100%;height:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:12px">` : `<div class="panel" style="color:var(--mut)">未簽名</div>`) : `<canvas data-sig="${k}"></canvas>`}</div></div>`).join("")}
+      ${locked ? (rec.sigs[k] ? `<img src="${safeImg(rec.sigs[k])}" style="width:100%;height:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:12px">` : `<div class="panel" style="color:var(--mut)">未簽名</div>`) : `<canvas data-sig="${k}"></canvas>`}</div></div>`).join("")}
     <div class="row">${locked ? `<button class="danger" id="woUnlock">🔓 解除鎖定</button>` : `<button id="woLock">✔ 完成簽認並鎖定</button>`}</div>
     <div class="row"><button class="sec" id="woPreview">👁 預覽／存成 PDF</button><button class="sec" id="woShare">📤 分享文字摘要</button></div>
     ${rec.log.length ? `<div class="panel"><small style="color:var(--mut)">異動紀錄<br>${rec.log.map(x => `${esc(woStamp(x.at))}　${esc(x.text)}`).join("<br>")}</small></div>` : ""}
@@ -216,10 +216,10 @@ async function renderWorkorderPreview(id) {
       </table>
       <table class="pt items sm">
         <tr><th>類別</th><th>工種／機具</th><th>規格</th><th>數量</th><th>起訖</th><th>休息</th><th>工時<br>／單位</th><th>小計</th>${showPrice ? "<th>單價</th><th>金額</th>" : ""}</tr>
-        ${rec.lines.filter(l => l.name || woLineHours(l)).map(l => `<tr><td class="c">${l.kind}</td><td>${esc(l.name)}</td><td>${esc(l.spec)}</td><td class="c">${esc(l.qty)}${woUnit(l)}</td><td class="c nw">${esc(l.start)}–${esc(l.end)}</td><td class="c">${esc(l.brk || 0)}h</td><td class="c">${woH(woUnitHours(l))}</td><td class="c">${woH(woLineHours(l))}</td>${showPrice ? `<td class="c nw">${parseFloat(l.price) > 0 ? esc(l.price) + "<br><small>" + esc(woUnitLabel(l).replace(/（.*）/, "")) + "</small>" : ""}</td><td class="c nw">${woLineAmount(l) ? woMoney(woLineAmount(l)) : ""}</td>` : ""}</tr>`).join("")}
+        ${rec.lines.filter(l => l.name || woLineHours(l)).map(l => `<tr><td class="c">${esc(l.kind)}</td><td>${esc(l.name)}</td><td>${esc(l.spec)}</td><td class="c">${esc(l.qty)}${woUnit(l)}</td><td class="c nw">${esc(l.start)}–${esc(l.end)}</td><td class="c">${esc(l.brk || 0)}h</td><td class="c">${woH(woUnitHours(l))}</td><td class="c">${woH(woLineHours(l))}</td>${showPrice ? `<td class="c nw">${parseFloat(l.price) > 0 ? esc(l.price) + "<br><small>" + esc(woUnitLabel(l).replace(/（.*）/, "")) + "</small>" : ""}</td><td class="c nw">${woLineAmount(l) ? woMoney(woLineAmount(l)) : ""}</td>` : ""}</tr>`).join("")}
         <tr><td colspan="${cols}" class="recheck">合計：人力 <b>${woH(t.man)}</b> 工時（${fmt(t.days, 2)} 工日，以 ${WO_HOURS_PER_DAY} 工時／工日換算）　機械 <b>${woH(t.mac)}</b> 台時${showPrice && amt ? `<br>金額合計（未稅）：<b>${woMoney(amt)}</b>` : ""}</td></tr>
       </table>
-      <div class="psigs">${[["vendor", "廠商代表"], ["site", "我方現場人員"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${rec.sigs[k]}">` : "<br><br>"}${l}${rec.names[k] ? "：" + esc(rec.names[k]) : ""}</div>`).join("")}</div>
+      <div class="psigs">${[["vendor", "廠商代表"], ["site", "我方現場人員"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${safeImg(rec.sigs[k])}">` : "<br><br>"}${l}${rec.names[k] ? "：" + esc(rec.names[k]) : ""}</div>`).join("")}</div>
       <p style="margin-top:6mm;font-size:12px">${signed ? `簽認時間：${esc(woStamp(rec.signedAt))}（手機電子簽認，簽認後鎖定）` : "※ 尚未完成簽認"}</p>
     </div>`;
   { const ln = await attNamesLine(rec.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }

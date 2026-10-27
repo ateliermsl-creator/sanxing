@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' data: blob:; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>三星蔥營造工具箱</title>
 <link rel="manifest" href="manifest.json">
@@ -39,7 +40,7 @@
 <dialog id="camErr">
   <p id="camErrMsg" style="margin:0 0 14px;line-height:1.6"></p>
   <label class="phbtn" style="width:100%;justify-content:center;margin-bottom:8px">📷 改用手機相機拍照<input type="file" id="camFb" accept="image/*" capture="environment" hidden></label>
-  <button type="button" class="sec full" onclick="document.getElementById('camErr').close()">關閉</button>
+  <button type="button" class="sec full" id="camErrClose">關閉</button>
 </dialog>
 <dialog id="setup">
   <form method="dialog" id="setupForm">
@@ -51,6 +52,7 @@
     <button type="button" class="sec full" id="sCancel" style="margin-top:8px" hidden>取消</button>
   </form>
 </dialog>
+<script src="safe.js"></script>
 <script src="templates.js"></script>
 <script src="attach.js"></script>
 <script src="calc.js"></script>

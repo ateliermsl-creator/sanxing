@@ -28,7 +28,7 @@ async function attBind(root, recId, opt = {}) {
   if (opt.readonly) box.querySelector("label.phbtn").hidden = true;
   const draw = async () => {
     const fs = await attFilesOf(recId);
-    list.innerHTML = fs.length ? fs.map(f => `<div class="att" data-id="${f.id}"><span class="aic">${attIcon(f)}</span><div class="ainf"><b>${esc(f.name)}</b><small>${attMB(f.size)}</small></div>
+    list.innerHTML = fs.length ? fs.map(f => `<div class="att" data-id="${esc(f.id)}"><span class="aic">${attIcon(f)}</span><div class="ainf"><b>${esc(f.name)}</b><small>${attMB(f.size)}</small></div>
       <button class="sec" data-a="open">開啟</button><button class="sec" data-a="share">分享</button>${opt.readonly ? "" : `<button class="danger" data-a="del" aria-label="刪除">✕</button>`}</div>`).join("") : `<small style="color:var(--mut)">尚未附加檔案</small>`;
   };
   await draw();
@@ -52,7 +52,7 @@ async function attBind(root, recId, opt = {}) {
       const file = new File([f.blob], f.name, { type: f.type });
       try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: f.name }); return; } } catch (er) { if (er?.name === "AbortError") return; }
       download();
-    } else if (/pdf|^image\//i.test(f.type)) { if (!window.open(url, "_blank")) download(); }      // PDF、圖片直接開啟；開不了就改下載
+    } else if (INLINE_OPEN_TYPES.includes(f.type)) { const w = window.open(url, "_blank"); if (w) w.opener = null; else download(); }      // 只有 PDF 與常見點陣圖直接開啟（SVG、HTML 一律下載）；開不了就改下載
     else download();
     setTimeout(() => URL.revokeObjectURL(url), 120000);
   };

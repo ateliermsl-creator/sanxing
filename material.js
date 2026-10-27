@@ -71,11 +71,11 @@ async function renderMatList() {
     <h2 class="t">材料進場驗收</h2>
     <div class="row" style="margin-top:0"><button id="mAdd">＋ 新增進場</button><a class="btnlink" href="#/material/summary">📊 進場台帳</a></div>
     <div class="row" style="margin-top:0"><a class="btnlink" href="#/material/cfg">⚙ 類別與檢查項目設定</a></div>
-    <div class="chips"><button class="chip ${!matCatFilter ? "on" : ""}" data-c="">全部（${all.length}）</button>${cats.map(c => `<button class="chip ${matCatFilter === c.id ? "on" : ""}" data-c="${c.id}">${esc(c.name)}（${all.filter(x => x.catId === c.id).length}）</button>`).join("")}</div>
+    <div class="chips"><button class="chip ${!matCatFilter ? "on" : ""}" data-c="">全部（${all.length}）</button>${cats.map(c => `<button class="chip ${matCatFilter === c.id ? "on" : ""}" data-c="${esc(c.id)}">${esc(c.name)}（${all.filter(x => x.catId === c.id).length}）</button>`).join("")}</div>
     <div class="panel" style="padding:10px 12px"><div class="grid2" style="gap:0 8px"><div class="field" style="margin:0"><input id="mQ" placeholder="搜尋品名／廠商／單號" value="${esc(matQuery)}"></div>
       <div class="field" style="margin:0"><select id="mS"><option value="">全部結果</option>${["ng", "reject", "pending", "ok", "na"].map(k => `<option value="${k}" ${matStFilter === k ? "selected" : ""}>${MAT_LABEL[k]}（${cnt(k)}）</option>`).join("")}</select></div></div>
       <small style="color:var(--mut)">共 ${list.length} 筆</small></div>
-    <div id="mList">${list.length ? list.map(x => `<a class="rec" href="#/material/${x.id}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(matName(x))}</b>${matBadge(x)}</div>
+    <div id="mList">${list.length ? list.map(x => `<a class="rec" href="#/material/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(matName(x))}</b>${matBadge(x)}</div>
       <small>${esc(pRoc(x.date))} ${esc(x.time || "")}・${esc(x.catName)}・${esc(matQty(x))}${x.vendor ? "・" + esc(x.vendor) : ""}${x.ticket ? "・單號 " + esc(x.ticket) : ""}</small></a>`).join("")
       : `<div class="panel" style="color:var(--mut)">${all.length ? "這個條件下沒有紀錄" : "還沒有進場紀錄。材料進場時按「新增進場」，選材料類別，逐項檢查並請送貨人與驗收人員簽名。"}</div>`}</div>`;
   $("#mAdd").onclick = async () => { const r = await matNew({ catId: matCatFilter || undefined }); location.hash = "#/material/" + r.id; };
@@ -133,7 +133,7 @@ async function renderMatForm(id) {
       ${ng.length && r.disp === "accept" ? `<div class="legend" style="margin:8px 0 0;color:#c0392b">⚠ 有不合格項目，但處置是「驗收」，請確認；要退貨請改選「退貨」或「待確認」。</div>` : ""}`;
   };
   result();
-  const drawTh = () => { $("#mTh").innerHTML = photos.map(p => `<span class="th"><img src="${p.data}" alt="照片"><button data-pdel="${p.id}" aria-label="刪除照片">✕</button></span>`).join(""); };
+  const drawTh = () => { $("#mTh").innerHTML = photos.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
   drawTh();
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => { r[el.dataset.f] = el.value; if (el.dataset.f === "disp") result(); save(); });
   $("#mNow").onclick = () => { r.time = pourNow(); view.querySelector('[data-f="time"]').value = r.time; save(); };
@@ -181,7 +181,7 @@ async function renderMatPrint(id) {
   if (!r) { goReplace("#/material"); return; }
   const site = sites.find(s => s.id === r.siteId), company = ls.get("company", "");
   const photos = (await DB.all("photos")).filter(p => p.recId === r.id).sort((a, b) => a.created - b.created);
-  const sig = k => `<div>${r.sigs?.[k] ? `<img src="${r.sigs[k]}">` : "<br><br>"}${k === "deliver" ? "送貨人" : "驗收人員"}${r.names?.[k] ? "：" + esc(r.names[k]) : ""}</div>`;
+  const sig = k => `<div>${r.sigs?.[k] ? `<img src="${safeImg(r.sigs[k])}">` : "<br><br>"}${k === "deliver" ? "送貨人" : "驗收人員"}${r.names?.[k] ? "：" + esc(r.names[k]) : ""}</div>`;
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
     <label class="noprint" style="display:flex;gap:8px;align-items:center;margin:0 12px 8px;font-size:15px"><input type="checkbox" id="pvPh" style="width:22px;height:22px" ${matPrintPhoto ? "checked" : ""}> 附照片頁（${photos.length} 張）</label>
@@ -198,7 +198,7 @@ async function renderMatPrint(id) {
         <tr><td colspan="4" class="recheck">結果：<b>${MAT_LABEL[matFinal(r)]}</b>　處置：<b>${MAT_DISP[r.disp] || ""}</b>${r.note ? `<br>備註：${esc(r.note)}` : ""}<br><small>結果標記：○ 合格　✕ 不合格　／ 不適用</small></td></tr></table>
       <div class="psigs tall">${sig("deliver")}${sig("inspector")}</div>
     </div>
-    ${matPrintPhoto && photos.length ? `<div class="paper gallery"><div class="ptitle">附件：照片</div><div class="gal">${photos.map(p => `<figure><img src="${p.data}"><figcaption>${esc(matName(r))}</figcaption></figure>`).join("")}</div></div>` : ""}`;
+    ${matPrintPhoto && photos.length ? `<div class="paper gallery"><div class="ptitle">附件：照片</div><div class="gal">${photos.map(p => `<figure><img src="${safeImg(p.data)}"><figcaption>${esc(matName(r))}</figcaption></figure>`).join("")}</div></div>` : ""}`;
   { const ln = await attNamesLine(r.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/material/" + id);
   $("#pvPrint").onclick = doPrint;
@@ -214,7 +214,7 @@ async function renderMatCfg() {
       <textarea id="cDocs" rows="${Math.max(3, docs.length + 1)}" style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px">${esc(docs.join("\n"))}</textarea></div>
     <h2 class="t" style="font-size:17px">材料類別</h2>
     <p class="cnote" style="margin:0 12px 6px">每個類別的「檢查項目」一行一個，新增進場選到該類別時會自動帶出。已經建立的舊紀錄不受影響。內建類別一開始沒有檢查項目，請依你們的驗收標準自行填寫。</p>
-    <div id="cCats">${cats.map(c => `<details class="panel" data-id="${c.id}"><summary>${esc(c.name)}　<small style="color:var(--mut)">${c.checks.length} 項</small></summary>
+    <div id="cCats">${cats.map(c => `<details class="panel" data-id="${esc(c.id)}"><summary>${esc(c.name)}　<small style="color:var(--mut)">${c.checks.length} 項</small></summary>
       <div class="field" style="margin-top:8px"><label>類別名稱</label><input data-cn value="${esc(c.name)}"></div>
       <div class="field"><label>檢查項目（一行一個）</label><textarea data-cc rows="${Math.max(4, c.checks.length + 1)}" placeholder="例：標示是否完整&#10;外觀有無損傷">${esc(c.checks.join("\n"))}</textarea></div>
       <button class="danger" data-cdel style="min-height:40px">刪除這個類別</button></details>`).join("")}</div>

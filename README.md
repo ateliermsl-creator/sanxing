@@ -8,4 +8,4 @@
 
 ## 第三方程式庫（皆為 MIT 授權，放在 lib/）
 - html2canvas 1.4.1：把畫面轉成圖片（用於「分享 PDF」）
-- jsPDF 2.5.2：產生 PDF 檔（用於「分享 PDF」）
+- jsPDF 4.2.1：產生 PDF 檔（用於「分享 PDF」）
