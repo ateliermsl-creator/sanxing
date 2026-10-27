@@ -6,23 +6,23 @@ const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
 
 /* ---------- 鋼筋稱號（單位重、直徑、斷面積、周長） ----------
-   ok = true：已與使用者提供的參考資料核對；false：依 Ab = πdb²/4、W = 0.785·Ab 推算，尚待核對；null 數值：資料待補。 */
+   ok = true：已與使用者提供的參考資料核對；false：推算值，尚待核對。ℓ 直接採用參考資料的數值。 */
 const REBARS = [
-  { d: "D10", mark: "#3", w: "0.56", db: 0.953, ab: "0.7133", ok: true },
-  { d: "D13", mark: "#4", w: "0.994", db: 1.27, ab: "1.267", ok: true },
-  { d: "D16", mark: "#5", w: "1.56", db: 1.59, ab: "1.986", ok: true },
-  { d: "D19", mark: "#6", w: "2.25", db: 1.91, ab: "2.865", ok: true },
-  { d: "D22", mark: "#7", w: "3.04", db: 2.22, ab: "3.871", ok: true },
-  { d: "D25", mark: "#8", w: "3.98", db: 2.54, ab: "5.067", ok: true },
-  { d: "D29", mark: "#9", w: "5.08", db: 2.87, ab: "6.469", ok: false },
-  { d: "D32", mark: "#10", w: "6.39", db: 3.22, ab: "8.143", ok: false },
-  { d: "D36", mark: "#11", w: "7.90", db: 3.58, ab: "10.07", ok: false },
-  { d: "D39", mark: null, w: null, db: null, ab: null, ok: false },
-  { d: "D43", mark: "#14", w: "11.4", db: 4.30, ab: "14.52", ok: false },
-  { d: "D50", mark: null, w: null, db: null, ab: null, ok: false },
-  { d: "D57", mark: "#18", w: "20.2", db: 5.73, ab: "25.79", ok: false }
+  { d: "D10", mark: "#3", w: "0.56", db: "0.953", ab: "0.7133", l: "3", ok: true },
+  { d: "D13", mark: "#4", w: "0.994", db: "1.27", ab: "1.267", l: "4", ok: true },
+  { d: "D16", mark: "#5", w: "1.56", db: "1.59", ab: "1.986", l: "5", ok: true },
+  { d: "D19", mark: "#6", w: "2.25", db: "1.91", ab: "2.865", l: "6", ok: true },
+  { d: "D22", mark: "#7", w: "3.04", db: "2.22", ab: "3.871", l: "7", ok: true },
+  { d: "D25", mark: "#8", w: "3.98", db: "2.54", ab: "5.067", l: "8", ok: true },
+  { d: "D29", mark: "#9", w: "5.08", db: "2.87", ab: "6.469", l: "9", ok: true },
+  { d: "D32", mark: "#10", w: "6.39", db: "3.22", ab: "8.143", l: "10.1", ok: true },
+  { d: "D36", mark: "#11", w: "7.9", db: "3.58", ab: "10.07", l: "11.3", ok: true },
+  { d: "D39", mark: "#12", w: "9.57", db: "3.94", ab: "12.19", l: "12.4", ok: true },
+  { d: "D43", mark: "#14", w: "11.4", db: "4.3", ab: "14.52", l: "13.5", ok: true },
+  { d: "D50", mark: "#16", w: "15.5", db: "5.02", ab: "19.79", l: "15.8", ok: true },
+  { d: "D57", mark: "#18", w: "20.2", db: "5.73", ab: "25.79", l: "18", ok: false }
 ];
-const rebarCells = r => r.db == null ? ["—", "—", "—", "—"] : [r.mark, r.w, String(r.db), r.ab, String(Math.round(Math.PI * r.db))].slice(0, 5);
+const rebarCells = r => [r.mark, r.w, r.db, r.ab, r.l];
 function tabRebar(box) {
   const st = tabRebar.st = tabRebar.st || { d: "" };
   box.innerHTML = `
@@ -31,12 +31,12 @@ function tabRebar(box) {
       <div id="rDetail"></div></div>
     <div class="panel"><h2>全部鋼筋稱號</h2><div class="tblwrap"><table class="ct" id="rAll">
       <tr><th>稱號</th><th>標示<br>代號</th><th>W<br><small>kgf/m</small></th><th>d<sub>b</sub><br><small>cm</small></th><th>A<sub>b</sub><br><small>cm²</small></th><th>ℓ<br><small>cm</small></th></tr>
-      ${REBARS.map(r => `<tr data-d="${r.d}"><th>${r.d}${r.ok || r.db == null ? "" : "※"}</th>${r.db == null ? `<td colspan="5" style="color:var(--mut)">資料待補</td>` : rebarCells(r).map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>
-      <p class="cnote">W：單位重；d<sub>b</sub>：標稱直徑；A<sub>b</sub>：標稱斷面積；ℓ：標稱周長（= π·d<sub>b</sub>，四捨五入到整數）。<br>※ 尚待與規範原表核對，使用前請確認；D39、D50 資料待補。D10～D25 已與提供的參考資料核對。</p></div>`;
+      ${REBARS.map(r => `<tr data-d="${r.d}"><th>${r.d}${r.ok ? "" : "※"}</th>${rebarCells(r).map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>
+      <p class="cnote">W：單位重；d<sub>b</sub>：標稱直徑；A<sub>b</sub>：標稱斷面積；ℓ：標稱周長。<br>※ 尚待與規範原表核對（目前僅 D57），使用前請確認。D10～D50 已與提供的參考資料核對。</p></div>`;
   const draw = () => {
     st.d = $("#rSel").value;
     const r = REBARS.find(x => x.d === st.d);
-    $("#rDetail").innerHTML = !r ? "" : r.db == null ? `<p class="cnote">這個號數的資料尚未建立。</p>` : (() => { const c = rebarCells(r); return `
+    $("#rDetail").innerHTML = !r ? "" : (() => { const c = rebarCells(r); return `
       <div class="big"><span>稱號</span><b>${r.d}</b></div><div class="big"><span>標示代號</span><b>${c[0]}</b></div>
       <div class="big"><span>單位重 W（kgf/m）</span><b>${c[1]}</b></div><div class="big"><span>標稱直徑 d<sub>b</sub>（cm）</span><b>${c[2]}</b></div>
       <div class="big"><span>標稱斷面積 A<sub>b</sub>（cm²）</span><b>${c[3]}</b></div><div class="big"><span>標稱周長 ℓ（cm）</span><b>${c[4]}</b></div>
