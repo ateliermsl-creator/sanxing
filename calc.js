@@ -198,7 +198,7 @@ function tabArea(box) {
 }
 
 /* ---------- 分頁 ---------- */
-const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "坪與才", tabArea]];
+const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea]];
 function renderCalc(tab) {
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
