@@ -117,3 +117,27 @@ button.phbtn{border:0;min-height:44px;font:inherit;font-weight:600;font-size:15p
 #lbPrev,#lbNext{position:absolute;top:50%;transform:translateY(-50%);width:48px;min-height:64px;height:64px;padding:0;background:rgba(255,255,255,.18);font-size:30px;border-radius:12px}
 #lbPrev{left:6px}#lbNext{right:6px}
 #lbPrev[hidden],#lbNext[hidden]{display:none}
+.tblwrap{overflow-x:auto;margin:6px -4px}
+.ct{width:100%;border-collapse:collapse;text-align:center;font-size:15px}
+.ct th,.ct td{border:1px solid var(--line);padding:6px 4px}
+.ct th{background:#f3f6ee;font-weight:600;font-size:13px}
+.ct td{font-variant-numeric:tabular-nums;font-weight:600}
+.ct tr:nth-child(even) td{background:#fafbf7}
+.cnote{font-size:13px;color:var(--mut);line-height:1.6;margin:8px 0 0}
+.big{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.big:last-child{border-bottom:0}.big span{color:var(--mut);font-size:14px}.big b{font-size:19px;text-align:right}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.vtop{display:flex;gap:8px;margin-bottom:8px}.vtop input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.vtop select{padding:0 8px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.vtop button{min-width:44px;padding:0}
+.vdims{display:grid;grid-template-columns:repeat(auto-fit,minmax(70px,1fr));gap:8px}
+.vdims label{font-size:13px;color:var(--mut)}
+.vdims input{width:100%;padding:10px 8px;border:1px solid var(--line);border-radius:10px;font-size:17px;color:var(--tx)}
+.vres{margin-top:8px;text-align:right;color:var(--mut)}.vres b{color:var(--g);font-size:18px}
+.calc-ctl2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.panel select,.field select{width:100%;min-height:46px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:16px}
+.panel .field input{font-size:17px}
+.vtop select{width:auto;min-height:46px;flex:none}
+.vtop input{min-width:90px}
+details summary{cursor:pointer;padding:10px 0;color:var(--g);font-weight:600}
+details .field{margin-top:6px}
