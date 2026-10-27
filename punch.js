@@ -179,7 +179,6 @@ async function renderPunchForm(id) {
       <div class="field" style="margin-bottom:6px"><label>改善期限</label><input type="date" data-f="due" value="${esc(it.due)}"></div>
       <div class="chips" style="margin:0"><button class="chip" data-d="3">+3 天</button><button class="chip" data-d="7">+7 天</button><button class="chip" data-d="14">+14 天</button></div>
       <details style="margin-top:8px"><summary>登記日期與登記人</summary><div class="grid2" style="margin-top:6px"><div class="field" style="margin:0"><label>登記日期</label><input type="date" data-f="foundDate" value="${esc(it.foundDate)}"></div><div class="field" style="margin:0"><label>登記人</label><input data-f="foundBy" value="${esc(it.foundBy)}"></div></div></details></div>
-    ${attBlock()}
     <div class="row"><button id="pDone">${open ? "✔ 完成登記" : "← 回列表"}</button></div>
     <div class="row"><button class="sec" id="pNext">＋ 再新增一筆（沿用位置、工班、期限）</button></div>
     ${open ? `<details class="pfix" ${it.fixedNote || hasAfter ? "open" : ""}><summary>🔧 改善回報（工班改善後再填）</summary>
@@ -226,7 +225,6 @@ async function renderPunchForm(id) {
     it.status = "open"; it.rejects = (it.rejects || 0) + 1; it.fixedAt = ""; logAdd("複驗不合格・退回" + (why.trim() ? "：" + why.trim() : "")); await flush(); renderPunchForm(id);
   });
   $("#pReopen")?.addEventListener("click", async () => { if (!confirm("重新開啟這筆缺失？")) return; it.status = "open"; it.closedAt = ""; it.closedBy = ""; logAdd("重新開啟"); await flush(); renderPunchForm(id); });
-  attBind(view, it.id);
   $("#pDone").onclick = async () => { await flush(); goBack("#/punch"); };
   $("#pNext").onclick = async () => { await flush(); const n = pNew({ no: await pNextNo(), location: it.location, seedLoc: it.location, trade: it.trade, due: it.due, foundDate: it.foundDate, foundBy: it.foundBy }); await DB.put("punch", n); goReplace("#/punch/" + n.id); };
   $("#pDel").onclick = async () => { if (!confirm("確定刪除這筆缺失？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("punch", id); goBack("#/punch"); };
