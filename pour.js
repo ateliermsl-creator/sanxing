@@ -100,7 +100,7 @@ async function renderPourBatch(id) {
     ${bt.trucks.map((t, i) => { const j = pourJudge(bt, t); return `<a class="rec" href="#/pour/${esc(bt.id)}/truck/${esc(t.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>第 ${i + 1} 車　${esc(t.plate || "（未填車號）")}</b>${pourBadge(j.st)}</div>
       <small>到場 ${esc(t.arrive || "—")}・${esc(t.volume || "—")} m³${t.slump ? "・坍度 " + esc(t.slump) : ""}${t.chloride ? "・Cl⁻ " + esc(t.chloride) : ""}${t.sampled ? "・試體 " + esc(t.specimen || "✓") : ""}${t.disp === "reject" ? `・<span style="color:#c0392b">退料</span>` : ""}${t.sigs?.tester && t.sigs?.driver ? "・✔簽名" : ""}</small></a>`; }).join("")}
     <div class="row"><button id="pjTruck">＋ 新增一車</button></div>
-    ${attBlock("附加檔案（配比設計書、試驗報告等）")}
+    ${attBlock("檢附文件／照片（配比設計書、試驗報告等）", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="bjCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="bjFile"></label><div class="thumbs" id="bjTh"></div></div>`)}
     <div class="row"><button class="sec" id="pjPrint">👁 預覽／列印（A4 橫式）</button><button class="sec" id="pjShare">📤 分享摘要</button></div>
     <div class="row"><button class="danger" id="pjDel">刪除這次澆置（含全部車次）</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => { bt[el.dataset.f] = el.value; save(); });
@@ -110,6 +110,20 @@ async function renderPourBatch(id) {
     bt.trucks.push(t); await flush(); location.hash = `#/pour/${bt.id}/truck/${t.id}`;
   };
   attBind(view, bt.id);
+  { // 整批照片（配比設計書、試驗報告等）
+    let bph = (await DB.all("photos")).filter(p => p.recId === bt.id).sort((a, b) => a.created - b.created);
+    const draw = () => { $("#bjTh").innerHTML = bph.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
+    const add = async file => { const p = { id: uid(), recId: bt.id, itemIdx: 0, data: await makePhoto(file, `${bt.date} ${sites.find(x => x.id === bt.siteId)?.name || ""}`.trim()), created: Date.now() }; await DB.put("photos", p); bph.push(p); draw(); };
+    const many = async files => { for (const f of files) { try { await add(f); } catch { alert("這張照片無法讀取"); } } };
+    draw();
+    $("#bjCam").onclick = () => openCamera(`整批附件：${pourTitle(bt)}`, blob => add(blob), many);
+    $("#bjFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; await many(fs); };
+    $("#bjTh").onclick = async e => {
+      const img = e.target.closest("img"); if (img) { openLightbox(bph, bph.findIndex(x => x.id === img.parentElement.querySelector("[data-pdel]").dataset.pdel)); return; }
+      const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
+      await DB.del("photos", del); bph = bph.filter(x => x.id !== del); draw();
+    };
+  }
   $("#pjPrint").onclick = async () => { await flush(); location.hash = "#/pour/" + id + "/print"; };
   $("#pjShare").onclick = async () => {
     const s = pourStats([bt]), site = sites.find(x => x.id === bt.siteId);
@@ -121,7 +135,7 @@ async function renderPourBatch(id) {
   };
   $("#pjDel").onclick = async () => {
     if (!confirm(`確定刪除這次澆置？含 ${bt.trucks.length} 車的全部紀錄與照片，無法復原。`)) return;
-    const ph = await DB.all("photos"); for (const p of ph) if (bt.trucks.some(t => t.id === p.recId)) await DB.del("photos", p.id);
+    const ph = await DB.all("photos"); for (const p of ph) if (p.recId === bt.id || bt.trucks.some(t => t.id === p.recId)) await DB.del("photos", p.id);
     await attPurge([id, ...bt.trucks.map(t => t.id)]); await DB.del("pours", id); goBack("#/pour");
   };
 }
@@ -205,7 +219,7 @@ async function renderPourPrint(id) {
   const bt = await DB.get("pours", id);
   if (!bt) { goReplace("#/pour"); return; }
   const site = sites.find(s => s.id === bt.siteId), company = ls.get("company", ""), s = pourStats([bt]);
-  const photos = (await DB.all("photos")).filter(p => bt.trucks.some(t => t.id === p.recId)).sort((a, b) => a.created - b.created);
+  const photos = (await DB.all("photos")).filter(p => p.recId === bt.id || bt.trucks.some(t => t.id === p.recId)).sort((a, b) => a.created - b.created);
   const aimgs = await attImages([bt.id, ...bt.trucks.map(t => t.id)]), nImg = photos.length + aimgs.length;
   const std = [pourNum(bt.slumpMin) !== null || pourNum(bt.slumpMax) !== null ? `坍度 ${bt.slumpMin || "—"}～${bt.slumpMax || "—"} cm` : "", pourNum(bt.clMax) !== null ? `氯離子 ≤ ${bt.clMax} kg/m³` : "", pourNum(bt.limitMin) !== null ? `出廠→到場 ≤ ${bt.limitMin} 分` : ""].filter(Boolean).join("　");
   const sigCell = (t, k) => `${t.sigs?.[k] ? `<img src="${safeImg(t.sigs[k])}" style="max-height:9mm;max-width:24mm;display:block;margin:0 auto">` : ""}<small>${esc(t.names?.[k] || "")}</small>`;
