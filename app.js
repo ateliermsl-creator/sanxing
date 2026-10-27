@@ -11,9 +11,9 @@ const ls = {
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("avocado-toolbox", 4);
+  const r = indexedDB.open("avocado-toolbox", 5);
   r.onupgradeneeded = () => {
-    for (const n of ["sites", "records", "templates", "photos", "workorders"])
+    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch"])
       if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
   };
   r.onsuccess = () => res(r.result);
@@ -97,6 +97,7 @@ async function route() {
     if (!a) return renderChecklist();
     return location.hash.endsWith("/preview") ? renderPreview(a) : renderForm(a);
   }
+  if (page === "punch") return renderPunch(a);
   if (page === "workorder") return renderWorkorder(a, location.hash.endsWith("/preview"));
   if (page === "calc") return renderCalc(a);
   if (page === "template") return renderTemplateEditor(a);
@@ -108,9 +109,11 @@ async function route() {
 async function renderHome() {
   let updates = [];
   try { updates = await (await fetch("updates.json")).json(); } catch {}
+  if (location.hash.split("/")[1]) return;   // 讀取期間已切到別的頁面，就不要用首頁蓋掉它
   view.innerHTML = `
     <section class="hero"><img src="leek.png" alt=""><h1>三星蔥營造工具箱</h1><p>工地隨身工具・沒有網路也能用</p></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・坪才</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/backup"><div class="ph">💾</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
@@ -145,6 +148,44 @@ async function makePhoto(file, stamp) {
   return c.toDataURL("image/jpeg", 0.72);
 }
 const photosOf = async recId => (await DB.all("photos")).filter(p => p.recId === recId).sort((a, b) => a.created - b.created);
+
+/* ---------- 網頁內建相機（共用） ----------
+   直接開鏡頭、可連續拍攝；iPhone 主畫面 App 不支援直接開相機的 capture 屬性。
+   onShot(blob)：每拍一張呼叫；onFiles(files)：內建相機開不起來、改用手機相機 App 時呼叫 */
+async function openCamera(title, onShot, onFiles) {
+  const cam = $("#cam"), v = $("#camV");
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
+  } catch (err) {
+    // 內建相機開不起來：說明原因，並提供「改用手機原本的相機 App」備用按鈕（需使用者再點一次）
+    const ua = navigator.userAgent;
+    const hint = /Android/i.test(ua)
+      ? "請點網址列左邊的鎖頭圖示 →「權限」→「相機」→「允許」。若是從主畫面圖示開啟：長按圖示 →「應用程式資訊」→「權限」→「相機」→「允許」。"
+      : /iPhone|iPad/i.test(ua) ? "請到 iPhone「設定 → Safari → 相機」改成「詢問」或「允許」。"
+      : "請在瀏覽器網址列允許使用相機。";
+    $("#camErrMsg").textContent = `無法開啟內建相機（${err?.name || "未知錯誤"}）。${hint}`;
+    $("#camFb").onchange = async e => { const files = [...e.target.files]; e.target.value = ""; $("#camErr").close(); await onFiles(files); };
+    $("#camErr").showModal();
+    return;
+  }
+  v.srcObject = stream; cam.hidden = false;
+  let n = 0, busy = false;
+  $("#camTitle").textContent = title;
+  $("#camCount").textContent = "已拍 0 張";
+  const close = () => { stream.getTracks().forEach(t => t.stop()); v.srcObject = null; cam.hidden = true; };
+  $("#camDone").onclick = close;
+  $("#camShot").onclick = async () => {
+    if (busy || !v.videoWidth) return;
+    busy = true;
+    const c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext("2d").drawImage(v, 0, 0);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
+    cam.classList.add("flash"); setTimeout(() => cam.classList.remove("flash"), 120);
+    try { await onShot(blob); n++; $("#camCount").textContent = `已拍 ${n} 張`; } catch { alert("存檔失敗"); }
+    busy = false;
+  };
+}
 
 /* ---------- 照片放大預覽 ---------- */
 function openLightbox(list, idx) {
@@ -291,43 +332,10 @@ async function renderForm(id) {
     const i = +inp.dataset.ph, files = [...inp.files]; inp.value = "";
     for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請換一張或重新拍攝"); } }
   });
-  // 網頁內建相機：直接開鏡頭、可連續拍攝（iPhone 主畫面 App 不支援直接開相機的 capture 屬性）
-  view.querySelectorAll("[data-cam]").forEach(btn => btn.onclick = async () => {
-    const i = +btn.dataset.cam, cam = $("#cam"), v = $("#camV");
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false });
-    } catch (err) {
-      // 內建相機開不起來：說明原因，並提供「改用手機原本的相機 App」備用按鈕（需使用者再點一次）
-      const ua = navigator.userAgent;
-      const hint = /Android/i.test(ua)
-        ? "請點網址列左邊的鎖頭圖示 →「權限」→「相機」→「允許」。若是從主畫面圖示開啟：長按圖示 →「應用程式資訊」→「權限」→「相機」→「允許」。"
-        : /iPhone|iPad/i.test(ua) ? "請到 iPhone「設定 → Safari → 相機」改成「詢問」或「允許」。"
-        : "請在瀏覽器網址列允許使用相機。";
-      $("#camErrMsg").textContent = `無法開啟內建相機（${err?.name || "未知錯誤"}）。${hint}`;
-      $("#camFb").onchange = async e => {
-        const files = [...e.target.files]; e.target.value = ""; $("#camErr").close();
-        for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請重新拍攝"); } }
-      };
-      $("#camErr").showModal();
-      return;
-    }
-    v.srcObject = stream; cam.hidden = false;
-    let n = 0, busy = false;
-    $("#camTitle").textContent = `第 ${i + 1} 項：${tpl.items[i].t}`;
-    $("#camCount").textContent = "已拍 0 張";
-    const close = () => { stream.getTracks().forEach(t => t.stop()); v.srcObject = null; cam.hidden = true; };
-    $("#camDone").onclick = close;
-    $("#camShot").onclick = async () => {
-      if (busy || !v.videoWidth) return;
-      busy = true;
-      const c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
-      c.getContext("2d").drawImage(v, 0, 0);
-      const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
-      cam.classList.add("flash"); setTimeout(() => cam.classList.remove("flash"), 120);
-      try { await addPhoto(i, blob); n++; $("#camCount").textContent = `已拍 ${n} 張`; } catch { alert("存檔失敗"); }
-      busy = false;
-    };
+  view.querySelectorAll("[data-cam]").forEach(btn => btn.onclick = () => {
+    const i = +btn.dataset.cam;
+    openCamera(`第 ${i + 1} 項：${tpl.items[i].t}`, blob => addPhoto(i, blob),
+      async files => { for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請重新拍攝"); } } });
   });
   view.querySelectorAll("canvas").forEach(c => setupSig(c, rec, save));
   view.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => {
@@ -458,7 +466,7 @@ async function renderBackup() {
     <div class="row"><button class="sec" id="impBtn">📂 匯入備份檔</button></div>
     <input type="file" id="impFile" accept=".json,application/json" hidden>`;
   $("#expBtn").onclick = async () => {
-    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), sites: await DB.all("sites"), records: await DB.all("records") };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     a.download = `三星蔥工具箱備份_${today()}.json`;
@@ -497,8 +505,14 @@ async function renderBackup() {
         if (old && (old.updated || 0) >= (w.updated || 0)) continue;
         w.siteId = map[w.siteId] || w.siteId; await DB.put("workorders", w); wn++;
       }
+      let pn = 0;
+      for (const x of d.punch || []) {
+        const old = await DB.get("punch", x.id);
+        if (old && (old.updated || 0) >= (x.updated || 0)) continue;
+        x.siteId = map[x.siteId] || x.siteId; await DB.put("punch", x); pn++;
+      }
       await loadSites();
-      alert(`匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}`);
+      alert(`匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}`);
     } catch { alert("這不是有效的備份檔"); }
     e.target.value = "";
   };
