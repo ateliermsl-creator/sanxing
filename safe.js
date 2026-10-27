@@ -61,7 +61,7 @@ const CLEAN = {
     docs: arr(x.docs, 50).map(d => ({ n: cs(obj(d).n, 100), v: cb(obj(d).v) })), checks: arr(x.checks, 300).map(c => ({ t: cs(obj(c).t, 300), r: ce(obj(c).r, ["ok", "ng", "na", ""], ""), note: cs(obj(c).note, 500), ...(obj(c).extra === true ? { extra: true } : {}) })),
     disp: ce(x.disp, ["accept", "reject", "pending"], "accept"), note: cs(x.note, 1000), names: cnames(x.names, ["deliver", "inspector"]), sigs: csigs(x.sigs, ["deliver", "inspector"]), created: cn(x.created), updated: cn(x.updated) },
   matcats: x => x.id === "__docs" ? { id: "__docs", docs: arr(x.docs, 50).map(d => cs(d, 100)).filter(Boolean), updated: cn(x.updated) }
-    : x.id === "__deleted" ? { id: "__deleted", updated: cn(x.updated) }
+    : (x.id === "__deleted" || x.id === "__seed2") ? { id: x.id, updated: cn(x.updated) }
     : safeId(x.id) && { id: x.id, name: cs(x.name, 100), checks: arr(x.checks, 300).map(c => cs(c, 300)).filter(Boolean), order: cn(x.order), created: cn(x.created), updated: cn(x.updated) },
   files: x => safeId(x.id) && safeId(x.recId) && typeof x.data === "string" && x.data.length < 20e6 && SAFE_DATA.test(x.data) && {
     id: x.id, recId: x.recId, name: cname(x.name) || "檔案", type: SAFE_FILE_TYPES.includes(x.type) ? x.type : "application/octet-stream", size: cn(x.size), created: cn(x.created), data: x.data }
