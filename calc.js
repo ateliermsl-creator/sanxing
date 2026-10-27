@@ -1,6 +1,6 @@
 "use strict";
 /* 工地隨身工程計算機（純前端，離線可用）
-   五個分頁：鋼筋稱號、鋼筋重量、混凝土方數、坡度與高程、坪與才 */
+   八個分頁：鋼筋稱號、鋼筋重量、混凝土方數、坡度與高程、面積換算、倍數換算、泥作材料、穿樑套管 */
 
 const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
@@ -197,8 +197,117 @@ function tabArea(box) {
   box.querySelectorAll("input,select").forEach(el => el.oninput = () => { a(); z(); }); a(); z();
 }
 
+
+/* ---------- 搭接／錨定／彎鉤：倍數換算 ----------
+   長度 = 倍數 × 鋼筋直徑 db。倍數請照「結構圖說」填入，本工具不內建任何規範數值；
+   常用組合可以存成名稱（例如「fc'280 乙級搭接」），存在這支手機裡，下次直接點選。 */
+const lapPresets = () => { try { const a = JSON.parse(ls.get("calcLap", "[]")); return Array.isArray(a) ? a.filter(p => p && typeof p.n === "string" && Number.isFinite(+p.m)).slice(0, 30) : []; } catch { return []; } };
+function tabLap(box) {
+  const st = tabLap.st = tabLap.st || { m: "", n: "", round: true };
+  const draw = () => {
+    const ps = lapPresets();
+    box.innerHTML = `
+      <div class="panel"><h2>倍數 × 鋼筋直徑</h2>
+        <p class="cnote">搭接、錨定、彎鉤延伸長度的倍數，請依結構圖說或規範填入；下表列出各號數換算後的長度。</p>
+        <div class="grid2"><div class="field"><label>倍數（× db）</label><input id="lM" inputmode="decimal" value="${esc(st.m)}" placeholder="由圖說查得"></div>
+          <div class="field"><label>名稱（要存起來才填）</label><input id="lN" value="${esc(st.n)}" placeholder="例：fc'280 乙級搭接"></div></div>
+        <label class="timing" style="margin:6px 0"><span style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="lR" ${st.round ? "checked" : ""}> 長度進位到 5 cm</span></label>
+        <div class="row"><button class="sec" id="lSave">＋ 存成常用組合</button></div>
+        ${ps.length ? `<div class="chips" style="margin:8px 0 0">${ps.map((p, i) => `<span style="display:inline-flex;gap:2px"><button type="button" class="chip" data-p="${i}">${esc(p.n)}（${esc(p.m)}d）</button><button type="button" class="chip" data-x="${i}" aria-label="刪除" style="padding:0 10px">✕</button></span>`).join("")}</div>` : ""}</div>
+      <div class="panel"><div id="lOut"></div></div>
+      <p class="cnote" style="margin:0 12px 12px">直徑 db 取自「鋼筋稱號」分頁已核對的數值。倍數與長度的取用條件（強度、位置、甲乙級…）請以圖說為準。</p>`;
+    const calc = () => {
+      const m = num($("#lM")), rnd = $("#lR").checked; st.m = $("#lM").value; st.n = $("#lN").value; st.round = rnd;
+      $("#lOut").innerHTML = Number.isFinite(m) && m > 0 ? `<table class="ct"><tr><th>號數</th><th>db (cm)</th><th>長度 (cm)</th></tr>${REBARS.map(r => { const L = m * parseFloat(r.db); return `<tr><td>${r.d}</td><td>${r.db}</td><td><b>${rnd ? Math.ceil(L / 5 - 1e-9) * 5 : fmt(L, 1)}</b></td></tr>`; }).join("")}</table>` : `<p class="cnote">請輸入倍數</p>`;
+    };
+    box.querySelectorAll("input").forEach(el => el.oninput = calc); calc();
+    $("#lSave").onclick = () => {
+      const m = num($("#lM")), n = $("#lN").value.trim(); if (!(m > 0) || !n) { alert("請填倍數和名稱"); return; }
+      const list = lapPresets().filter(p => p.n !== n); list.push({ n: n.slice(0, 40), m: String(m) }); ls.set("calcLap", JSON.stringify(list)); draw();
+    };
+    box.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { const p = lapPresets()[+b.dataset.p]; st.m = p.m; st.n = p.n; draw(); });
+    box.querySelectorAll("[data-x]").forEach(b => b.onclick = () => { const l = lapPresets(); l.splice(+b.dataset.x, 1); ls.set("calcLap", JSON.stringify(l)); draw(); });
+  };
+  draw();
+}
+
+/* ---------- 泥作材料估算（紅磚／磁磚／砂漿） ----------
+   尺寸、灰縫、損耗與單位用量都由你輸入（依實際進場規格與產品說明書），本工具只做面積與數量計算。 */
+function tabMasonry(box) {
+  const st = tabMasonry.st = tabMasonry.st || { ops: [{ w: "", h: "", n: "1" }] };
+  box.innerHTML = `
+    <div class="panel"><h2>牆面積（扣除門窗）</h2>
+      <div class="grid2"><div class="field"><label>牆長（m）</label><input id="mL" inputmode="decimal"></div><div class="field"><label>牆高（m）</label><input id="mH" inputmode="decimal"></div></div>
+      <label style="font-size:14px;color:var(--mut)">開口（門、窗）寬 × 高（m）× 數量</label><div id="mOps"></div>
+      <div class="row"><button class="sec" id="mAdd">＋ 增加一個開口</button></div>
+      <div id="mArea" class="big" style="margin-top:8px"></div></div>
+    <div class="panel"><h2>紅磚</h2>
+      <div class="grid2"><div class="field"><label>磚長（cm）</label><input id="bL" inputmode="decimal" value="23"></div><div class="field"><label>磚寬（cm）</label><input id="bW" inputmode="decimal" value="11"></div>
+        <div class="field"><label>磚厚（cm）</label><input id="bT" inputmode="decimal" value="6"></div><div class="field"><label>灰縫（cm）</label><input id="bJ" inputmode="decimal" value="1"></div></div>
+      <div class="field"><label>牆型</label><select id="bType"><option value="1">1/2B（牆厚＝磚寬，單層）</option><option value="2">1B（牆厚＝磚長，雙層）</option></select></div>
+      <div class="field"><label>損耗率（%）</label><input id="bLoss" inputmode="decimal" value="0"></div>
+      <p class="cnote">磚的尺寸預設只是常見的參考，請改成實際進場的規格。</p><div id="bOut"></div></div>
+    <div class="panel"><h2>磁磚</h2>
+      <div class="grid2"><div class="field"><label>片長（cm）</label><input id="tL" inputmode="decimal" value="60"></div><div class="field"><label>片寬（cm）</label><input id="tW" inputmode="decimal" value="30"></div>
+        <div class="field"><label>縫寬（mm）</label><input id="tJ" inputmode="decimal" value="3"></div><div class="field"><label>損耗率（%）</label><input id="tLoss" inputmode="decimal" value="0"></div></div>
+      <div class="chips" style="margin:6px 0">${[[30, 60], [60, 60], [30, 30], [45, 45], [60, 120]].map(([a, b]) => `<button type="button" class="chip" data-t="${a},${b}">${a}×${b}</button>`).join("")}</div>
+      <div id="tOut"></div></div>
+    <div class="panel"><h2>乾拌水泥砂漿／益膠泥</h2>
+      <div class="grid2"><div class="field"><label>單位用量（kg/m²）</label><input id="sU" inputmode="decimal" placeholder="依產品說明書"></div><div class="field"><label>每包重量（kg）</label><input id="sB" inputmode="decimal" placeholder="例：包裝標示"></div></div>
+      <div id="sOut"></div></div>
+    <p class="cnote" style="margin:0 12px 12px">結果是理論數量，實際叫料請再考慮切割、破損與現場情況；單位用量、損耗請以產品與契約為準。</p>`;
+  const area = () => { const g = num($("#mL")) * num($("#mH")), ops = st.ops.reduce((a, o) => a + (parseFloat(o.w) * parseFloat(o.h) * (parseFloat(o.n) || 1) || 0), 0); return g - ops; };
+  const drawOps = () => { $("#mOps").innerHTML = st.ops.map((o, i) => `<div style="display:flex;gap:6px;margin:6px 0"><input data-o="${i}" data-k="w" inputmode="decimal" placeholder="寬" value="${esc(o.w)}"><input data-o="${i}" data-k="h" inputmode="decimal" placeholder="高" value="${esc(o.h)}"><input data-o="${i}" data-k="n" inputmode="decimal" placeholder="數量" value="${esc(o.n)}"><button class="danger" data-ox="${i}" style="min-height:44px">✕</button></div>`).join("");
+    $("#mOps").querySelectorAll("[data-o]").forEach(el => el.oninput = () => { st.ops[+el.dataset.o][el.dataset.k] = el.value; calc(); });
+    $("#mOps").querySelectorAll("[data-ox]").forEach(el => el.onclick = () => { st.ops.splice(+el.dataset.ox, 1); if (!st.ops.length) st.ops.push({ w: "", h: "", n: "1" }); drawOps(); calc(); }); };
+  const calc = () => {
+    const A = area(), ok = Number.isFinite(A) && A > 0;
+    $("#mArea").innerHTML = Number.isFinite(A) ? `<span>淨面積</span><b>${fmt(A, 2)} m²（${fmt(A / UNITS.ping[1], 2)} 坪）</b>` : "";
+    const lossB = 1 + (num($("#bLoss"), 0) / 100), lossT = 1 + (num($("#tLoss"), 0) / 100);
+    const j = num($("#bJ"), 0), per = 1e4 / ((num($("#bL")) + j) * (num($("#bT")) + j)) * +$("#bType").value;
+    $("#bOut").innerHTML = ok && Number.isFinite(per) ? `<div class="big"><span>每 m² 約</span><b>${fmt(per, 1)} 塊</b></div><div class="big"><span>共需</span><b>${Math.ceil(A * per * lossB)} 塊</b></div>` : "";
+    const tj = num($("#tJ"), 0) / 10, tp = 1e4 / ((num($("#tL")) + tj) * (num($("#tW")) + tj));
+    $("#tOut").innerHTML = ok && Number.isFinite(tp) ? `<div class="big"><span>每 m² 約</span><b>${fmt(tp, 2)} 片</b></div><div class="big"><span>共需</span><b>${Math.ceil(A * tp * lossT)} 片</b></div>` : "";
+    const u = num($("#sU")), bag = num($("#sB"));
+    $("#sOut").innerHTML = ok && u > 0 ? `<div class="big"><span>總用量</span><b>${fmt(A * u, 1)} kg</b></div>${bag > 0 ? `<div class="big"><span>約需</span><b>${Math.ceil(A * u / bag)} 包</b></div>` : ""}` : `<p class="cnote">填入單位用量即可估算</p>`;
+  };
+  box.querySelectorAll("input:not([data-o]),select").forEach(el => el.oninput = calc);
+  box.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { const [l, w] = b.dataset.t.split(","); $("#tL").value = l; $("#tW").value = w; calc(); });
+  $("#mAdd").onclick = () => { st.ops.push({ w: "", h: "", n: "1" }); drawOps(); };
+  drawOps(); calc();
+}
+
+/* ---------- 穿樑套管檢核 ----------
+   檢核條件（中央區間、管徑上限、孔距倍數）預設為使用者提供的規則，可在畫面上修改；
+   這不是規範原文，只提供現場初步判斷，穿樑洞口仍須依結構圖說並經結構技師核可。 */
+function tabSleeve(box) {
+  box.innerHTML = `
+    <div class="panel"><h2>樑與套管尺寸（cm）</h2>
+      <div class="grid2"><div class="field"><label>樑深 h</label><input id="vH" inputmode="decimal"></div><div class="field"><label>樑寬 b（記錄用）</label><input id="vB" inputmode="decimal"></div>
+        <div class="field"><label>樑淨跨 L</label><input id="vL" inputmode="decimal"></div><div class="field"><label>套管外徑 d</label><input id="vD" inputmode="decimal"></div>
+        <div class="field"><label>孔中心距支承面 x</label><input id="vX" inputmode="decimal"></div><div class="field"><label>相鄰孔中心距 s（單孔可空白）</label><input id="vS" inputmode="decimal"></div></div></div>
+    <details class="panel"><summary>檢核條件（可修改）</summary>
+      <div class="grid2"><div class="field"><label>孔位須在跨度中央 1／?</label><input id="rZ" inputmode="decimal" value="3"></div><div class="field"><label>管徑 ≤ 樑深 1／?</label><input id="rD" inputmode="decimal" value="3"></div>
+        <div class="field"><label>孔中心距 ≥ ? 倍管徑</label><input id="rS" inputmode="decimal" value="3"></div></div>
+      <p class="cnote">預設值照你提供的規則；請與專案結構圖說核對，必要時在這裡改成圖說規定。</p></details>
+    <div class="panel"><div id="vOut"></div></div>
+    <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本檢核只是現場初步判斷。穿樑洞口的位置、大小與補強須依結構設計圖說，並經結構技師確認，不可僅憑本工具施工；「不符」代表需洽結構技師，不是自行判定可否。</p>`;
+  const go = () => {
+    const h = num($("#vH")), L = num($("#vL")), d = num($("#vD")), x = num($("#vX")), s = num($("#vS")), z = num($("#rZ"), 3), k = num($("#rD"), 3), m = num($("#rS"), 3);
+    if (![h, L, d, x].every(Number.isFinite)) { $("#vOut").innerHTML = `<p class="cnote">請填樑深、淨跨、管徑與孔位</p>`; return; }
+    const lo = L * (1 - 1 / z) / 2, hi = L - lo, rows = [];
+    rows.push([x >= lo && x <= hi, `孔位置：距支承面 ${fmt(x, 1)} cm，須在 ${fmt(lo, 1)}～${fmt(hi, 1)} cm（跨度中央 1/${fmt(z, 2)}）`]);
+    rows.push([d <= h / k, `管徑：${fmt(d, 1)} cm，須 ≤ 樑深 1/${fmt(k, 2)} = ${fmt(h / k, 1)} cm`]);
+    if (Number.isFinite(s)) rows.push([s >= m * d, `孔距：中心距 ${fmt(s, 1)} cm，須 ≥ ${fmt(m, 2)} 倍管徑 = ${fmt(m * d, 1)} cm`]);
+    const bad = rows.filter(r => !r[0]).length;
+    $("#vOut").innerHTML = rows.map(([ok, t]) => `<div class="big" style="align-items:flex-start"><span>${ok ? "✅" : "❌"}</span><b style="font-weight:500;flex:1;margin-left:8px">${t}</b></div>`).join("")
+      + `<div class="big" style="margin-top:8px"><span>結果</span><b style="color:${bad ? "var(--bad)" : "var(--ok)"}">${bad ? `有 ${bad} 項不符，請洽結構技師` : "符合上述檢核條件"}</b></div>`;
+  };
+  box.querySelectorAll("input").forEach(el => el.oninput = go); go();
+}
+
 /* ---------- 分頁 ---------- */
-const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea]];
+const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea], ["lap", "倍數換算", tabLap], ["mas", "泥作材料", tabMasonry], ["sleeve", "穿樑套管", tabSleeve]];
 function renderCalc(tab) {
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
