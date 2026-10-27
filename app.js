@@ -134,6 +134,7 @@ $("#backBtn").onclick = () => { if (!$("#lb").hidden) { closeLightbox(); return;
 window.addEventListener("hashchange", route);
 async function route() {
   showInAppBanner();
+  document.querySelectorAll(".psheet").forEach(e => e.remove());   // 換頁時關掉浮出的面板
   const [, page, a] = location.hash.split("/");
   $("#topbar").hidden = !page;
   window.scrollTo(0, 0);

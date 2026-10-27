@@ -161,3 +161,10 @@ details .field{margin-top:6px}
 #iab{margin:12px;padding:12px 14px;background:#ffe9d6;border:1px solid #f3c79f;border-radius:12px;color:#7a3b00;line-height:1.6}
 #iab[hidden]{display:none}
 @media print{#iab{display:none!important}}
+.saved{margin:2px 12px 8px;font-size:13px;color:var(--ok)}
+.pfix>summary{margin:12px;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:14px;font-weight:600;color:var(--g);cursor:pointer}
+details>summary{cursor:pointer}
+.pact{display:flex;gap:8px;margin-top:8px}
+.pact button{min-height:40px;padding:0 14px;font-size:14px}
+.psheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.45);display:flex;align-items:flex-end}
+.psheet-in{background:#fff;width:100%;max-width:720px;margin:0 auto;padding:16px 16px calc(env(safe-area-inset-bottom) + 16px);border-radius:18px 18px 0 0;max-height:92vh;overflow:auto}

@@ -63,14 +63,17 @@ async function renderPunchList() {
       ${x.thumb ? `<img class="pth" src="${x.thumb}" alt="">` : `<div class="pth ph0">📷</div>`}
       <div class="pbody"><div class="ptop"><b>${esc(x.location || "（未填位置）")}</b><span class="st st-${x.status === "closed" ? "已完成" : x.status === "fixed" ? "填寫中" : "未填"}" style="${x.status === "open" ? "color:#c0392b" : ""}">${PUNCH_STATUS[x.status]}</span></div>
         <div class="pdesc">${esc(x.desc || "（未填缺失內容）")}</div>
-        <small>${x.trade ? "👷 " + esc(x.trade) : `<span class="late">未指定工班</span>`}・期限 ${x.due ? esc(x.due.slice(5)) : "未設"}${pOver(x) ? `<span class="late">　逾期 ${pLate(x)} 天</span>` : ""}${x.rejects ? `　↩${x.rejects}` : ""}</small></div></div>`).join("")
+        <small>${x.trade ? "👷 " + esc(x.trade) : `<span class="late">未指定工班</span>`}・期限 ${x.due ? esc(x.due.slice(5)) : "未設"}${pOver(x) ? `<span class="late">　逾期 ${pLate(x)} 天</span>` : ""}${x.rejects ? `　↩${x.rejects}` : ""}</small>
+        ${pBulk ? "" : x.status === "open" ? `<div class="pact"><button data-pact="fix">✔ 回報改善</button></div>` : x.status === "fixed" ? `<div class="pact"><button data-pact="pass">✅ 結案</button><button class="danger" data-pact="reject">↩ 退回</button></div>` : ""}</div></div>`).join("")
       : `<div class="panel" style="color:var(--mut)">${all.length ? "這個條件下沒有缺失" : "還沒有缺失紀錄。到現場按「新增缺失」，記下位置、拍照、寫缺失內容，沒有網路也能用。"}</div>`}</div>`;
   $("#pAdd").onclick = async () => { const it = pNew({ no: await pNextNo() }); await DB.put("punch", it); location.hash = "#/punch/" + it.id; };
   view.querySelectorAll("[data-pf]").forEach(b => b.onclick = () => { pFilter = b.dataset.pf; renderPunchList(); });
   $("#pQ").oninput = e => { pQuery = e.target.value; clearTimeout(renderPunchList.t); renderPunchList.t = setTimeout(async () => { await renderPunchList(); const el = $("#pQ"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 350); };
   $("#pT").onchange = e => { pTradeFilter = e.target.value; renderPunchList(); };
   $("#pBulkBtn").onclick = () => { pBulk = !pBulk; pPicked.clear(); renderPunchList(); };
-  $("#pList").onclick = e => {
+  $("#pList").onclick = async e => {
+    const act = e.target.closest("[data-pact]");
+    if (act) { await pQuickAction(act.dataset.pact, act.closest(".pitem").dataset.id); return; }       // 快捷按鈕：不進入單筆畫面
     const row = e.target.closest(".pitem"); if (!row) return;
     if (pBulk) { const id = row.dataset.id, box = row.querySelector(".pchk"); if (e.target !== box) box.checked = !box.checked; box.checked ? pPicked.add(id) : pPicked.delete(id); $("#pCnt").textContent = pPicked.size; return; }
     location.hash = "#/punch/" + row.dataset.id;
@@ -97,6 +100,51 @@ async function renderPunchList() {
   }
 }
 
+/* ---------- 清單上的快捷動作：回報改善／結案／退回 ---------- */
+async function pAttachPhoto(it, slot, file) {
+  const site = sites.find(s => s.id === it.siteId);
+  const p = { id: uid(), recId: it.id, itemIdx: slot, data: await makePhoto(file, `${slot === 0 ? it.foundDate || today() : today()} ${site?.name || ""}`.trim()), created: Date.now() };
+  await DB.put("photos", p); return p;
+}
+async function pSave(it) { it.updated = Date.now(); await DB.put("punch", it); }
+async function pQuickAction(kind, id) {
+  const it = await DB.get("punch", id); if (!it) return;
+  it.log = it.log || [];
+  const log = text => it.log.push({ at: new Date().toISOString(), text });
+  if (kind === "fix") { pFixSheet(it, async () => { await renderPunchList(); }); return; }
+  if (kind === "pass") {
+    const by = prompt("複驗人員姓名", ls.get("punchBy", "")); if (by === null) return;
+    it.status = "closed"; it.closedAt = today(); it.closedBy = by.trim(); if (by.trim()) ls.set("punchBy", by.trim()); log(`複驗合格・結案（${by.trim() || "未填"}）`);
+  } else if (kind === "reject") {
+    const why = prompt("複驗不合格的原因（可空白）", ""); if (why === null) return;
+    it.status = "open"; it.rejects = (it.rejects || 0) + 1; it.fixedAt = ""; log("複驗不合格・退回" + (why.trim() ? "：" + why.trim() : ""));
+  }
+  await pSave(it); renderPunchList();
+}
+// 回報改善：寫改善說明、拍改善後照片。用自訂的底部面板（不用 dialog，才不會蓋住拍照畫面）
+async function pFixSheet(it, done) {
+  const box = document.createElement("div"); box.className = "psheet";
+  let have = (await pPhotosOf(it.id)).filter(p => p.itemIdx === 1).length;
+  box.innerHTML = `<div class="psheet-in"><h2 style="margin:0 0 4px;font-size:19px">回報已改善</h2>
+    <div style="color:var(--mut);font-size:14px">${esc(it.location || it.no)}｜${esc(it.desc)}</div>
+    <div class="field" style="margin:12px 0"><label>改善說明（可空白）</label><input id="sfNote" placeholder="例：已打磨修補" value="${esc(it.fixedNote)}"></div>
+    <div class="phrow"><button type="button" class="phbtn" id="sfCam">📷 拍改善後照片</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="sfFile"></label></div>
+    <div id="sfCnt" style="font-size:14px;color:var(--mut);margin-top:6px"></div>
+    <button class="full" id="sfOk" style="margin-top:14px">✔ 確定回報（改為待複驗）</button><button class="sec full" id="sfNo" style="margin-top:8px">取消</button></div>`;
+  document.body.append(box);
+  const cnt = () => { box.querySelector("#sfCnt").textContent = have ? `已有 ${have} 張改善後照片` : "還沒有改善後照片（可不拍）"; };
+  cnt();
+  const add = async f => { try { await pAttachPhoto(it, 1, f); have++; cnt(); } catch { alert("這張照片無法讀取，請重新拍攝"); } };
+  box.querySelector("#sfCam").onclick = () => openCamera(`改善後照片：${it.location || it.no}`, blob => add(blob), async files => { for (const f of files) await add(f); });
+  box.querySelector("#sfFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; for (const f of fs) await add(f); };
+  box.querySelector("#sfNo").onclick = () => box.remove();
+  box.querySelector("#sfOk").onclick = async () => {
+    it.fixedNote = box.querySelector("#sfNote").value.trim(); it.status = "fixed"; it.fixedAt = today();
+    it.log.push({ at: new Date().toISOString(), text: "回報已改善" + (it.fixedNote ? "：" + it.fixedNote : "") });
+    await pSave(it); box.remove(); await done();
+  };
+}
+
 /* ---------- 單筆缺失 ---------- */
 async function renderPunchForm(id) {
   const it = await DB.get("punch", id);
@@ -104,27 +152,34 @@ async function renderPunchForm(id) {
   it.log = it.log || [];
   const site = sites.find(s => s.id === it.siteId);
   let photos = await pPhotosOf(it.id), timer;
-  const flush = () => { clearTimeout(timer); it.updated = Date.now(); return DB.put("punch", it); };
-  const save = () => { clearTimeout(timer); timer = setTimeout(flush, 300); };
+  const mark = t => { const el = $("#pSaved"); if (el) el.textContent = t; };
+  const flush = async () => { clearTimeout(timer); it.updated = Date.now(); await DB.put("punch", it); mark(`✓ 已暫存 ${new Date().toTimeString().slice(0, 5)}`); };
+  const save = () => { clearTimeout(timer); mark("儲存中…"); timer = setTimeout(flush, 300); };
   const trades = await pTrades(), locs = [...new Set((await DB.all("punch")).filter(x => x.siteId === it.siteId).map(x => x.location).filter(Boolean))];
   const photoBlock = (slot, label) => `<div class="panel"><b>${label}</b><div class="phrow"><button type="button" class="phbtn" data-pcam="${slot}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-pfile="${slot}"></label><div class="thumbs" data-pth="${slot}"></div></div></div>`;
   const badge = `<span class="st st-${it.status === "closed" ? "已完成" : it.status === "fixed" ? "填寫中" : "未填"}" style="${it.status === "open" ? "color:#c0392b" : ""};font-size:15px">${PUNCH_STATUS[it.status]}</span>`;
+  const hasAfter = photos.some(p => p.itemIdx === 1), open = it.status === "open";
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">缺失 <small style="color:var(--mut);font-weight:400">${esc(it.no)}</small> ${badge}</h2>
+    <div id="pSaved" class="saved">✓ 內容會自動暫存，不需要另外按儲存</div>
     ${pOver(it) ? `<div class="legend" style="color:#c0392b">⚠ 已逾期 ${pLate(it)} 天（期限 ${esc(it.due)}）</div>` : ""}
     <div class="panel">
       <div class="field"><label>位置（樓層／區域／軸線）</label><input data-f="location" list="pLocs" placeholder="例：3F A~C 軸 北側牆" value="${esc(it.location)}"><datalist id="pLocs">${locs.map(l => `<option value="${esc(l)}">`).join("")}</datalist></div>
-      <div class="field"><label>缺失內容</label><textarea data-f="desc" rows="3" placeholder="例：蜂窩、露筋、牆面不平整">${esc(it.desc)}</textarea></div>
-      <div class="field"><label>責任工班／廠商（可先空白，回辦公室再指定）</label><input data-f="trade" list="pTrades" placeholder="例：泥作工" value="${esc(it.trade)}"><datalist id="pTrades">${trades.map(t => `<option value="${esc(t)}">`).join("")}</datalist></div>
-      <div class="field" style="margin-bottom:6px"><label>改善期限</label><input type="date" data-f="due" value="${esc(it.due)}"></div>
-      <div class="chips" style="margin:0 0 10px"><button class="chip" data-d="3">+3 天</button><button class="chip" data-d="7">+7 天</button><button class="chip" data-d="14">+14 天</button></div>
-      <div class="grid2"><div class="field" style="margin:0"><label>登記日期</label><input type="date" data-f="foundDate" value="${esc(it.foundDate)}"></div><div class="field" style="margin:0"><label>登記人</label><input data-f="foundBy" value="${esc(it.foundBy)}"></div></div></div>
+      <div class="field" style="margin-bottom:0"><label>缺失內容</label><textarea data-f="desc" rows="3" placeholder="例：蜂窩、露筋、牆面不平整">${esc(it.desc)}</textarea></div></div>
     ${photoBlock(0, "缺失照片")}
-    ${it.status === "open" ? `<div class="panel"><b>改善回報</b><div class="field" style="margin:8px 0"><label>改善說明（可空白）</label><input data-f="fixedNote" placeholder="例：已打磨修補" value="${esc(it.fixedNote)}"></div></div>${photoBlock(1, "改善後照片")}<div class="row"><button id="pFix">✔ 回報已改善（待複驗）</button></div>` : ""}
+    <div class="panel"><b>指派</b> <small style="color:var(--mut)">現場可先空白，回辦公室再批次指定</small>
+      <div class="field" style="margin-top:8px"><label>責任工班／廠商</label><input data-f="trade" list="pTrades" placeholder="例：泥作工" value="${esc(it.trade)}"><datalist id="pTrades">${trades.map(t => `<option value="${esc(t)}">`).join("")}</datalist></div>
+      <div class="field" style="margin-bottom:6px"><label>改善期限</label><input type="date" data-f="due" value="${esc(it.due)}"></div>
+      <div class="chips" style="margin:0"><button class="chip" data-d="3">+3 天</button><button class="chip" data-d="7">+7 天</button><button class="chip" data-d="14">+14 天</button></div>
+      <details style="margin-top:8px"><summary>登記日期與登記人</summary><div class="grid2" style="margin-top:6px"><div class="field" style="margin:0"><label>登記日期</label><input type="date" data-f="foundDate" value="${esc(it.foundDate)}"></div><div class="field" style="margin:0"><label>登記人</label><input data-f="foundBy" value="${esc(it.foundBy)}"></div></div></details></div>
+    <div class="row"><button id="pDone">${open ? "✔ 完成登記" : "← 回列表"}</button></div>
+    <div class="row"><button class="sec" id="pNext">＋ 再新增一筆（沿用位置、工班、期限）</button></div>
+    ${open ? `<details class="pfix" ${it.fixedNote || hasAfter ? "open" : ""}><summary>🔧 改善回報（工班改善後再填）</summary>
+      <div class="panel"><div class="field" style="margin:0"><label>改善說明（可空白）</label><input data-f="fixedNote" placeholder="例：已打磨修補" value="${esc(it.fixedNote)}"></div></div>${photoBlock(1, "改善後照片")}
+      <div class="row"><button class="sec" id="pFix">✔ 回報已改善（待複驗）</button></div></details>` : ""}
     ${it.status === "fixed" ? `<div class="panel"><b>改善回報</b><div style="margin-top:6px">${esc(it.fixedNote || "（未填說明）")}<br><small style="color:var(--mut)">${esc(it.fixedAt)} 回報</small></div></div>${photoBlock(1, "改善後照片")}
       <div class="row"><button id="pPass">✅ 複驗合格・結案</button></div><div class="row"><button class="danger" id="pReject">↩ 複驗不合格・退回</button></div>` : ""}
     ${it.status === "closed" ? `<div class="panel"><b style="color:var(--ok)">✔ 已結案</b><div style="margin-top:6px">${esc(it.closedAt)}　複驗：${esc(it.closedBy || "—")}${it.fixedNote ? `<br>改善：${esc(it.fixedNote)}` : ""}</div></div>${photoBlock(1, "改善後照片")}<div class="row"><button class="sec" id="pReopen">重新開啟</button></div>` : ""}
-    <div class="row"><button class="sec" id="pNext">＋ 再新增一筆（沿用位置、工班、期限）</button></div>
     ${it.log.length ? `<div class="panel"><small style="color:var(--mut)">紀錄<br>${it.log.map(x => `${esc(pStamp(x.at))}　${esc(x.text)}`).join("<br>")}</small></div>` : ""}
     <div class="row"><button class="danger" id="pDel">刪除這筆缺失</button></div>`;
 
@@ -163,6 +218,7 @@ async function renderPunchForm(id) {
     it.status = "open"; it.rejects = (it.rejects || 0) + 1; it.fixedAt = ""; logAdd("複驗不合格・退回" + (why.trim() ? "：" + why.trim() : "")); await flush(); renderPunchForm(id);
   });
   $("#pReopen")?.addEventListener("click", async () => { if (!confirm("重新開啟這筆缺失？")) return; it.status = "open"; it.closedAt = ""; it.closedBy = ""; logAdd("重新開啟"); await flush(); renderPunchForm(id); });
+  $("#pDone").onclick = async () => { await flush(); goBack("#/punch"); };
   $("#pNext").onclick = async () => { await flush(); const n = pNew({ no: await pNextNo(), location: it.location, seedLoc: it.location, trade: it.trade, due: it.due, foundDate: it.foundDate, foundBy: it.foundBy }); await DB.put("punch", n); goReplace("#/punch/" + n.id); };
   $("#pDel").onclick = async () => { if (!confirm("確定刪除這筆缺失？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await DB.del("punch", id); goBack("#/punch"); };
 }
