@@ -125,6 +125,7 @@ function openSetup(mode) {
   $("#sCompany").value = ls.get("company", "");
   $("#sOk").textContent = mode === "first" ? "開始填表" : "儲存";
   $("#sCancel").hidden = mode === "first";
+  $("#sDel").hidden = !(mode === "edit" && cur);
   d.dataset.mode = mode;
   d.showModal();
 }
@@ -144,6 +145,27 @@ $("#setupForm").addEventListener("submit", async e => {
   }
   await loadSites(); route();
 });
+// 刪除工地：連同底下所有檢查表、點工單、缺失、澆置、材料進場、照片與附加檔案一併刪除
+$("#sDel").onclick = async () => {
+  const cur = sites.find(x => x.id === siteId); if (!cur) return;
+  const stores = ["records", "workorders", "punch", "pours", "matrecs"], mine = {}, ids = new Set();
+  for (const st of stores) {
+    mine[st] = (await DB.all(st)).filter(x => x.siteId === cur.id);
+    for (const x of mine[st]) { ids.add(x.id); for (const t of x.trucks || []) ids.add(t.id); }
+  }
+  const total = stores.reduce((a, st) => a + mine[st].length, 0);
+  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
+  const typed = prompt(`為了避免誤刪，請輸入工地名稱確認：\n${cur.name}`);
+  if (typed === null) return;
+  if (typed.trim() !== cur.name) { alert("名稱不符，沒有刪除。"); return; }
+  for (const st of stores) for (const x of mine[st]) await DB.del(st, x.id);
+  for (const ph of await DB.all("photos")) if (ids.has(ph.recId)) await DB.del("photos", ph.id);
+  await attPurge([...ids]);
+  await DB.del("sites", cur.id);
+  $("#setup").close(); siteId = "";
+  await loadSites();
+  if (!sites.length) { goReplace("#/"); openSetup("first"); } else route();
+};
 $("#addSiteBtn").onclick = () => openSetup("add");
 $("#setBtn").onclick = () => openSetup(siteId ? "edit" : "first");
 // 返回：站內有上一頁時才真的退回（讓瀏覽紀錄保持乾淨、系統返回鍵才會一致）；
