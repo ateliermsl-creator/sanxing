@@ -172,3 +172,8 @@ details>summary{cursor:pointer}
 .hint{margin:12px;padding:12px 14px;background:#eaf3ff;border:1px solid #bcd6f5;border-radius:12px;color:#1c4a7a;line-height:1.7}
 .hint a{font-weight:700;color:#1c4a7a}
 @media print{.hint{display:none!important}}
+#topbar button{display:grid;place-items:center}
+#topbar #homeBtn,#topbar #backBtn{min-width:44px;width:44px}
+#topbar #homeBtn svg{display:block}
+#topbar{gap:6px;padding-left:8px;padding-right:8px}
+#topbar #homeBtn,#topbar #backBtn,#topbar #addSiteBtn,#topbar #setBtn{min-width:42px;width:42px}

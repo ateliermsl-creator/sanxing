@@ -169,6 +169,11 @@ function parentHash() {
   if (page === "template") return "#/checklist";
   return "#/";
 }
+$("#homeBtn").onclick = () => {
+  const toHome = () => { if (location.hash.replace(/^#\/?/, "")) location.hash = "#/"; };
+  if (!$("#lb").hidden) { window.addEventListener("popstate", toHome, { once: true }); closeLightbox(); return; }   // 先關閉照片預覽（它會退一步瀏覽紀錄），再回首頁
+  toHome();
+};
 $("#backBtn").onclick = () => { if (!$("#lb").hidden) { closeLightbox(); return; } goBack(parentHash()); };
 
 /* ---------- 路由 ---------- */
