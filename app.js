@@ -72,9 +72,9 @@ function renderInstall() {
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("avocado-toolbox", 6);
+  const r = indexedDB.open("avocado-toolbox", 7);
   r.onupgradeneeded = () => {
-    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours"])
+    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats"])
       if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
   };
   r.onsuccess = () => res(r.result);
@@ -166,6 +166,7 @@ function parentHash() {
   if (page === "checklist") return a ? (b === "preview" ? "#/checklist/" + a : "#/checklist") : "#/";
   if (page === "workorder") return a ? (b === "preview" ? "#/workorder/" + a : "#/workorder") : "#/";
   if (page === "punch") return a ? "#/punch" : "#/";
+  if (page === "material") return !a ? "#/" : b === "print" ? "#/material/" + a : "#/material";
   if (page === "pour") return a === "summary" ? "#/pour" : !a ? "#/" : b === "truck" || b === "print" ? "#/pour/" + a : "#/pour";
   if (page === "template") return "#/checklist";
   return "#/";
@@ -194,6 +195,7 @@ async function route() {
     return location.hash.endsWith("/preview") ? renderPreview(a) : renderForm(a);
   }
   if (page === "pour") return renderPour(a, b2, c2);
+  if (page === "material") return renderMaterial(a, b2);
   if (page === "install") return renderInstall();
   if (page === "punch") return renderPunch(a);
   if (page === "workorder") return renderWorkorder(a, location.hash.endsWith("/preview"));
@@ -212,6 +214,7 @@ async function renderHome() {
     ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
     <section class="hero"><img src="leek.png" alt=""><h1>三星蔥營造工具箱</h1><p>工地隨身工具・沒有網路也能用</p></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/material"><div class="ph">📦</div><div><b>材料進場驗收</b><small>類別檢查項目・簽名・照片・進場台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/pour"><div class="ph">🚛</div><div><b>混凝土澆置抽驗</b><small>車號・坍度・氯離子・試體・簽名・方量統計</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
@@ -568,7 +571,7 @@ async function renderBackup() {
     <div class="row"><button class="sec" id="impBtn">📂 匯入備份檔</button></div>
     <input type="file" id="impFile" accept=".json,application/json" hidden>`;
   $("#expBtn").onclick = async () => {
-    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), sites: await DB.all("sites"), records: await DB.all("records") };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     a.download = `三星蔥工具箱備份_${today()}.json`;
@@ -619,8 +622,15 @@ async function renderBackup() {
         if (old && (old.updated || 0) >= (x.updated || 0)) continue;
         x.siteId = map[x.siteId] || x.siteId; await DB.put("pours", x); jn++;
       }
+      let mn = 0;
+      for (const x of d.matcats || []) { const old = await DB.get("matcats", x.id); if (!old || (old.updated || 0) < (x.updated || 0)) await DB.put("matcats", x); }
+      for (const x of d.matrecs || []) {
+        const old = await DB.get("matrecs", x.id);
+        if (old && (old.updated || 0) >= (x.updated || 0)) continue;
+        x.siteId = map[x.siteId] || x.siteId; await DB.put("matrecs", x); mn++;
+      }
       await loadSites();
-      alert(`匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}`);
+      alert(`匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}`);
     } catch { alert("這不是有效的備份檔"); }
     e.target.value = "";
   };
