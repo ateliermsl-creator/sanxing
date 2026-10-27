@@ -66,8 +66,8 @@ async function renderSafetyForm(id) {
       <div class="field" style="margin-top:10px"><label>其他告知事項（可空白）</label><input data-f="extra" placeholder="例：今日有吊車作業，下方禁止進入" value="${esc(r.extra)}"></div></div>
     <div class="panel"><b>全體合照</b><div class="phrow"><button type="button" class="phbtn" id="saCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="saFile"></label><div class="thumbs" id="saTh"></div></div></div>
     <h2 class="t" style="font-size:17px;margin-bottom:0">簽到（傳閱手機）</h2>
-    <p class="cnote" style="margin:0 12px 6px">${esc(cfg.statement)}<br>請每位人員在自己的格子填姓名，並用手指簽名。</p>
-    <div class="row" style="margin:0 12px 8px"><button class="sec" id="saPrev" ${all.length ? "" : "disabled"}>📋 帶入上次名單</button><button class="sec" id="saMore">＋ 新增 9 格</button></div>
+    <p class="cnote" style="margin:0 12px 6px">${esc(cfg.statement)}<br>請每位人員填姓名，並在自己的簽名區用手指簽名。</p>
+    <div class="row" style="margin:0 12px 8px"><button class="sec" id="saPrev" ${all.length ? "" : "disabled"}>📋 帶入上次名單</button><button class="sec" id="saMore">＋ 再加 9 人</button></div>
     <div id="saGrid"></div>
     <datalist id="saNames">${known("name").map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="saCos">${known("co").map(x => `<option value="${esc(x)}">`).join("")}</datalist>
     <div class="panel"><div class="bar" style="display:flex;justify-content:space-between;align-items:center"><b>主持人簽名</b><button class="sec" id="saHostClr" style="min-height:36px">清除</button></div><div class="sigbox"><canvas data-sig="host"></canvas></div></div>
@@ -96,8 +96,8 @@ async function renderSafetyForm(id) {
     holder.sigs = Object.fromEntries(r.people.filter(p => p.sig).map(p => [p.id, p.sig]));
     const pages = []; for (let i = 0; i < r.people.length; i += SA_PAGE) pages.push(r.people.slice(i, i + SA_PAGE));
     $("#saGrid").innerHTML = pages.map((pg, pi) => `${pages.length > 1 ? `<small class="cnote" style="margin:4px 12px;display:block">第 ${pi + 1} 頁</small>` : ""}<div class="sagrid">${pg.map(p => `<div class="sacell" data-a="${esc(p.id)}"><button type="button" class="sax" data-rm="${esc(p.id)}" aria-label="刪除這格">✕</button>
-      <input data-n="name" placeholder="姓名" list="saNames" value="${esc(p.name)}"><input data-n="co" placeholder="單位／工班" list="saCos" value="${esc(p.co)}">
-      <canvas data-sig="${esc(p.id)}"></canvas><button type="button" class="sec sacl" data-clr="${esc(p.id)}">清除簽名</button></div>`).join("")}</div>`).join("");
+      <div class="sarow"><input data-n="name" placeholder="姓名" list="saNames" value="${esc(p.name)}"><input data-n="co" placeholder="單位／工班" list="saCos" value="${esc(p.co)}"></div>
+      <canvas data-sig="${esc(p.id)}"></canvas><div class="sabar"><small>${pi * SA_PAGE + pg.indexOf(p) + 1}</small><button type="button" class="sec sacl" data-clr="${esc(p.id)}">清除簽名</button></div></div>`).join("")}</div>`).join("");
     $("#saGrid").querySelectorAll("canvas").forEach(c => setupSig(c, holder, () => { syncSigs(); save(); }));
     $("#saGrid").querySelectorAll(".sacell").forEach(cell => {
       const p = r.people.find(x => x.id === cell.dataset.a);
