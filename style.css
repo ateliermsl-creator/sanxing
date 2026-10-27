@@ -232,3 +232,5 @@ button.on.sec,.phrow button.on{background:var(--g);color:#fff}
 .shotal.n2 .gal{grid-template-columns:1fr}.shotal.n2 .gal img{height:105mm;max-height:none}
 .shotal.n4 .gal img{height:100mm;max-height:none}
 .shotal.n6 .gal img{height:66mm;max-height:none}
+#shotCam .scTop small{font-size:12px;opacity:.85}
+#shotCam .scOpt button[data-t]{background:#3a3a3a}

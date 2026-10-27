@@ -22,6 +22,7 @@ const ce = (v, list, def) => list.includes(v) ? v : def;
 const cdate = v => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : "";
 const ctime = v => (typeof v === "string" && /^\d{1,2}:\d{2}$/.test(v)) ? v : "";
 const ciso = v => (typeof v === "string" && v.length <= 40) ? v : "";
+const cgeo = (v, max) => { const n = Number(v); return v !== undefined && v !== null && v !== "" && Number.isFinite(n) && Math.abs(n) <= max ? n : undefined; };
 const arr = (v, max = 5000) => Array.isArray(v) ? v.slice(0, max) : [];
 const obj = v => (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
 const cname = v => cs(v, 200).replace(/[\u0000-\u001f\u007f]/g, "");
@@ -64,7 +65,7 @@ const CLEAN = {
     : (x.id === "__deleted" || x.id === "__seed2") ? { id: x.id, updated: cn(x.updated) }
     : safeId(x.id) && { id: x.id, name: cs(x.name, 100), checks: arr(x.checks, 300).map(c => cs(c, 300)).filter(Boolean), order: cn(x.order), created: cn(x.created), updated: cn(x.updated) },
   shots: x => safeId(x.id) && safeId(x.siteId) && safeImg(x.data) && {
-    id: x.id, siteId: x.siteId, date: cdate(x.date), item: cs(x.item, 100), part: cs(x.part, 100), spec: cs(x.spec, 200), vendor: cs(x.vendor, 100), note: cs(x.note, 300),
+    id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), lat: cgeo(x.lat, 90), lng: cgeo(x.lng, 180), acc: Math.max(0, cn(x.acc)), item: cs(x.item, 100), part: cs(x.part, 100), spec: cs(x.spec, 200), vendor: cs(x.vendor, 100), note: cs(x.note, 300),
     data: x.data, raw: safeImg(x.raw) || x.data, thumb: safeImg(x.thumb), created: cn(x.created), updated: cn(x.updated) },
   files: x => safeId(x.id) && safeId(x.recId) && typeof x.data === "string" && x.data.length < 20e6 && SAFE_DATA.test(x.data) && {
     id: x.id, recId: x.recId, name: cname(x.name) || "檔案", type: SAFE_FILE_TYPES.includes(x.type) ? x.type : "application/octet-stream", size: cn(x.size), created: cn(x.created), data: x.data }

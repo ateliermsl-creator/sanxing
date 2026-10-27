@@ -7,13 +7,16 @@
 const shotRoc = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? `${+m[1] - 1911}年${+m[2]}月${+m[3]}日` : ""; };
 const shotJSON = k => { try { return JSON.parse(ls.get(k, "{}")) || {}; } catch { return {}; } };
 const shotFieldsGet = () => { const f = shotJSON("shotF"); return { item: f.item || "", part: f.part || "", spec: f.spec || "", vendor: f.vendor || "", note: f.note || "" }; };
-const shotOptGet = () => { const o = shotJSON("shotO"); return { pos: o.pos === "br" ? "br" : "bl", size: [0.8, 1, 1.25].includes(o.size) ? o.size : 1, theme: o.theme === "white" ? "white" : "green" }; };
+const shotOptGet = () => { const o = shotJSON("shotO"); return { pos: o.pos === "br" ? "br" : "bl", size: [0.8, 1, 1.25].includes(o.size) ? o.size : 1, theme: o.theme === "white" ? "white" : "green", showTime: o.showTime !== false, showGps: o.showGps !== false }; };
+const shotGpsText = (lat, lng) => Number.isFinite(lat) && Number.isFinite(lng) ? `${lat.toFixed(5)}, ${lng.toFixed(5)}` : "";
+const shotNowTime = (d = new Date()) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 const shotSiteName = () => sites.find(s => s.id === siteId)?.name || "";
 const SHOT_MAX = 1600;
+const shotLocalDate = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 
 /* ---------- 畫黑板（拍照預覽與存檔共用同一個函式，所見即所得） ---------- */
 function shotDrawBoard(g, W, H, f, o) {
-  const rows = [["工程名稱", f.site], ["查驗項目", f.item], ["施工位置", f.part], ["設計規格", f.spec], ["日　　期", shotRoc(f.date)], ["施工廠商", f.vendor], ["說　　明", f.note]].filter(([, v]) => v);
+  const rows = [["工程名稱", f.site], ["查驗項目", f.item], ["施工位置", f.part], ["設計規格", f.spec], ["日期時間", shotRoc(f.date) + (o.showTime !== false && f.time ? "　" + f.time : "")], ["GPS座標", o.showGps !== false ? shotGpsText(f.lat, f.lng) : ""], ["施工廠商", f.vendor], ["說　　明", f.note]].filter(([, v]) => v);
   if (!rows.length) return;
   const S = Math.min(W, H), bw = Math.min(W * 0.92, S * 0.66 * o.size), fs = bw / 17, pad = fs * 0.6, lw = fs * 5.2, vw = bw - lw - pad * 2, lh = fs * 1.3;
   const dark = o.theme === "green", C = dark ? { bg: "rgba(24,70,38,.93)", ln: "#d9e8d0", tx: "#fff" } : { bg: "rgba(255,255,255,.95)", ln: "#222", tx: "#111" };
@@ -47,8 +50,8 @@ async function shotThumb(dataUrl) {
   return shotJpeg(im, Math.round(im.width * k), Math.round(im.height * k), 0.7, null);
 }
 async function shotSave(src, sw, sh, extra = {}) {
-  const f = { site: shotSiteName(), date: extra.date || today(), ...shotFieldsGet() }, o = shotOptGet(), r = shotCompose(src, sw, sh, f, o);
-  const rec = { id: uid(), siteId, date: f.date, item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, data: r.data, raw: r.raw, thumb: await shotThumb(r.data), created: Date.now(), updated: Date.now() };
+  const f = { site: shotSiteName(), date: extra.date || today(), time: extra.time || "", ...shotFieldsGet() }, o = shotOptGet(), r = shotCompose(src, sw, sh, f, o);
+  const rec = { id: uid(), siteId, date: f.date, time: f.time, item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, data: r.data, raw: r.raw, thumb: await shotThumb(r.data), created: Date.now(), updated: Date.now() };
   await DB.put("shots", rec); return rec;
 }
 
@@ -59,14 +62,15 @@ async function shotOpenCamera(onSaved) {
   catch (err) { alert(`無法開啟內建相機（${err?.name || "未知錯誤"}）。\n請在瀏覽器允許相機權限；或改用「🖼 相簿照片加黑板」選手機拍好的照片。`); return; }
   const past = (await DB.all("shots")).filter(x => x.siteId === siteId);
   const uniq = k => [...new Set(past.sort((a, b) => b.created - a.created).map(x => x[k]).filter(Boolean))].slice(0, 12);
-  const f = { site: shotSiteName(), date: today(), ...shotFieldsGet() }, o = shotOptGet();
+  const f = { site: shotSiteName(), date: shotLocalDate(new Date()), time: shotNowTime(), ...shotFieldsGet() }, o = shotOptGet();
   const box = document.createElement("div"); box.id = "shotCam";
-  box.innerHTML = `<div class="scTop"><b>電子黑板相機</b><button type="button" id="scEdit">✎ 編輯黑板</button><button type="button" id="scDone">完成</button></div>
+  box.innerHTML = `<div class="scTop"><b>電子黑板相機</b><small id="scGps">📍 定位中…</small><button type="button" id="scEdit">✎ 編輯黑板</button><button type="button" id="scDone">完成</button></div>
     <div class="scEditor" id="scEditor" hidden>
       ${[["item", "查驗項目"], ["part", "施工位置"], ["spec", "設計規格"], ["vendor", "施工廠商（可空白）"], ["note", "說明（可空白）"]].map(([k, l]) => `<label>${l}<input data-k="${k}" list="scl_${k}" value="${esc(f[k])}" autocomplete="off"></label><datalist id="scl_${k}">${uniq(k).map(v => `<option value="${esc(v)}">`).join("")}</datalist>`).join("")}
       <div class="scOpt"><span>位置</span><button type="button" data-o="pos" data-v="bl">左下</button><button type="button" data-o="pos" data-v="br">右下</button>
         <span>大小</span><button type="button" data-o="size" data-v="0.8">小</button><button type="button" data-o="size" data-v="1">中</button><button type="button" data-o="size" data-v="1.25">大</button>
-        <span>顏色</span><button type="button" data-o="theme" data-v="green">綠板</button><button type="button" data-o="theme" data-v="white">白板</button></div></div>
+        <span>顏色</span><button type="button" data-o="theme" data-v="green">綠板</button><button type="button" data-o="theme" data-v="white">白板</button>
+        <span>顯示</span><button type="button" data-t="showTime">拍攝時間</button><button type="button" data-t="showGps">GPS 座標</button></div></div>
     <div class="scStage" id="scStage"><video playsinline muted autoplay></video><canvas id="scBoard"></canvas></div>
     <div class="camBar"><span id="scCount">已拍 0 張</span><button type="button" id="scShot" aria-label="拍照"></button><span style="width:64px"></span></div>`;
   document.body.append(box);
@@ -78,20 +82,26 @@ async function shotOpenCamera(onSaved) {
     Object.assign(cv.style, { width: dw + "px", height: dh + "px", left: (cw - dw) / 2 + "px", top: (ch - dh) / 2 + "px" });
     cv.width = v.videoWidth; cv.height = v.videoHeight; draw();
   };
-  const draw = () => { const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height); shotDrawBoard(g, cv.width, cv.height, f, o); box.querySelectorAll("[data-o]").forEach(b => b.classList.toggle("on", String(o[b.dataset.o]) === b.dataset.v)); };
+  const draw = () => { const g = cv.getContext("2d"); g.clearRect(0, 0, cv.width, cv.height); shotDrawBoard(g, cv.width, cv.height, f, o); box.querySelectorAll("[data-o]").forEach(b => b.classList.toggle("on", String(o[b.dataset.o]) === b.dataset.v)); box.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("on", o[b.dataset.t])); };
   v.onloadedmetadata = layout; window.addEventListener("resize", layout);
   box.querySelectorAll("[data-k]").forEach(el => el.oninput = () => { f[el.dataset.k] = el.value; ls.set("shotF", JSON.stringify({ item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note })); draw(); });
   box.querySelectorAll("[data-o]").forEach(b => b.onclick = () => { o[b.dataset.o] = b.dataset.o === "size" ? +b.dataset.v : b.dataset.v; ls.set("shotO", JSON.stringify(o)); draw(); });
+  box.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { o[b.dataset.t] = !o[b.dataset.t]; ls.set("shotO", JSON.stringify(o)); draw(); });
+  // GPS：開著相機時持續定位，拍照時取最新的一次
+  let watch = null; const gl = $("#scGps", box);
+  if (navigator.geolocation) watch = navigator.geolocation.watchPosition(p => { f.lat = p.coords.latitude; f.lng = p.coords.longitude; f.acc = p.coords.accuracy; gl.textContent = `📍 已定位 ±${Math.round(f.acc)}m`; draw(); },
+    er => { gl.textContent = er.code === 1 ? "📍 未允許定位" : "📍 無法定位"; }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 });
+  else gl.textContent = "📍 不支援定位";
   $("#scEdit", box).onclick = () => { const ed = $("#scEditor", box); ed.hidden = !ed.hidden; };
   let n = 0, busy = false;
-  const close = () => { window.removeEventListener("resize", layout); stream.getTracks().forEach(t => t.stop()); v.srcObject = null; box.remove(); onSaved?.(n); };
+  const close = () => { if (watch !== null) navigator.geolocation.clearWatch(watch); window.removeEventListener("resize", layout); stream.getTracks().forEach(t => t.stop()); v.srcObject = null; box.remove(); onSaved?.(n); };
   $("#scDone", box).onclick = close;
   $("#scShot", box).onclick = async () => {
     if (busy || !v.videoWidth) return; busy = true;
     try {
-      f.date = today();
+      { const d = new Date(); f.date = shotLocalDate(d); f.time = shotNowTime(d); }
       const r = shotCompose(v, v.videoWidth, v.videoHeight, f, o);
-      const rec = { id: uid(), siteId, date: f.date, item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, data: r.data, raw: r.raw, thumb: await shotThumb(r.data), created: Date.now(), updated: Date.now() };
+      const rec = { id: uid(), siteId, date: f.date, time: f.time, lat: f.lat, lng: f.lng, acc: f.acc, item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, data: r.data, raw: r.raw, thumb: await shotThumb(r.data), created: Date.now(), updated: Date.now() };
       await DB.put("shots", rec); n++; $("#scCount", box).textContent = `已拍 ${n} 張`;
       box.classList.add("flash"); setTimeout(() => box.classList.remove("flash"), 120);
     } catch { alert("存檔失敗，可能是手機儲存空間不足。"); }
@@ -126,7 +136,7 @@ async function renderShotList() {
   $("#shFile").onchange = async e => {
     const files = [...e.target.files]; e.target.value = ""; let ok = 0;
     for (const file of files) {
-      try { const bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); await shotSave(bmp, bmp.width, bmp.height, { date: new Date(file.lastModified || Date.now()).toISOString().slice(0, 10) }); ok++; }
+      try { const bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); await shotSave(bmp, bmp.width, bmp.height, { date: shotLocalDate(new Date(file.lastModified || Date.now())), time: shotNowTime(new Date(file.lastModified || Date.now())) }); ok++; }
       catch { /* 讀不出來的檔案略過 */ }
     }
     if (ok < files.length) alert(`有 ${files.length - ok} 張無法讀取，已略過。`);
@@ -155,22 +165,26 @@ async function renderShotDetail(id) {
     <div class="panel"><b>黑板內容</b>
       ${[["item", "查驗項目"], ["part", "施工位置"], ["spec", "設計規格"], ["vendor", "施工廠商"], ["note", "說明"]].map(([k, l]) => `<div class="field"><label>${l}</label><input data-k="${k}" value="${esc(x[k])}"></div>`).join("")}
       <div class="field"><label>日期</label><input type="date" data-k="date" value="${esc(x.date)}"></div>
+      <div class="field"><label>拍攝時間</label><input type="time" data-k="time" value="${esc(x.time)}"></div>
+      <p class="cnote">GPS：${x.lat !== undefined && Number.isFinite(x.lat) ? esc(shotGpsText(x.lat, x.lng)) + (x.acc ? `（誤差約 ${Math.round(x.acc)} 公尺）` : "") : "沒有定位資料（用相簿加黑板的照片不含 GPS）"}</p>
       <div class="phrow"><button type="button" class="sec" data-o="pos" data-v="bl">左下</button><button type="button" class="sec" data-o="pos" data-v="br">右下</button>
         <button type="button" class="sec" data-o="size" data-v="0.8">小</button><button type="button" class="sec" data-o="size" data-v="1">中</button><button type="button" class="sec" data-o="size" data-v="1.25">大</button>
-        <button type="button" class="sec" data-o="theme" data-v="green">綠板</button><button type="button" class="sec" data-o="theme" data-v="white">白板</button></div>
+        <button type="button" class="sec" data-o="theme" data-v="green">綠板</button><button type="button" class="sec" data-o="theme" data-v="white">白板</button>
+        <button type="button" class="sec" data-t="showTime">顯示時間</button><button type="button" class="sec" data-t="showGps">顯示 GPS</button></div>
       <div class="row"><button id="sdUpd">更新黑板</button></div></div>
     <div class="row"><button class="sec" id="sdShare">📤 分享照片</button><button class="sec" id="sdDl">⬇ 下載</button></div>
     <div class="row"><button class="danger" id="sdDel">刪除這張照片</button></div>`;
-  const mark = () => view.querySelectorAll("[data-o]").forEach(b => b.classList.toggle("on", String(o[b.dataset.o]) === b.dataset.v));
+  const mark = () => { view.querySelectorAll("[data-o]").forEach(b => b.classList.toggle("on", String(o[b.dataset.o]) === b.dataset.v)); view.querySelectorAll("[data-t]").forEach(b => b.classList.toggle("on", o[b.dataset.t])); };
   mark();
   view.querySelectorAll("[data-o]").forEach(b => b.onclick = () => { o[b.dataset.o] = b.dataset.o === "size" ? +b.dataset.v : b.dataset.v; ls.set("shotO", JSON.stringify(o)); mark(); });
+  view.querySelectorAll("[data-t]").forEach(b => b.onclick = () => { o[b.dataset.t] = !o[b.dataset.t]; ls.set("shotO", JSON.stringify(o)); mark(); });
   $("#sdImg").onclick = () => openLightbox([x], 0);
   $("#sdUpd").onclick = async () => {
-    const f = { site, date: x.date }; view.querySelectorAll("[data-k]").forEach(el => f[el.dataset.k] = el.value);
+    const f = { site, date: x.date, lat: x.lat, lng: x.lng }; view.querySelectorAll("[data-k]").forEach(el => f[el.dataset.k] = el.value);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(f.date)) f.date = x.date;
     const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = safeImg(x.raw || x.data); });
     const r = shotCompose(im, im.width, im.height, f, o);
-    Object.assign(x, { item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, date: f.date, data: r.data, thumb: await shotThumb(r.data), updated: Date.now() });
+    Object.assign(x, { item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, date: f.date, time: f.time || "", data: r.data, thumb: await shotThumb(r.data), updated: Date.now() });
     await DB.put("shots", x); $("#sdImg").src = x.data; alert("黑板已更新");
   };
   const file = () => new File([dataURLtoBlob(x.data)], `施工照片_${x.date}_${(x.item || "").replace(/[\\/:*?"<>|]/g, "")}.jpg`, { type: "image/jpeg" });
