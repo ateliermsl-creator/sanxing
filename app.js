@@ -126,38 +126,7 @@ function checkBackup() {
 
 /* ---------- 照片 ---------- */
 // 縮圖壓縮並蓋上日期時間與工地名稱（存證用），存成 JPEG dataURL
-// 底片相機風格的日期（橘黃色七段數字，略傾斜、帶光暈），畫在照片右下角
-const SEG = { 0: "abcdef", 1: "bc", 2: "abged", 3: "abgcd", 4: "fgbc", 5: "afgcd", 6: "afgedc", 7: "abc", 8: "abcdefg", 9: "abcdfg" };
-function drawFilmDate(g, text, right, bottom, H) {
-  const W = H * 0.56, t = H * 0.14, gap = W * 0.42, n = text.length;
-  const total = n * W + (n - 1) * gap, x0 = right - total, y0 = bottom - H;
-  const hseg = (x, y, len) => { g.moveTo(x + t * 0.5, y); g.lineTo(x + len - t * 0.5, y); g.lineTo(x + len, y + t / 2); g.lineTo(x + len - t * 0.5, y + t); g.lineTo(x + t * 0.5, y + t); g.lineTo(x, y + t / 2); g.closePath(); };
-  const vseg = (x, y, len) => { g.moveTo(x, y + t * 0.5); g.lineTo(x + t / 2, y); g.lineTo(x + t, y + t * 0.5); g.lineTo(x + t, y + len - t * 0.5); g.lineTo(x + t / 2, y + len); g.lineTo(x, y + len - t * 0.5); g.closePath(); };
-  const paint = () => {
-    [...text].forEach((ch, i) => {
-      const x = x0 + i * (W + gap), y = y0, h2 = (H - t) / 2, on = SEG[ch] || "";
-      g.beginPath();
-      if (on.includes("a")) hseg(x, y, W);
-      if (on.includes("g")) hseg(x, y + h2, W);
-      if (on.includes("d")) hseg(x, y + H - t, W);
-      if (on.includes("f")) vseg(x, y, h2 + t);
-      if (on.includes("b")) vseg(x + W - t, y, h2 + t);
-      if (on.includes("e")) vseg(x, y + h2, h2 + t);
-      if (on.includes("c")) vseg(x + W - t, y + h2, h2 + t);
-      g.fill();
-    });
-  };
-  g.save();
-  g.translate(right, bottom); g.transform(1, 0, -0.12, 1, 0, 0); g.translate(-right, -bottom);
-  g.shadowColor = "rgba(255,110,0,.95)"; g.shadowBlur = H * 0.45; g.fillStyle = "#ff8a14"; paint();   // 光暈
-  g.shadowBlur = 0; g.fillStyle = "#ffa530"; paint();                                                   // 本體
-  g.restore();
-}
-const rocDate = iso => {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "") || /^(\d{4})-(\d{2})-(\d{2})$/.exec(new Date().toISOString().slice(0, 10));
-  return String(+m[1] - 1911) + m[2] + m[3];
-};
-async function makePhoto(file, stamp, filmDate) {
+async function makePhoto(file, stamp) {
   let bmp;
   try { bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); }
   catch { bmp = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = URL.createObjectURL(file); }); }
@@ -169,10 +138,8 @@ async function makePhoto(file, stamp, filmDate) {
   const tw = g.measureText(stamp).width;
   g.fillStyle = "rgba(0,0,0,.55)"; g.fillRect(0, c.height - fs * 1.6, tw + fs, fs * 1.6);
   g.fillStyle = "#fff"; g.fillText(stamp, fs / 2, c.height - fs * 0.3);
-  if (filmDate) { const H = Math.round(Math.min(c.width, c.height) * 0.05); drawFilmDate(g, filmDate, c.width - H * 1.1, c.height - H * 0.9, H); }
   return c.toDataURL("image/jpeg", 0.72);
 }
-const nowStamp = () => { const d = new Date(), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 const photosOf = async recId => (await DB.all("photos")).filter(p => p.recId === recId).sort((a, b) => a.created - b.created);
 
 /* ---------- 照片放大預覽 ---------- */
@@ -313,7 +280,7 @@ async function renderForm(id) {
   };
   const addPhoto = async (i, file) => {
     const site = sites.find(s => s.id === rec.siteId);
-    const p = { id: uid(), recId: rec.id, itemIdx: i, data: await makePhoto(file, `${nowStamp()} ${site?.name || ""}`, rocDate(rec.date)), created: Date.now() };
+    const p = { id: uid(), recId: rec.id, itemIdx: i, data: await makePhoto(file, `${rec.date || ""} ${site?.name || ""}`.trim()), created: Date.now() };
     await DB.put("photos", p); photos.push(p); drawThumbs(i);
   };
   view.querySelectorAll("input[data-ph]").forEach(inp => inp.onchange = async () => {
