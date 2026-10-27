@@ -1,6 +1,6 @@
 "use strict";
 /* 工地隨身工程計算機（純前端，離線可用）
-   四個分頁：鋼筋稱號、混凝土方數、坡度與高程、坪與才 */
+   五個分頁：鋼筋稱號、鋼筋重量、混凝土方數、坡度與高程、坪與才 */
 
 const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
@@ -45,6 +45,49 @@ function tabRebar(box) {
   };
   $("#rSel").onchange = draw;
   $("#rAll").onclick = e => { const tr = e.target.closest("tr[data-d]"); if (!tr) return; $("#rSel").value = tr.dataset.d; draw(); $("#rSel").scrollIntoView({ block: "center", behavior: "smooth" }); };
+  draw();
+}
+
+/* ---------- 鋼筋重量估算 ---------- 重量 = 單位重 W（kgf/m）× 每根長度（m）× 根數 */
+function tabRebarWt(box) {
+  const blank = () => ({ name: "", d: "D13", len: "", n: "" });
+  let rows;
+  try { rows = JSON.parse(localStorage.getItem("rebarRows") || "null"); } catch { rows = null; }
+  if (!Array.isArray(rows) || !rows.length) rows = [blank()];
+  const cfg = (() => { try { return JSON.parse(localStorage.getItem("rebarCfg") || "{}"); } catch { return {}; } })();
+  box.innerHTML = `
+    <div id="wRows"></div>
+    <div class="row"><button class="sec" id="wAdd">＋ 新增一列</button><button class="sec" id="wClear">全部清除</button></div>
+    <div class="panel"><div class="field" style="margin-bottom:6px"><label>損耗率（%，可填 0）</label><input id="wLoss" inputmode="decimal" value="${esc(cfg.loss ?? 0)}"></div><div id="wOut"></div></div>
+    <p class="cnote" style="margin:0 12px 12px">重量 = 單位重 W（kgf/m）× 每根長度（m）× 根數，kgf 視為 kg。長度請輸入<b>公尺</b>。單位重取自「鋼筋稱號」分頁的標稱值，實際進場重量會有 ±誤差，請以過磅為準。資料會記在這支手機。</p>`;
+  const wOf = d => parseFloat(REBARS.find(r => r.d === d)?.w);
+  const rowW = r => wOf(r.d) * (+r.len || 0) * (+r.n || 0);
+  const save = () => { try { localStorage.setItem("rebarRows", JSON.stringify(rows)); localStorage.setItem("rebarCfg", JSON.stringify({ loss: $("#wLoss").value })); } catch {} };
+  const sum = () => {
+    box.querySelectorAll("[data-wr]").forEach(el => { const v = rowW(rows[+el.dataset.wr]); el.textContent = v > 0 ? fmt(v, 2) + " kg" : "—"; });
+    const by = {};
+    rows.forEach(r => { const L = (+r.len || 0) * (+r.n || 0); if (L > 0) { const o = by[r.d] = by[r.d] || { L: 0, w: 0 }; o.L += L; o.w += rowW(r); } });
+    const total = Object.values(by).reduce((a, o) => a + o.w, 0), loss = num($("#wLoss"), 0), withLoss = total * (1 + loss / 100);
+    $("#wOut").innerHTML = total > 0 ? `
+      <div class="tblwrap"><table class="ct"><tr><th>號數</th><th>總長 (m)</th><th>重量 (kg)</th></tr>
+      ${REBARS.filter(r => by[r.d]).map(r => `<tr><th>${r.d}</th><td>${fmt(by[r.d].L, 2)}</td><td>${fmt(by[r.d].w, 2)}</td></tr>`).join("")}</table></div>
+      <div class="big"><span>合計</span><b>${fmt(total, 2)} kg</b></div>
+      ${loss > 0 ? `<div class="big"><span>含損耗 ${fmt(loss, 1)}%</span><b>${fmt(withLoss, 2)} kg</b></div>` : ""}
+      <div class="big"><span>以噸計${loss > 0 ? "（含損耗）" : ""}</span><b>${fmt(withLoss / 1000, 3)} t</b></div>` : `<p class="cnote">輸入長度與根數後，這裡會顯示各號數的總長、重量與合計。</p>`;
+    save();
+  };
+  const draw = () => {
+    $("#wRows").innerHTML = rows.map((r, i) => `<div class="panel vrow" data-i="${i}">
+      <div class="vtop"><input data-k="name" placeholder="部位（例：2F 柱主筋）" value="${esc(r.name)}"><select data-k="d">${REBARS.map(b => `<option value="${b.d}" ${b.d === r.d ? "selected" : ""}>${b.d}</option>`).join("")}</select><button class="danger" data-del="${i}" aria-label="刪除此列">✕</button></div>
+      <div class="vdims"><label>每根長度（m）<input data-k="len" inputmode="decimal" value="${esc(r.len)}"></label><label>根數<input data-k="n" inputmode="decimal" value="${esc(r.n)}"></label></div>
+      <div class="vres"><span style="font-size:13px">W = ${REBARS.find(b => b.d === r.d)?.w} kgf/m　</span>小計：<b data-wr="${i}">—</b></div></div>`).join("");
+    sum();
+  };
+  $("#wRows").oninput = $("#wRows").onchange = e => { const k = e.target.dataset.k, i = e.target.closest(".vrow")?.dataset.i; if (!k) return; rows[+i][k] = e.target.value; if (k === "d") draw(); else sum(); };
+  $("#wRows").onclick = e => { const d = e.target.dataset.del; if (d === undefined) return; rows.splice(+d, 1); if (!rows.length) rows.push(blank()); draw(); };
+  $("#wAdd").onclick = () => { rows.push({ ...blank(), d: rows[rows.length - 1]?.d || "D13" }); draw(); };
+  $("#wClear").onclick = () => { if (!confirm("清除全部列？")) return; rows = [blank()]; draw(); };
+  $("#wLoss").oninput = sum;
   draw();
 }
 
@@ -155,7 +198,7 @@ function tabArea(box) {
 }
 
 /* ---------- 分頁 ---------- */
-const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "坪與才", tabArea]];
+const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "坪與才", tabArea]];
 function renderCalc(tab) {
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
