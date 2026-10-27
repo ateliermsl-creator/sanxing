@@ -177,3 +177,6 @@ details>summary{cursor:pointer}
 #topbar #homeBtn svg{display:block}
 #topbar{gap:6px;padding-left:8px;padding-right:8px}
 #topbar #homeBtn,#topbar #backBtn,#topbar #addSiteBtn,#topbar #setBtn{min-width:42px;width:42px}
+.psigs.tall{margin-top:24mm;gap:16mm}
+.psigs.tall div{padding-top:3mm}
+@media screen{.psigs.tall{margin-top:60px}}
