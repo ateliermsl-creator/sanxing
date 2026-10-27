@@ -132,7 +132,7 @@ async function renderMatForm(id) {
       <div class="grid2">${inp("ticket", "送貨單號", "")}${inp("lot", "批號／爐號", "")}</div>
       <div class="field" style="margin-bottom:0"><label>存放位置</label><input data-f="location" placeholder="例：1F 材料區" value="${esc(r.location)}"></div></div>
     ${r.docs.length ? `<div class="panel"><b>檢附文件</b><div class="timing" style="margin-top:8px">${r.docs.map((d, i) => `<label><input type="checkbox" data-d="${i}" ${d.v ? "checked" : ""}> ${esc(d.n)}</label>`).join("")}</div></div>` : ""}
-    ${attBlock("檢附文件電子檔（出廠證明、檢驗報告等）")}
+    ${attBlock("檢附文件／照片（出廠證明、檢驗報告等）", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="mCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="mFile"></label><div class="thumbs" id="mTh"></div></div>`)}
     <h2 class="t" style="font-size:17px;margin-bottom:0">檢查項目</h2>
     <div class="legend" style="margin-top:6px">結果標記：<b style="color:var(--ok)">○ 合格</b>　<b style="color:var(--bad)">✕ 不合格</b>　<b style="color:var(--mut)">／ 不適用</b></div>
     <div id="mChecks">${r.checks.length ? r.checks.map(chk).join("") : `<div class="panel" style="color:var(--mut)">這個類別還沒有設定檢查項目。可到「類別與檢查項目設定」新增，或在下方增加本次要檢查的項目。</div>`}</div>
@@ -140,7 +140,6 @@ async function renderMatForm(id) {
     <div class="panel"><div id="mResult"></div>
       <div class="field" style="margin:10px 0 0"><label>處置</label><select data-f="disp">${Object.entries(MAT_DISP).map(([k, l]) => `<option value="${k}" ${r.disp === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
       <div class="field" style="margin:10px 0 0"><label>備註</label><input data-f="note" placeholder="例：外箱破損 2 箱，已退貨" value="${esc(r.note)}"></div></div>
-    <div class="panel"><b>照片</b><div class="phrow"><button type="button" class="phbtn" id="mCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="mFile"></label><div class="thumbs" id="mTh"></div></div></div>
     ${[["deliver", "送貨人（可空白）"], ["inspector", "驗收人員"]].map(([k, l]) => `<div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(r.names[k])}"></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l.replace("（可空白）", "")}簽名</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div></div>`).join("")}
     <div class="row"><button id="mDone">✔ 完成（回列表）</button></div>
@@ -202,10 +201,11 @@ async function renderMatPrint(id) {
   if (!r) { goReplace("#/material"); return; }
   const site = sites.find(s => s.id === r.siteId), company = ls.get("company", "");
   const photos = (await DB.all("photos")).filter(p => p.recId === r.id).sort((a, b) => a.created - b.created);
+  const aimgs = await attImages(r.id), nImg = photos.length + aimgs.length;
   const sig = k => `<div>${r.sigs?.[k] ? `<img src="${safeImg(r.sigs[k])}">` : "<br><br>"}${k === "deliver" ? "送貨人" : "驗收人員"}${r.names?.[k] ? "：" + esc(r.names[k]) : ""}</div>`;
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
-    <label class="noprint" style="display:flex;gap:8px;align-items:center;margin:0 12px 8px;font-size:15px"><input type="checkbox" id="pvPh" style="width:22px;height:22px" ${matPrintPhoto ? "checked" : ""}> 附照片頁（${photos.length} 張）</label>
+    <label class="noprint" style="display:flex;gap:8px;align-items:center;margin:0 12px 8px;font-size:15px"><input type="checkbox" id="pvPh" style="width:22px;height:22px" ${matPrintPhoto ? "checked" : ""}> 附照片／附件頁（${nImg} 張）</label>
     <div class="paper">
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}<div class="ptitle">材料進場驗收單</div>
       <table class="pt"><tr><th>工程名稱</th><td colspan="3">${esc(site?.name)}</td></tr>
@@ -219,8 +219,8 @@ async function renderMatPrint(id) {
         <tr><td colspan="4" class="recheck">結果：<b>${MAT_LABEL[matFinal(r)]}</b>　處置：<b>${MAT_DISP[r.disp] || ""}</b>${r.note ? `<br>備註：${esc(r.note)}` : ""}<br><small>結果標記：○ 合格　✕ 不合格　／ 不適用</small></td></tr></table>
       <div class="psigs tall">${sig("deliver")}${sig("inspector")}</div>
     </div>
-    ${matPrintPhoto && photos.length ? `<div class="paper gallery"><div class="ptitle">附件：照片</div><div class="gal">${photos.map(p => `<figure><img src="${safeImg(p.data)}"><figcaption>${esc(matName(r))}</figcaption></figure>`).join("")}</div></div>` : ""}`;
-  { const ln = await attNamesLine(r.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
+    ${matPrintPhoto && nImg ? `<div class="paper gallery"><div class="ptitle">附件：照片與檢附文件</div><div class="gal">${[...photos, ...aimgs].map(p => `<figure><img src="${safeImg(p.data)}"><figcaption>${esc(matName(r))}${p.name ? `　${esc(p.name)}` : ""}</figcaption></figure>`).join("")}</div></div>` : ""}`;
+  { const ln = await attNamesLine(r.id, matPrintPhoto); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
   $("#pvBack").onclick = () => goBack("#/material/" + id);
   $("#pvPrint").onclick = doPrint;
   $("#pvPh").onchange = e => { matPrintPhoto = e.target.checked; renderMatPrint(id); };

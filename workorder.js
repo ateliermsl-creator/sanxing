@@ -222,7 +222,7 @@ async function renderWorkorderPreview(id) {
       <div class="psigs">${[["vendor", "廠商代表"], ["site", "我方現場人員"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${safeImg(rec.sigs[k])}">` : "<br><br>"}${l}${rec.names[k] ? "：" + esc(rec.names[k]) : ""}</div>`).join("")}</div>
       <p style="margin-top:6mm;font-size:12px">${signed ? `簽認時間：${esc(woStamp(rec.signedAt))}（手機電子簽認，簽認後鎖定）` : "※ 尚未完成簽認"}</p>
     </div>`;
-  { const ln = await attNamesLine(rec.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
+  { const ln = await attNamesLine(rec.id, true); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); const g = await attGallery(rec.id); if (g) view.insertAdjacentHTML("beforeend", g); }
   $("#pvBack").onclick = () => goBack("#/workorder/" + id);
   $("#pvPrice").onchange = e => { ls.set("woShowPrice", e.target.checked ? "1" : ""); renderWorkorderPreview(id); };
   $("#pvPrint").onclick = doPrint;

@@ -527,7 +527,7 @@ async function renderPreview(id) {
       <div class="psigs">${[["worker", "檢查人員"], ["manager", "工地主任"]].map(([k, l]) => `<div>${rec.sigs[k] ? `<img src="${safeImg(rec.sigs[k])}">` : "<br><br>"}${l}</div>`).join("")}</div>
     </div>
     ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${safeImg(p.data)}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
-  { const ln = await attNamesLine(rec.id); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); }
+  { const ln = await attNamesLine(rec.id, true); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); const g = await attGallery(rec.id); if (g) view.insertAdjacentHTML("beforeend", g); }
   $("#pvBack").onclick = () => goBack("#/checklist/" + id);
   $("#pvPrint").onclick = doPrint;
 }

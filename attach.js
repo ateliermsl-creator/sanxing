@@ -24,6 +24,11 @@ async function attImages(ids) {
   }
   return out;
 }
+// 附加圖片頁：回傳整頁 HTML（沒有圖片就回傳空字串）
+async function attGallery(ids, title = "附件：附加圖片", cap = () => "") {
+  const im = await attImages(ids);
+  return im.length ? `<div class="paper gallery"><div class="ptitle">${esc(title)}</div><div class="gal">${im.map(p => `<figure><img src="${safeImg(p.data)}"><figcaption>${esc(cap(p))}${esc(p.name)}</figcaption></figure>`).join("")}</div></div>` : "";
+}
 // 列印時在單據下方註明有哪些附加的電子檔（檔案本身不會印出）
 async function attNamesLine(ids, skipImages) {
   const set = new Set([].concat(ids)), fs = (await DB.all("files")).filter(f => set.has(f.recId) && !(skipImages && ATT_IMG.includes(f.type))).sort((a, b) => a.created - b.created);
