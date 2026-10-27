@@ -146,10 +146,17 @@ $("#setupForm").addEventListener("submit", async e => {
 });
 $("#addSiteBtn").onclick = () => openSetup("add");
 $("#setBtn").onclick = () => openSetup(siteId ? "edit" : "first");
-// 返回：真的退回上一頁（讓瀏覽紀錄保持乾淨，系統返回鍵才會一致）；沒有上一頁可退、或退了沒變化時，才改成回到上一層
-const goReplace = h => location.replace(h);
+// 返回：站內有上一頁時才真的退回（讓瀏覽紀錄保持乾淨、系統返回鍵才會一致）；
+// 直接用連結開啟、重新整理後或沒有站內上一頁時，改成回到上一層，避免跳出網站
+let appSeq = history.state?.n || 0, firstSeq = null, replaceN;
+function stampHistory() {          // 幫每個瀏覽紀錄編號，才知道目前這一頁是不是站內的第一頁
+  if (!(history.state && typeof history.state.n === "number")) { history.replaceState({ ...(history.state || {}), n: replaceN ?? ++appSeq }, ""); }
+  replaceN = undefined;
+  if (firstSeq === null) firstSeq = history.state.n;
+}
+const goReplace = h => { replaceN = history.state?.n; location.replace(h); };
 function goBack(fallback) {
-  if (history.length <= 1) { goReplace(fallback); return; }
+  if (!(history.state && history.state.n > firstSeq)) { goReplace(fallback); return; }
   const before = location.hash;
   history.back();
   setTimeout(() => { if (location.hash === before) goReplace(fallback); }, 300);
@@ -167,10 +174,13 @@ $("#backBtn").onclick = () => { if (!$("#lb").hidden) { closeLightbox(); return;
 /* ---------- 路由 ---------- */
 window.addEventListener("hashchange", route);
 async function route() {
+  stampHistory();
   showInAppBanner();
   document.querySelectorAll(".psheet").forEach(e => e.remove());   // 換頁時關掉浮出的面板
   const [, page, a] = location.hash.split("/");
   $("#topbar").hidden = !page;
+  // 第一次使用要先建立工地；但安裝教學、計算機、備份不需要工地，不要擋住
+  if (!sites.length && !["install", "calc", "backup"].includes(page || "") && !$("#setup").open) openSetup("first");
   window.scrollTo(0, 0);
   if (page === "checklist") {
     if (!a) return renderChecklist();
@@ -606,6 +616,5 @@ async function renderBackup() {
   await loadTemplates();
   await loadSites();
   route();
-  if (!sites.length) openSetup("first");
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
