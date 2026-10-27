@@ -6,7 +6,7 @@ const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
 
 /* ---------- 鋼筋稱號（單位重、直徑、斷面積、周長） ----------
-   ok = true：已與使用者提供的參考資料核對；false：推算值，尚待核對。ℓ 直接採用參考資料的數值。 */
+   ok = true：已與使用者提供的參考資料核對；false：推算值，尚待核對（在表中以 ※ 標示）。 */
 const REBARS = [
   { d: "D10", mark: "#3", w: "0.56", db: "0.953", ab: "0.7133", l: "3", ok: true },
   { d: "D13", mark: "#4", w: "0.994", db: "1.27", ab: "1.267", l: "4", ok: true },
@@ -20,7 +20,7 @@ const REBARS = [
   { d: "D39", mark: "#12", w: "9.57", db: "3.94", ab: "12.19", l: "12.4", ok: true },
   { d: "D43", mark: "#14", w: "11.4", db: "4.3", ab: "14.52", l: "13.5", ok: true },
   { d: "D50", mark: "#16", w: "15.5", db: "5.02", ab: "19.79", l: "15.8", ok: true },
-  { d: "D57", mark: "#18", w: "20.2", db: "5.73", ab: "25.79", l: "18", ok: false }
+  { d: "D57", mark: "#18", w: "20.2", db: "5.73", ab: "25.79", l: "18", ok: true }
 ];
 const rebarCells = r => [r.mark, r.w, r.db, r.ab, r.l];
 function tabRebar(box) {
@@ -32,7 +32,7 @@ function tabRebar(box) {
     <div class="panel"><h2>全部鋼筋稱號</h2><div class="tblwrap"><table class="ct" id="rAll">
       <tr><th>稱號</th><th>標示<br>代號</th><th>W<br><small>kgf/m</small></th><th>d<sub>b</sub><br><small>cm</small></th><th>A<sub>b</sub><br><small>cm²</small></th><th>ℓ<br><small>cm</small></th></tr>
       ${REBARS.map(r => `<tr data-d="${r.d}"><th>${r.d}${r.ok ? "" : "※"}</th>${rebarCells(r).map(c => `<td>${c}</td>`).join("")}</tr>`).join("")}</table></div>
-      <p class="cnote">W：單位重；d<sub>b</sub>：標稱直徑；A<sub>b</sub>：標稱斷面積；ℓ：標稱周長。<br>※ 尚待與規範原表核對（目前僅 D57），使用前請確認。D10～D50 已與提供的參考資料核對。</p></div>`;
+      <p class="cnote">W：單位重；d<sub>b</sub>：標稱直徑；A<sub>b</sub>：標稱斷面積；ℓ：標稱周長。<br>D10～D57 的數值已與提供的參考資料逐項核對。</p></div>`;
   const draw = () => {
     st.d = $("#rSel").value;
     const r = REBARS.find(x => x.d === st.d);
@@ -40,7 +40,7 @@ function tabRebar(box) {
       <div class="big"><span>稱號</span><b>${r.d}</b></div><div class="big"><span>標示代號</span><b>${c[0]}</b></div>
       <div class="big"><span>單位重 W（kgf/m）</span><b>${c[1]}</b></div><div class="big"><span>標稱直徑 d<sub>b</sub>（cm）</span><b>${c[2]}</b></div>
       <div class="big"><span>標稱斷面積 A<sub>b</sub>（cm²）</span><b>${c[3]}</b></div><div class="big"><span>標稱周長 ℓ（cm）</span><b>${c[4]}</b></div>
-      ${r.ok ? "" : `<p class="cnote">※ 這筆資料尚待與規範原表核對。</p>`}`; })();
+      `; })();
     box.querySelectorAll("#rAll tr[data-d]").forEach(tr => tr.classList.toggle("sel", tr.dataset.d === st.d));
   };
   $("#rSel").onchange = draw;
