@@ -4,11 +4,14 @@
    資料：IndexedDB「workorders」，每張單一筆（含兩個手寫簽名圖片） */
 
 const WO_HOURS_PER_DAY = 8;                         // 1 工日 = 8 工時（換算工日用）
-const WO_NAMES = ["板模工", "鋼筋工", "水電工", "泥作工", "油漆工", "雜工", "吊車", "怪手", "挖土機", "吊卡車", "發電機"];
+// 人力與機械的細項分開；清單裡沒有的可選「其他」自行輸入
+const WO_LABOR = ["板模工", "鋼筋工", "水電工", "泥作工", "油漆工", "雜工"];
+const WO_MACHINES = ["吊車", "怪手", "挖土機", "吊卡車", "發電機"];
+const woList = kind => (kind === "機械" ? WO_MACHINES : WO_LABOR);
 const woRoc = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? String(+m[1] - 1911) + m[2] + m[3] : ""; };
 const woMin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t || ""); return m ? +m[1] * 60 + +m[2] : null; };
 const woStamp = iso => { if (!iso) return ""; const d = new Date(iso), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
-const woBlankLine = (kind = "人力") => ({ kind, name: "", spec: "", qty: "1", start: "08:00", end: "17:00", brk: "1" });
+const woBlankLine = (kind = "人力") => ({ kind, name: "", other: false, spec: "", qty: "1", start: "08:00", end: "17:00", brk: "1" });
 // 每個單位的工時 = 結束 − 開始 − 休息（跨午夜自動 +24 小時）
 function woUnitHours(l) {
   const s = woMin(l.start), e = woMin(l.end);
@@ -64,19 +67,23 @@ async function renderWorkorderForm(id) {
   let timer;
   const flush = () => { clearTimeout(timer); rec.updated = Date.now(); return DB.put("workorders", rec); };
   const save = () => { clearTimeout(timer); timer = setTimeout(flush, 300); };
-  const lineHtml = (l, i) => `<div class="panel wol" data-i="${i}">
+  const lineHtml = (l, i) => {
+    const mac = l.kind === "機械", list = woList(l.kind), other = l.other || (l.name && !list.includes(l.name));
+    return `<div class="panel wol" data-i="${i}">
     <div class="vtop"><select data-k="kind" ${dis}>${["人力", "機械"].map(k => `<option ${l.kind === k ? "selected" : ""}>${k}</option>`).join("")}</select>
-      <input data-k="name" list="woNames" placeholder="${l.kind === "機械" ? "機具（例：吊車）" : "工種（例：板模工）"}" value="${esc(l.name)}" ${dis}>
+      <select data-k="pick" style="flex:1;min-width:0" ${dis}><option value="">${mac ? "選擇機具" : "選擇工種"}</option>${list.map(n => `<option ${!other && l.name === n ? "selected" : ""}>${n}</option>`).join("")}<option value="__other" ${other ? "selected" : ""}>其他</option></select>
       ${locked ? "" : `<button class="danger" data-wdel="${i}" aria-label="刪除此行">✕</button>`}</div>
-    <div class="vdims c3"><label>規格／噸位<input data-k="spec" placeholder="例：25T" value="${esc(l.spec)}" ${dis}></label>
+    ${other ? `<div class="field" style="margin:0 0 8px"><input data-k="name" placeholder="${mac ? "請輸入機具名稱" : "請輸入工種名稱"}" value="${esc(l.name)}" ${dis}></div>` : ""}
+    <div class="vdims ${mac ? "c3" : "c2"}">${mac ? `<label>規格／噸位<input data-k="spec" placeholder="例：25T" value="${esc(l.spec)}" ${dis}></label>` : ""}
       <label>數量（${woUnit(l)}）<input data-k="qty" inputmode="decimal" value="${esc(l.qty)}" ${dis}></label>
       <label>休息（時）<input data-k="brk" inputmode="decimal" value="${esc(l.brk)}" ${dis}></label></div>
     <div class="vdims c2" style="margin-top:8px"><label>開始<input type="time" data-k="start" value="${esc(l.start)}" ${dis}></label><label>結束<input type="time" data-k="end" value="${esc(l.end)}" ${dis}></label></div>
-    <div class="vres">每${woUnit(l)} <b data-u="${i}">${woH(woUnitHours(l))}</b> 小時　小計：<b data-s="${i}">${woH(woLineHours(l))}</b> ${l.kind === "機械" ? "台時" : "工時"}</div></div>`;
+    <div class="vres">每${woUnit(l)} <b data-u="${i}">${woH(woUnitHours(l))}</b> 小時　小計：<b data-s="${i}">${woH(woLineHours(l))}</b> ${mac ? "台時" : "工時"}</div></div>`;
+  };
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">點工單／機械出工簽認</h2>
     <div style="margin:0 12px;color:var(--mut);font-size:14px">${locked ? `<span style="color:var(--ok);font-weight:700">✔ 已簽認並鎖定</span>・${esc(woStamp(rec.signedAt))}` : "未簽認（可編輯）"}</div>
-    <datalist id="woNames">${WO_NAMES.map(n => `<option value="${n}">`).join("")}</datalist><datalist id="woVendors">${vendors.map(v => `<option value="${esc(v)}">`).join("")}</datalist>
+    <datalist id="woVendors">${vendors.map(v => `<option value="${esc(v)}">`).join("")}</datalist>
     <div class="panel">
       <div class="grid2"><div class="field"><label>日期</label><input type="date" data-f="date" value="${esc(rec.date)}" ${dis}></div><div class="field"><label>單號</label><input data-f="docNo" value="${esc(rec.docNo)}" ${dis}></div></div>
       <div class="field"><label>廠商（下包商／機械行）</label><input data-f="vendor" list="woVendors" placeholder="例：○○吊車行" value="${esc(rec.vendor)}" ${dis}></div>
@@ -107,8 +114,13 @@ async function renderWorkorderForm(id) {
     view.querySelectorAll("[data-n]").forEach(el => el.oninput = () => { rec.names[el.dataset.n] = el.value; if (el.dataset.n === "site") ls.set("woSiteRep", el.value); save(); });
     $("#woLines").oninput = $("#woLines").onchange = e => {
       const k = e.target.dataset.k, i = e.target.closest(".wol")?.dataset.i; if (!k) return;
-      rec.lines[+i][k] = e.target.value;
-      if (k === "kind") { flush().then(() => renderWorkorderForm(id)); return; }
+      const l = rec.lines[+i];
+      if (k === "kind") { l.kind = e.target.value; l.name = ""; l.other = false; l.spec = ""; flush().then(() => renderWorkorderForm(id)); return; }   // 換類別：細項與規格清空
+      if (k === "pick") {
+        if (e.target.value === "__other") { l.other = true; l.name = ""; } else { l.other = false; l.name = e.target.value; }
+        flush().then(() => renderWorkorderForm(id)); return;
+      }
+      l[k] = e.target.value;
       refresh(); save();
     };
     $("#woLines").onclick = e => { const d = e.target.dataset.wdel; if (d === undefined) return; rec.lines.splice(+d, 1); flush().then(() => renderWorkorderForm(id)); };
