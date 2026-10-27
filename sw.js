@@ -1,6 +1,6 @@
 // 每次更新程式請把版本號 +1，手機才會換掉舊快取
-const VERSION = "v23";
-const FILES = ["./", "index.html", "style.css", "app.js", "templates.js", "calc.js", "updates.json", "manifest.json", "leek.png", "icon-180.png", "icon-192.png", "icon-512.png"];
+const VERSION = "v25";
+const FILES = ["./", "index.html", "style.css", "app.js", "templates.js", "calc.js", "workorder.js", "updates.json", "manifest.json", "leek.png", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });

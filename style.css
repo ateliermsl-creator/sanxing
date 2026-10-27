@@ -143,3 +143,8 @@ details summary{cursor:pointer;padding:10px 0;color:var(--g);font-weight:600}
 details .field{margin-top:6px}
 .ct tr.sel td,.ct tr.sel th{background:#dcebc6}
 .ct tr[data-d]{cursor:pointer}
+.vdims.c3{grid-template-columns:1.5fr 1fr 1fr}
+.vdims.c2{grid-template-columns:1fr 1fr}
+.vdims input[type=time]{padding:10px 8px;font-size:16px;min-width:0}
+.pt.sm th,.pt.sm td{font-size:12px;padding:4px 4px}
+.pt td.nw,.pt th.nw{white-space:nowrap}

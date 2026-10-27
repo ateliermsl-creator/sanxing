@@ -11,9 +11,9 @@ const ls = {
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("avocado-toolbox", 3);
+  const r = indexedDB.open("avocado-toolbox", 4);
   r.onupgradeneeded = () => {
-    for (const n of ["sites", "records", "templates", "photos"])
+    for (const n of ["sites", "records", "templates", "photos", "workorders"])
       if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
   };
   r.onsuccess = () => res(r.result);
@@ -97,6 +97,7 @@ async function route() {
     if (!a) return renderChecklist();
     return location.hash.endsWith("/preview") ? renderPreview(a) : renderForm(a);
   }
+  if (page === "workorder") return renderWorkorder(a, location.hash.endsWith("/preview"));
   if (page === "calc") return renderCalc(a);
   if (page === "template") return renderTemplateEditor(a);
   if (page === "backup") return renderBackup();
@@ -110,6 +111,7 @@ async function renderHome() {
   view.innerHTML = `
     <section class="hero"><img src="leek.png" alt=""><h1>三星蔥營造工具箱</h1><p>工地隨身工具・沒有網路也能用</p></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・坪才</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/backup"><div class="ph">💾</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
     <div class="card soon"><div class="ph">＋</div><div><b>更多工具開發中</b><small>敬請期待</small></div></div>
@@ -456,11 +458,11 @@ async function renderBackup() {
     <div class="row"><button class="sec" id="impBtn">📂 匯入備份檔</button></div>
     <input type="file" id="impFile" accept=".json,application/json" hidden>`;
   $("#expBtn").onclick = async () => {
-    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const data = { app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), sites: await DB.all("sites"), records: await DB.all("records") };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     a.download = `三星蔥工具箱備份_${today()}.json`;
-    a.click();
+    document.body.appendChild(a); a.click(); a.remove();
     ls.set("lastBackup", new Date().toISOString());
     renderBackup(); checkBackup();
   };
@@ -489,8 +491,14 @@ async function renderBackup() {
         if (old && old.updated >= r.updated) continue;
         r.siteId = map[r.siteId] || r.siteId; await DB.put("records", r); n++;
       }
+      let wn = 0;
+      for (const w of d.workorders || []) {
+        const old = await DB.get("workorders", w.id);
+        if (old && (old.updated || 0) >= (w.updated || 0)) continue;
+        w.siteId = map[w.siteId] || w.siteId; await DB.put("workorders", w); wn++;
+      }
       await loadSites();
-      alert(`匯入完成，更新了 ${n} 份紀錄`);
+      alert(`匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}`);
     } catch { alert("這不是有效的備份檔"); }
     e.target.value = "";
   };
