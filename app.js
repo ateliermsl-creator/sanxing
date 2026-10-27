@@ -416,7 +416,7 @@ async function renderForm(id) {
     <div class="legend">結果標記：<b style="color:var(--ok)">○ 合格</b>　<b style="color:var(--bad)">✕ 不合格</b>　<b style="color:var(--mut)">／ 不適用</b></div>
     ${tpl.items.map((it, i) => {
       const v = rec.items[i] || {};
-      return `<div class="item" data-i="${i}"><div class="top"><div><div class="t"><span class="n">${i + 1}.</span> ${esc(it.t)}</div><div class="m">規定標準：${esc(it.std)}</div></div>
+      return `<div class="item" data-i="${i}"><div class="top"><div><div class="t"><span class="n">${i + 1}.</span> ${esc(it.t)}</div>${it.std ? `<div class="m">規定標準：${esc(it.std)}</div>` : ""}</div>
         <div class="sym">${["ok", "ng", "na"].map(k => `<button class="${v.r === k ? "on" : ""}" data-r="${k}" aria-label="${k}">${SYM[k]}</button>`).join("")}</div></div>
         <input class="note" placeholder="實際檢查情形（可空白）" value="${esc(v.actual ?? v.note)}">
         <div class="phrow"><button type="button" class="phbtn" data-cam="${i}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-ph="${i}"></label><div class="thumbs" data-th="${i}"></div></div></div>`;
