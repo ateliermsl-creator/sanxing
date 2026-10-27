@@ -63,13 +63,18 @@ const CLEAN = {
     vendor: cs(x.vendor, 200), ticket: cs(x.ticket, 60), lot: cs(x.lot, 60), location: cs(x.location, 200),
     docs: arr(x.docs, 50).map(d => ({ n: cs(obj(d).n, 100), v: cb(obj(d).v) })), checks: arr(x.checks, 300).map(c => ({ t: cs(obj(c).t, 300), r: ce(obj(c).r, ["ok", "ng", "na", ""], ""), note: cs(obj(c).note, 500), ...(obj(c).extra === true ? { extra: true } : {}) })),
     disp: ce(x.disp, ["accept", "reject", "pending"], "accept"), note: cs(x.note, 1000), names: cnames(x.names, ["deliver", "inspector"]), sigs: csigs(x.sigs, ["deliver", "inspector"]), created: cn(x.created), updated: cn(x.updated) },
-  matcats: x => x.id === "__cure" ? { id: "__cure", ages: arr(x.ages, 6).map(Number).filter(n => Number.isInteger(n) && n > 0 && n <= 365), forms: arr(x.forms, 20).map(f => ({ n: cs(obj(f).n, 30), d: cs(obj(f).d, 4) })).filter(f => f.n), updated: cn(x.updated) }
+  matcats: x => x.id === "__safety" ? { id: "__safety", risks: arr(x.risks, 40).map(q => cs(q, 60)).filter(Boolean), hazards: arr(x.hazards, 40).map(q => cs(q, 60)).filter(Boolean), statement: cs(x.statement, 300), updated: cn(x.updated) }
+    : x.id === "__cure" ? { id: "__cure", ages: arr(x.ages, 6).map(Number).filter(n => Number.isInteger(n) && n > 0 && n <= 365), forms: arr(x.forms, 20).map(f => ({ n: cs(obj(f).n, 30), d: cs(obj(f).d, 4) })).filter(f => f.n), updated: cn(x.updated) }
     : x.id === "__docs" ? { id: "__docs", docs: arr(x.docs, 50).map(d => cs(d, 100)).filter(Boolean), updated: cn(x.updated) }
     : (x.id === "__deleted" || x.id === "__seed2" || x.id === "__seed3") ? { id: x.id, updated: cn(x.updated) }
     : safeId(x.id) && { id: x.id, name: cs(x.name, 100), checks: arr(x.checks, 300).map(c => cs(c, 300)).filter(Boolean), order: cn(x.order), created: cn(x.created), updated: cn(x.updated) },
   shots: x => safeId(x.id) && safeId(x.siteId) && safeImg(x.data) && {
     id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), lat: cgeo(x.lat, 90), lng: cgeo(x.lng, 180), acc: Math.max(0, cn(x.acc)), item: cs(x.item, 100), part: cs(x.part, 100), spec: cs(x.spec, 200), vendor: cs(x.vendor, 100), note: cs(x.note, 300),
     data: x.data, raw: safeImg(x.raw) || x.data, thumb: safeImg(x.thumb), created: cn(x.created), updated: cn(x.updated) },
+  safety: x => safeId(x.id) && safeId(x.siteId) && {
+    id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), place: cs(x.place, 200), host: cs(x.host, 100), content: cs(x.content, 500), extra: cs(x.extra, 500),
+    risks: arr(x.risks, 40).map(q => cs(q, 60)).filter(Boolean), hazards: arr(x.hazards, 40).map(q => cs(q, 60)).filter(Boolean), hostSig: safeImg(x.hostSig),
+    people: arr(x.people, 400).map(p => safeId(obj(p).id) && ({ id: p.id, name: cs(p.name, 50), co: cs(p.co, 50), sig: safeImg(p.sig) })).filter(Boolean), created: cn(x.created), updated: cn(x.updated) },
   files: x => safeId(x.id) && safeId(x.recId) && typeof x.data === "string" && x.data.length < 20e6 && SAFE_DATA.test(x.data) && {
     id: x.id, recId: x.recId, name: cname(x.name) || "檔案", type: SAFE_FILE_TYPES.includes(x.type) ? x.type : "application/octet-stream", size: cn(x.size), created: cn(x.created), data: x.data }
 };
