@@ -9,6 +9,33 @@ const ls = {
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }
 };
 
+/* ---------- 內建瀏覽器（LINE、Facebook…）偵測 ----------
+   這類 App 內建的瀏覽器不支援 window.print()、不能加入主畫面，資料也與 Safari／Chrome 分開存放 */
+const inAppName = () => { const ua = navigator.userAgent; return /\bLine\//i.test(ua) ? "LINE" : /FBAN|FBAV|FB_IAB/i.test(ua) ? "Facebook" : /Instagram/i.test(ua) ? "Instagram" : /MicroMessenger/i.test(ua) ? "微信" : ""; };
+const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && (navigator.maxTouchPoints > 1 || /Mobile\//.test(navigator.userAgent)));   // iPadOS 的 Safari 會假裝成 Mac
+async function copyUrl() {
+  const url = location.href.split("#")[0];
+  try { await navigator.clipboard.writeText(url); alert("已複製網址，請打開 Safari 貼上網址。"); } catch { prompt("請複製這個網址，貼到 Safari 開啟", url); }
+}
+function inAppHelp() {
+  const n = inAppName(), where = isIOS() ? "右下角的「分享」圖示 ⬆ →「在 Safari 開啟」" : "右上角選單 ⋮ →「以其他瀏覽器開啟」或「在 Chrome 開啟」";
+  return { n, where, text: `目前是在 ${n} 的內建瀏覽器裡，無法列印或存成 PDF，也不能加入主畫面。\n\n請改用 ${isIOS() ? "Safari" : "Chrome"} 開啟：點${where}。\n\n注意：內建瀏覽器與 ${isIOS() ? "Safari" : "Chrome"} 的資料是分開的，在這裡填的資料不會出現在那邊。` };
+}
+// 列印／存成 PDF：內建瀏覽器按了不會有反應，所以改成說明怎麼處理
+function doPrint() {
+  if (inAppName()) { if (confirm(inAppHelp().text + "\n\n要複製網址嗎？")) copyUrl(); return; }
+  window.print();
+}
+function showInAppBanner() {
+  const el = $("#iab"); if (!el) return;
+  if (!inAppName() || sessionStorage.getItem("iabHide")) { el.hidden = true; return; }
+  const h = inAppHelp();
+  el.hidden = false;
+  el.innerHTML = `⚠ 你在 <b>${h.n} 內建瀏覽器</b>，無法列印／存 PDF，也不能加入主畫面。請點${h.where}。<br><button class="sec" id="iabCopy" style="min-height:36px;font-size:14px;padding:0 12px;margin-top:6px">複製網址</button> <button class="sec" id="iabHide" style="min-height:36px;font-size:14px;padding:0 12px;margin-top:6px">先不要提醒</button>`;
+  $("#iabCopy").onclick = copyUrl;
+  $("#iabHide").onclick = () => { try { sessionStorage.setItem("iabHide", "1"); } catch {} el.hidden = true; };
+}
+
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
   const r = indexedDB.open("avocado-toolbox", 5);
@@ -106,6 +133,7 @@ $("#backBtn").onclick = () => { if (!$("#lb").hidden) { closeLightbox(); return;
 /* ---------- 路由 ---------- */
 window.addEventListener("hashchange", route);
 async function route() {
+  showInAppBanner();
   const [, page, a] = location.hash.split("/");
   $("#topbar").hidden = !page;
   window.scrollTo(0, 0);
@@ -178,7 +206,7 @@ async function openCamera(title, onShot, onFiles) {
     const ua = navigator.userAgent;
     const hint = /Android/i.test(ua)
       ? "請點網址列左邊的鎖頭圖示 →「權限」→「相機」→「允許」。若是從主畫面圖示開啟：長按圖示 →「應用程式資訊」→「權限」→「相機」→「允許」。"
-      : /iPhone|iPad/i.test(ua) ? "請到 iPhone「設定 → Safari → 相機」改成「詢問」或「允許」。"
+      : isIOS() ? "請到「設定 → Safari → 相機」改成「詢問」或「允許」。"
       : "請在瀏覽器網址列允許使用相機。";
     $("#camErrMsg").textContent = `無法開啟內建相機（${err?.name || "未知錯誤"}）。${hint}`;
     $("#camFb").onchange = async e => { const files = [...e.target.files]; e.target.value = ""; $("#camErr").close(); await onFiles(files); };
@@ -392,7 +420,7 @@ async function renderPreview(id) {
   const photos = await photosOf(rec.id);
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回填表</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
-    <div class="noprint" style="margin:0 12px 8px;color:var(--mut);font-size:13px">顯示目前填寫的內容。iPhone：按列印後，在預覽縮圖上用兩指放大，即可「儲存到檔案」成 PDF。</div>
+    <div class="noprint" style="margin:0 12px 8px;color:var(--mut);font-size:13px">顯示目前填寫的內容。請用 Safari 開啟：iPhone 按列印後，在預覽縮圖上用兩指放大，即可「儲存到檔案」成 PDF；iPad 也是按列印，再用分享圖示存檔。</div>
     <div class="paper">
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}
       <div class="ptitle">${esc(tpl.name)}</div>
@@ -415,7 +443,7 @@ async function renderPreview(id) {
     </div>
     ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${p.data}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
   $("#pvBack").onclick = () => goBack("#/checklist/" + id);
-  $("#pvPrint").onclick = () => window.print();
+  $("#pvPrint").onclick = doPrint;
 }
 
 /* ---------- 自訂範本編輯 ---------- */

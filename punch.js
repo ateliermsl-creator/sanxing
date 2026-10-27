@@ -196,7 +196,7 @@ async function renderPunchReport() {
   $("#rTrade").onchange = e => { pRepTrade = e.target.value; renderPunchReport(); };
   view.querySelectorAll("[data-rs]").forEach(b => b.onchange = () => { pRepStatus[b.dataset.rs] = b.checked; renderPunchReport(); });
   $("#rPhoto").onchange = e => { pRepPhoto = e.target.checked; renderPunchReport(); };
-  $("#rPrint").onclick = () => window.print();
+  $("#rPrint").onclick = doPrint;
   $("#rShare").onclick = async () => {
     const text = Object.entries(groups).map(([tr, os]) => `【缺失改善通知】${site?.name || ""}\n工班：${tr}　${today()}\n` + os.map((x, i) => `${i + 1}. ${x.location || "—"}｜${x.desc || "—"}｜期限 ${x.due ? x.due.slice(5) : "未設"}${pOver(x) ? `（逾期${pLate(x)}天）` : ""}`).join("\n") + `\n共 ${os.length} 項，請於期限前改善並通知複驗。`).join("\n\n");
     if (!text) { alert("沒有可分享的缺失"); return; }

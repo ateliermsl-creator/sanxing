@@ -222,7 +222,7 @@ async function renderWorkorderPreview(id) {
     </div>`;
   $("#pvBack").onclick = () => goBack("#/workorder/" + id);
   $("#pvPrice").onchange = e => { ls.set("woShowPrice", e.target.checked ? "1" : ""); renderWorkorderPreview(id); };
-  $("#pvPrint").onclick = () => window.print();
+  $("#pvPrint").onclick = doPrint;
 }
 
 /* ---------- 月結彙總 ---------- */
@@ -262,7 +262,7 @@ async function renderWorkorderSummary() {
   $("#sMonth").onchange = e => { woMonth = e.target.value || woMonth; renderWorkorderSummary(); };
   $("#sVendor").onchange = e => { woVendor = e.target.value; renderWorkorderSummary(); };
   $("#sTax").onchange = e => { ls.set("woTax", e.target.checked ? "1" : ""); renderWorkorderSummary(); };
-  $("#sPrint").onclick = () => window.print();
+  $("#sPrint").onclick = doPrint;
   $("#sCsv").onclick = () => {
     const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = [["日期", "單號", "廠商", "位置", "內容", "類別", "工種／機具", "規格", "數量", "開始", "結束", "休息(h)", "每單位工時", "小計工時", "計價方式", "單價", "金額", "簽認狀態", "簽認時間"]];

@@ -158,3 +158,6 @@ details .field{margin-top:6px}
 .late{color:#c0392b;font-weight:600}
 .pchk{width:24px;height:24px;margin-top:20px;flex:none}
 .prep{break-after:page}.prep:last-child{break-after:auto}
+#iab{margin:12px;padding:12px 14px;background:#ffe9d6;border:1px solid #f3c79f;border-radius:12px;color:#7a3b00;line-height:1.6}
+#iab[hidden]{display:none}
+@media print{#iab{display:none!important}}
