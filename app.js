@@ -36,6 +36,40 @@ function showInAppBanner() {
   $("#iabHide").onclick = () => { try { sessionStorage.setItem("iabHide", "1"); } catch {} el.hidden = true; };
 }
 
+/* ---------- 加到手機桌面（安裝教學） ---------- */
+const isStandalone = () => (window.matchMedia && matchMedia("(display-mode: standalone)").matches) || navigator.standalone === true;
+let deferredInstall = null;      // Android Chrome 的「安裝」提示事件
+window.addEventListener("beforeinstallprompt", e => { e.preventDefault(); deferredInstall = e; });
+window.addEventListener("appinstalled", () => { deferredInstall = null; });
+function renderInstall() {
+  const ios = isIOS(), android = /Android/i.test(navigator.userAgent), iab = inAppName();
+  const iosSteps = `<ol class="steps"><li>用 <b>Safari</b> 開啟本網址（不是 LINE、Facebook 內建瀏覽器，也不是 Chrome）。</li>
+    <li>點 <b>分享</b> 圖示（方形加向上箭頭 ⬆）：iPhone 在畫面<b>下方中間</b>，iPad 在畫面<b>右上角</b>網址列旁。</li>
+    <li>往下滑，點 <b>「加入主畫面」</b>。</li>
+    <li>名稱會是「三星蔥工具箱」，按右上角 <b>「加入」</b>。</li>
+    <li>回到桌面，點<b>三星蔥圖示</b>開啟，以後都從這個圖示進來。</li></ol>`;
+  const andSteps = `<ol class="steps"><li>用 <b>Chrome</b> 開啟本網址（不是 LINE、Facebook 內建瀏覽器）。</li>
+    <li>點右上角選單 <b>⋮</b>。</li>
+    <li>點 <b>「加到主畫面」</b> 或 <b>「安裝應用程式」</b>。</li>
+    <li>在跳出的視窗按 <b>「安裝」</b> 或 <b>「新增」</b>。</li>
+    <li>回到桌面，點<b>三星蔥圖示</b>開啟。</li></ol>
+    <p class="cnote">Samsung Internet：點選單 ≡ →「新增頁面到」→「主畫面」。</p>`;
+  view.innerHTML = `<h2 class="t">📲 加到手機桌面</h2>
+    ${isStandalone() ? `<div class="legend" style="background:#e6f4e6;border-color:#bfe0bf;color:#1d5c1d">✓ 你現在就是從桌面圖示開啟的，已經安裝好了。</div>` : ""}
+    ${iab ? `<div class="legend" style="background:#ffe9d6;border-color:#f3c79f;color:#7a3b00">⚠ 你現在在 <b>${iab} 內建瀏覽器</b>，無法加入主畫面。請先改用 ${ios ? "Safari" : "Chrome"} 開啟：點${inAppHelp().where}。<br><button class="sec" id="inCopy" style="min-height:36px;font-size:14px;padding:0 12px;margin-top:6px">複製網址</button></div>` : ""}
+    <div class="panel"><b>為什麼要加到桌面？</b><ul style="margin:6px 0 0;padding-left:20px;line-height:1.7"><li>點一下圖示就開，像一般 App，沒有網址列。</li><li>第一次要有網路載入，之後<b>沒有網路也能用</b>。</li><li>不會被當成一般網頁，手機比較不會清掉資料。</li></ul></div>
+    ${android && deferredInstall ? `<div class="row"><button id="instNow">⬇ 一鍵安裝到桌面</button></div>` : ""}
+    <div class="panel"><h2 style="margin:0 0 6px;font-size:18px">${ios ? "🍎 iPhone／iPad（你的裝置）" : android ? "🤖 Android 手機（你的裝置）" : "📱 手機"}</h2>${ios ? iosSteps : android ? andSteps : iosSteps}</div>
+    <details class="panel"><summary>${ios ? "Android 手機怎麼做" : "iPhone／iPad 怎麼做"}</summary><div style="margin-top:8px">${ios ? andSteps : iosSteps}</div></details>
+    <div class="panel"><b>先看這幾點</b><ul style="margin:6px 0 0;padding-left:20px;line-height:1.7">
+      <li>iPhone／iPad：<b>桌面圖示和 Safari 的資料是分開存放的</b>。建議<b>先加到桌面，再從圖示開始使用</b>。如果已經在 Safari 填了資料：先在 Safari 到「備份與還原」下載備份檔，再從桌面圖示匯入。</li>
+      <li>換手機或清除瀏覽器資料前，也請先備份。</li>
+      <li>更新：有網路時開啟圖示，會自動換成新版，不必重新安裝。</li></ul></div>
+    <div class="row"><button class="sec" id="inCopy2">複製網址</button></div>`;
+  $("#inCopy")?.addEventListener("click", copyUrl); $("#inCopy2").onclick = copyUrl;
+  $("#instNow")?.addEventListener("click", async () => { try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch {} deferredInstall = null; renderInstall(); });
+}
+
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
   const r = indexedDB.open("avocado-toolbox", 5);
@@ -142,6 +176,7 @@ async function route() {
     if (!a) return renderChecklist();
     return location.hash.endsWith("/preview") ? renderPreview(a) : renderForm(a);
   }
+  if (page === "install") return renderInstall();
   if (page === "punch") return renderPunch(a);
   if (page === "workorder") return renderWorkorder(a, location.hash.endsWith("/preview"));
   if (page === "calc") return renderCalc(a);
@@ -156,14 +191,17 @@ async function renderHome() {
   try { updates = await (await fetch("updates.json")).json(); } catch {}
   if (location.hash.split("/")[1]) return;   // 讀取期間已切到別的頁面，就不要用首頁蓋掉它
   view.innerHTML = `
+    ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
     <section class="hero"><img src="leek.png" alt=""><h1>三星蔥營造工具箱</h1><p>工地隨身工具・沒有網路也能用</p></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・坪才</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/backup"><div class="ph">💾</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/install"><div class="ph">📲</div><div><b>加到手機桌面</b><small>像 App 一樣使用・教學</small></div><span class="arrow">›</span></a>
     <div class="card soon"><div class="ph">＋</div><div><b>更多工具開發中</b><small>敬請期待</small></div></div>
     <section class="panel"><h2>📢 最新更新</h2>${updates.map(u => `<div class="d">${esc(u.date)}</div><ul>${u.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`).join("")}</section>`;
+  $("#instHide")?.addEventListener("click", () => { try { localStorage.setItem("installHint", "1"); } catch {} $("#instHint").remove(); });
   checkBackup();
 }
 function checkBackup() {
