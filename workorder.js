@@ -5,7 +5,7 @@
 
 const WO_HOURS_PER_DAY = 8;                         // 1 工日 = 8 工時（換算工日用）
 // 人力與機械的細項分開；清單裡沒有的可選「其他」自行輸入
-const WO_LABOR = ["板模工", "鋼筋工", "水電工", "泥作工", "油漆工", "雜工"];
+const WO_LABOR = ["板模工", "鋼筋工", "水電工", "泥作工", "油漆工", "雜工", "移工"];
 const WO_MACHINES = ["吊車", "怪手", "挖土機", "吊卡車", "發電機"];
 const woList = kind => (kind === "機械" ? WO_MACHINES : WO_LABOR);
 const woRoc = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? String(+m[1] - 1911) + m[2] + m[3] : ""; };
