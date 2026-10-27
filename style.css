@@ -180,3 +180,10 @@ details>summary{cursor:pointer}
 .psigs.tall{margin-top:24mm;gap:16mm}
 .psigs.tall div{padding-top:3mm}
 @media screen{.psigs.tall{margin-top:60px}}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:6px;margin:2mm 0}
+.kpi{border:1px solid #bbb;border-radius:8px;padding:6px 4px;text-align:center}
+.kpi b{display:block;font-size:20px}.kpi span{font-size:11px;color:#555}
+.kpi.bad{border-color:#c0392b;color:#c0392b}
+.pbar{display:flex;height:12px;background:#e3e6ea;border-radius:6px;overflow:hidden;margin-top:4px}
+.pbar i{background:#3b6b22;display:block}.pbar i.b2{background:#9cc47a}
+.psum td{vertical-align:middle}

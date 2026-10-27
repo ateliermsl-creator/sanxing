@@ -181,6 +181,7 @@ window.addEventListener("hashchange", route);
 async function route() {
   stampHistory();
   showInAppBanner();
+  document.getElementById("psumPrint")?.remove();   // 總表的橫式列印設定只對總表有效
   document.querySelectorAll(".psheet").forEach(e => e.remove());   // 換頁時關掉浮出的面板
   const [, page, a] = location.hash.split("/");
   $("#topbar").hidden = !page;

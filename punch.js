@@ -34,6 +34,7 @@ let pFilter = "act", pTradeFilter = "", pQuery = "", pBulk = false;
 const pPicked = new Set();
 async function renderPunch(a) {
   if (a === "report") return renderPunchReport();
+  if (a === "summary") return renderPunchSummary();
   if (a) return renderPunchForm(a);
   return renderPunchList();
 }
@@ -56,6 +57,7 @@ async function renderPunchList() {
   view.innerHTML = `
     <h2 class="t">缺失改善追蹤</h2>
     <div class="row" style="margin-top:0"><button id="pAdd">＋ 新增缺失</button><a class="btnlink" href="#/punch/report">📄 工班通知單</a></div>
+    <div class="row" style="margin-top:0"><a class="btnlink" href="#/punch/summary">📊 改善總表（統計與明細）</a></div>
     <div class="chips">${chips.map(([k, l]) => `<button class="chip ${k === pFilter ? "on" : ""}" data-pf="${k}">${l}（${cnt[k]}）</button>`).join("")}</div>
     <div class="panel" style="padding:10px 12px"><div class="grid2" style="gap:0 8px">
       <div class="field" style="margin:0"><input id="pQ" placeholder="搜尋位置／內容" value="${esc(pQuery)}"></div>
@@ -270,6 +272,82 @@ async function renderPunchReport() {
     const text = Object.entries(groups).map(([tr, os]) => `【缺失改善通知】${site?.name || ""}\n工班：${tr}　${pRoc(today())}\n` + os.map((x, i) => `${i + 1}. ${x.location || "—"}｜${x.desc || "—"}｜期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `（逾期${pLate(x)}天）` : ""}`).join("\n") + `\n共 ${os.length} 項，請於期限前改善並通知複驗。`).join("\n\n");
     if (!text) { alert("沒有可分享的缺失"); return; }
     try { if (navigator.share) { await navigator.share({ title: "缺失改善通知", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
+    try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
+  };
+}
+
+/* ---------- 改善總表（統計 + 全部明細） ---------- */
+let pSumTrade = "", pSumStatus = { open: true, fixed: true, closed: true };
+const pLoc1 = loc => ((loc || "").trim().split(/[\s，,、／/]+/)[0]) || "（未填位置）";                  // 位置的第一段（例：3F、B1、屋頂）
+const pTradeRank = t => { const i = PUNCH_TRADES.indexOf(t); return i >= 0 ? i : 100; };
+const pSortKeys = arr => [...arr].sort((m, n) => !m - !n || pTradeRank(m) - pTradeRank(n) || m.localeCompare(n, "zh-Hant"));
+const pPct = (a, b) => (b ? Math.round(a / b * 100) + "%" : "—");
+function pStats(list) {
+  const c = { n: list.length, open: 0, fixed: 0, closed: 0, over: 0 };
+  list.forEach(x => { c[x.status]++; if (pOver(x)) c.over++; });
+  return c;
+}
+async function renderPunchSummary() {
+  const seq = renderPunchSummary.seq = (renderPunchSummary.seq || 0) + 1;
+  if (!siteId) { goReplace("#/punch"); return; }
+  const all = (await DB.all("punch")).filter(x => x.siteId === siteId && (x.desc.trim() || x.location.trim()));
+  if (seq !== renderPunchSummary.seq) return;
+  const trades = [...new Set(all.map(x => x.trade).filter(Boolean))];
+  if (pSumTrade && pSumTrade !== "__none" && !trades.includes(pSumTrade)) pSumTrade = "";
+  const site = sites.find(s => s.id === siteId), company = ls.get("company", "");
+  const tot = pStats(all);
+  const days = all.filter(x => x.fixedAt && x.foundDate).map(x => pDays(x.foundDate, x.fixedAt)).filter(d => d >= 0);
+  const avg = days.length ? (days.reduce((a, b) => a + b, 0) / days.length).toFixed(1) : "—";
+  const statRows = (keyFn, order) => order.map(k => { const l = all.filter(x => keyFn(x) === k), c = pStats(l);
+    return `<tr><td>${esc(k)}</td><td class="c">${c.n}</td><td class="c">${c.open}</td><td class="c">${c.fixed}</td><td class="c">${c.closed}</td><td class="c" style="${c.over ? "color:#c0392b;font-weight:700" : ""}">${c.over}</td><td class="c">${pPct(c.closed, c.n)}</td></tr>`; }).join("");
+  const tradeKey = x => x.trade || "（未指定工班）", tradeOrder = pSortKeys([...new Set(all.map(x => x.trade || ""))]).map(t => t || "（未指定工班）");
+  // 位置排序：地下層（B2、B1）→ 1F、2F、3F… → 屋頂（RF）→ 其他
+  const floorKey = t => { let m; if ((m = /^B(\d+)/i.exec(t))) return -(+m[1]); if ((m = /^(\d+)\s*[Ff樓]?/.exec(t))) return +m[1]; if (/^(R\d*F?|屋頂|頂樓|屋突)/i.test(t)) return 1000; return 2000; };
+  const locOrder = [...new Set(all.map(x => pLoc1(x.location)))].sort((m, n) => floorKey(m) - floorKey(n) || m.localeCompare(n, "zh-Hant"));
+  const totRow = `<tr><td><b>合計</b></td><td class="c"><b>${tot.n}</b></td><td class="c"><b>${tot.open}</b></td><td class="c"><b>${tot.fixed}</b></td><td class="c"><b>${tot.closed}</b></td><td class="c"><b>${tot.over}</b></td><td class="c"><b>${pPct(tot.closed, tot.n)}</b></td></tr>`;
+  const head = a => `<tr><th>${a}</th><th>總數</th><th>待改善</th><th>待複驗</th><th>已結案</th><th>逾期</th><th>完成率</th></tr>`;
+  const rank = { open: 0, fixed: 1, closed: 2 };
+  const rows = all.filter(x => pSumStatus[x.status] && (!pSumTrade || (pSumTrade === "__none" ? !x.trade : x.trade === pSumTrade)))
+    .sort((x, y) => rank[x.status] - rank[y.status] || (pOver(y) - pOver(x)) || (x.due || "9999").localeCompare(y.due || "9999") || x.created - y.created);
+  view.innerHTML = `
+    <div class="noprint"><h2 class="t">缺失改善總表</h2>
+      <div class="panel"><div class="field"><label>明細的工班篩選（上方統計一律是全部）</label><select id="sTrade"><option value="">全部工班</option><option value="__none" ${pSumTrade === "__none" ? "selected" : ""}>未指定工班</option>${trades.map(t => `<option ${t === pSumTrade ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div>
+        <div class="timing">${Object.entries(PUNCH_STATUS).map(([k, l]) => `<label><input type="checkbox" data-ss="${k}" ${pSumStatus[k] ? "checked" : ""}> ${l}</label>`).join("")}</div></div>
+      <div class="row"><button id="sPrint">🖨 列印／存成 PDF</button><button class="sec" id="sCsv">⬇ 下載 CSV</button></div>
+      <div class="row"><button class="sec" id="sShare">📤 分享摘要</button><a class="btnlink" href="#/punch">← 回缺失列表</a></div></div>
+    <div class="paper psum">
+      ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}<div class="ptitle">缺失改善總表</div>
+      <div style="margin:1mm 0 3mm;font-size:13px">工程：${esc(site?.name)}　製表：${pRoc(today())}</div>
+      ${tot.n ? `<div class="kpis">${[["總數", tot.n], ["待改善", tot.open], ["待複驗", tot.fixed], ["已結案", tot.closed], ["逾期", tot.over], ["完成率", pPct(tot.closed, tot.n)], ["平均改善天數", avg]].map(([l, v]) => `<div class="kpi ${l === "逾期" && tot.over ? "bad" : ""}"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
+      <div class="pbar"><i style="width:${Math.round(tot.closed / tot.n * 100)}%"></i><i class="b2" style="width:${Math.round(tot.fixed / tot.n * 100)}%"></i></div>
+      <div style="font-size:11px;color:#555;margin:2px 0 4mm">深綠＝已結案　淺綠＝待複驗　（平均改善天數：登記到回報改善）</div>
+      <div style="font-weight:700;margin:3mm 0 1mm">依工班</div><table class="pt items sm">${head("工班")}${statRows(tradeKey, tradeOrder)}${totRow}</table>
+      <div style="font-weight:700;margin:4mm 0 1mm">依位置（取位置的第一段，如樓層）</div><table class="pt items sm">${head("位置")}${statRows(x => pLoc1(x.location), locOrder)}${totRow}</table>
+      <div style="font-weight:700;margin:4mm 0 1mm">缺失明細（${rows.length} 筆）</div>
+      <table class="pt items sm"><tr><th>編號</th><th>位置</th><th>缺失內容</th><th>工班</th><th>期限</th><th>狀態</th><th>登記</th><th>改善回報</th><th>結案</th></tr>
+        ${rows.map(x => `<tr><td class="nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${x.rejects ? `<br><small>↩退回${x.rejects}次</small>` : ""}</td><td>${esc(x.trade)}</td>
+          <td class="c nw" style="${pOver(x) ? "color:#c0392b" : ""}">${x.due ? pRoc(x.due) : "—"}${pOver(x) ? `<br><small>逾期${pLate(x)}天</small>` : ""}</td><td class="c nw">${PUNCH_STATUS[x.status]}</td>
+          <td class="c nw">${x.foundDate ? pRoc(x.foundDate) : ""}</td><td class="c nw">${x.fixedAt ? pRoc(x.fixedAt) : ""}</td><td class="c nw">${x.closedAt ? pRoc(x.closedAt) : ""}</td></tr>`).join("") || `<tr><td colspan="9" class="c" style="color:#777">沒有符合條件的缺失</td></tr>`}</table>` : `<p style="color:var(--mut)">還沒有缺失紀錄。</p>`}
+    </div>`;
+  // 列印時改成 A4 橫式（明細欄位較多）；換頁時移除
+  document.getElementById("psumPrint")?.remove();
+  const st = document.createElement("style"); st.id = "psumPrint"; st.textContent = "@media print{@page{size:A4 landscape;margin:10mm}}"; document.head.append(st);
+  $("#sTrade").onchange = e => { pSumTrade = e.target.value; renderPunchSummary(); };
+  view.querySelectorAll("[data-ss]").forEach(b => b.onchange = () => { pSumStatus[b.dataset.ss] = b.checked; renderPunchSummary(); });
+  $("#sPrint").onclick = doPrint;
+  $("#sCsv").onclick = () => {
+    const q = v => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const out = [["編號", "位置", "缺失內容", "責任工班", "期限", "狀態", "逾期天數", "登記日期", "登記人", "改善回報日", "改善說明", "結案日期", "複驗人", "退回次數"]];
+    rows.forEach(x => out.push([x.no, x.location, x.desc, x.trade, x.due ? pRoc(x.due) : "", PUNCH_STATUS[x.status], pOver(x) ? pLate(x) : "", x.foundDate ? pRoc(x.foundDate) : "", x.foundBy, x.fixedAt ? pRoc(x.fixedAt) : "", x.fixedNote, x.closedAt ? pRoc(x.closedAt) : "", x.closedBy, x.rejects || 0]));
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob(["\ufeff" + out.map(r => r.map(q).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" }));
+    a.download = `缺失改善總表_${woRoc(today())}.csv`; document.body.appendChild(a); a.click(); a.remove();
+  };
+  $("#sShare").onclick = async () => {
+    const lines = tradeOrder.map(k => { const c = pStats(all.filter(x => tradeKey(x) === k)); return `${k}：共${c.n}｜待改善${c.open}｜待複驗${c.fixed}｜已結案${c.closed}${c.over ? `｜逾期${c.over}` : ""}`; });
+    const text = `【缺失改善總表】${site?.name || ""}　${pRoc(today())}\n共 ${tot.n} 項：待改善 ${tot.open}、待複驗 ${tot.fixed}、已結案 ${tot.closed}（完成率 ${pPct(tot.closed, tot.n)}）${tot.over ? `，逾期 ${tot.over} 項` : ""}\n` + lines.join("\n");
+    if (!tot.n) { alert("還沒有缺失紀錄"); return; }
+    try { if (navigator.share) { await navigator.share({ title: "缺失改善總表", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
     try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
   };
 }
