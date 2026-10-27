@@ -129,7 +129,9 @@ async function renderShotList() {
     <div class="row" style="margin-top:0"><button id="shCam">📷 電子黑板相機</button><label class="btnlink" style="cursor:pointer">🖼 相簿照片加黑板<input type="file" id="shFile" accept="image/*" multiple hidden></label></div>
     ${all.length ? `<div class="row"><select id="shFD" aria-label="日期"><option value="">全部日期（${all.length}）</option>${dates.map(d => `<option value="${esc(d)}" ${d === shotFDate ? "selected" : ""}>${esc(pRoc(d))}（${all.filter(x => x.date === d).length}）</option>`).join("")}</select>
       <select id="shFI" aria-label="查驗項目"><option value="">全部項目</option>${items.map(d => `<option value="${esc(d)}" ${d === shotFItem ? "selected" : ""}>${esc(d)}</option>`).join("")}</select></div>
-      <div class="row"><button class="sec" id="shSel">${shotSelMode ? "✕ 取消選取" : "☑ 選取照片"}</button><button class="sec" id="shBook" ${nBook ? "" : "disabled"}>📖 照片冊（${nBook} 張）</button></div>` : ""}
+      <div class="row"><button class="sec" id="shSel">${shotSelMode ? "✕ 取消選取" : "☑ 選取照片"}</button><button class="sec" id="shBook" ${nBook ? "" : "disabled"}>📖 照片冊（${nBook} 張）</button></div>
+      ${shotSelMode ? `<div class="row"><button class="sec" id="shAll">${shotSel.size === list.length && list.length ? "取消全選" : `全選（${list.length}）`}</button><button class="sec" id="shShare" ${shotSel.size ? "" : "disabled"}>📤 分享（${shotSel.size}）</button></div>
+      <div class="row"><button class="sec" id="shDl" ${shotSel.size ? "" : "disabled"}>⬇ 下載存查（${shotSel.size}）</button><button class="danger" id="shRm" ${shotSel.size ? "" : "disabled"}>🗑 刪除（${shotSel.size}）</button></div>` : ""}` : ""}
     ${list.length ? `<div class="sgrid">${list.map(x => `<button type="button" class="sth ${shotSel.has(x.id) ? "pick" : ""}" data-id="${esc(x.id)}"><img src="${safeImg(x.thumb || x.data)}" alt="施工照片"><small>${esc(x.item || "（未填項目）")}</small>${shotSelMode ? `<i>${shotSel.has(x.id) ? "✔" : ""}</i>` : ""}</button>`).join("")}</div>`
       : `<div class="panel">${all.length ? "這個篩選下沒有照片。" : "還沒有施工照片。按「電子黑板相機」開始拍，黑板會直接合成在照片上。"}</div>`}`;
   $("#shCam").onclick = () => shotOpenCamera(() => renderShotList());
@@ -146,6 +148,22 @@ async function renderShotList() {
     $("#shFD").onchange = e => { shotFDate = e.target.value; renderShotList(); };
     $("#shFI").onchange = e => { shotFItem = e.target.value; renderShotList(); };
     $("#shSel").onclick = () => { shotSelMode = !shotSelMode; shotSel.clear(); renderShotList(); };
+    if (shotSelMode) {
+      const picked = () => all.filter(x => shotSel.has(x.id)).sort((p, q) => p.created - q.created);
+      const fileOf = (x, i) => new File([dataURLtoBlob(x.data)], `施工照片_${x.date}_${String(i + 1).padStart(2, "0")}${x.item ? "_" + x.item.replace(/[\\/:*?"<>|]/g, "") : ""}.jpg`, { type: "image/jpeg" });
+      $("#shAll").onclick = () => { if (shotSel.size === list.length) shotSel.clear(); else list.forEach(x => shotSel.add(x.id)); renderShotList(); };
+      $("#shShare").onclick = async () => {
+        const fl = picked().map(fileOf);
+        try { if (navigator.canShare?.({ files: fl })) { await navigator.share({ files: fl, title: "施工照片" }); return; } } catch (e) { if (e?.name === "AbortError") return; }
+        alert("這個瀏覽器不能一次分享多張，改為逐張下載。"); for (const f of fl) { pdfDownload(f); await new Promise(r => setTimeout(r, 400)); }
+      };
+      $("#shDl").onclick = async () => { const fl = picked().map(fileOf); for (const f of fl) { pdfDownload(f); await new Promise(r => setTimeout(r, 400)); } };
+      $("#shRm").onclick = async () => {
+        const n = shotSel.size; if (!n || !confirm(`確定刪除選取的 ${n} 張照片？無法復原。\n\n建議先按「下載存查」或「分享」留存。`)) return;
+        for (const id of [...shotSel]) await DB.del("shots", id);
+        shotSel.clear(); shotSelMode = false; renderShotList();
+      };
+    }
     $("#shBook").onclick = () => { shotAlbumIds = shotSelMode && shotSel.size ? [...shotSel] : list.map(x => x.id); location.hash = "#/shot/album"; };
   }
   view.querySelectorAll(".sth").forEach(el => el.onclick = () => {
