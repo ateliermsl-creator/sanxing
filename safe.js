@@ -53,15 +53,18 @@ const CLEAN = {
   pours: x => safeId(x.id) && safeId(x.siteId) && {
     id: x.id, siteId: x.siteId, date: cdate(x.date), floor: cs(x.floor, 50), part: cs(x.part, 100), supplier: cs(x.supplier, 200), fc: cs(x.fc, 30), slumpMin: cs(x.slumpMin, 30), slumpMax: cs(x.slumpMax, 30),
     clMax: cs(x.clMax, 30), limitMin: cs(x.limitMin, 30), created: cn(x.created), updated: cn(x.updated),
+    forms: Object.fromEntries(Object.entries(obj(x.forms)).slice(0, 30).map(([k, v]) => [cs(k, 30), { strip: cdate(obj(v).strip) }]).filter(([k]) => k)),
     trucks: arr(x.trucks, 500).map(t => safeId(obj(t).id) && ({ id: t.id, plate: cs(t.plate, 50), ticket: cs(t.ticket, 60), leave: ctime(t.leave), arrive: ctime(t.arrive), volume: cs(t.volume, 30), slump: cs(t.slump, 30),
       chloride: cs(t.chloride, 30), temp: cs(t.temp, 30), sampled: cb(t.sampled), specimen: cs(t.specimen, 100), disp: ce(t.disp, ["use", "reject"], "use"), note: cs(t.note, 500),
-      names: cnames(t.names, ["tester", "driver"]), sigs: csigs(t.sigs, ["tester", "driver"]), created: cn(t.created) })).filter(Boolean) },
+      names: cnames(t.names, ["tester", "driver"]), sigs: csigs(t.sigs, ["tester", "driver"]), created: cn(t.created),
+      tests: Object.fromEntries(Object.entries(obj(t.tests)).filter(([k]) => /^\d{1,3}$/.test(k)).slice(0, 8).map(([k, v]) => [k, { date: cdate(obj(v).date), vals: arr(obj(v).vals, 12).map(q => cs(q, 20)).filter(q => q !== ""), note: cs(obj(v).note, 300), ...(obj(v).skip === true ? { skip: true } : {}) }])) })).filter(Boolean) },
   matrecs: x => safeId(x.id) && safeId(x.siteId) && {
     id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), catId: cs(x.catId, 64), catName: cs(x.catName, 100), name: cs(x.name, 200), spec: cs(x.spec, 200), qty: cs(x.qty, 30), unit: cs(x.unit, 20),
     vendor: cs(x.vendor, 200), ticket: cs(x.ticket, 60), lot: cs(x.lot, 60), location: cs(x.location, 200),
     docs: arr(x.docs, 50).map(d => ({ n: cs(obj(d).n, 100), v: cb(obj(d).v) })), checks: arr(x.checks, 300).map(c => ({ t: cs(obj(c).t, 300), r: ce(obj(c).r, ["ok", "ng", "na", ""], ""), note: cs(obj(c).note, 500), ...(obj(c).extra === true ? { extra: true } : {}) })),
     disp: ce(x.disp, ["accept", "reject", "pending"], "accept"), note: cs(x.note, 1000), names: cnames(x.names, ["deliver", "inspector"]), sigs: csigs(x.sigs, ["deliver", "inspector"]), created: cn(x.created), updated: cn(x.updated) },
-  matcats: x => x.id === "__docs" ? { id: "__docs", docs: arr(x.docs, 50).map(d => cs(d, 100)).filter(Boolean), updated: cn(x.updated) }
+  matcats: x => x.id === "__cure" ? { id: "__cure", ages: arr(x.ages, 6).map(Number).filter(n => Number.isInteger(n) && n > 0 && n <= 365), forms: arr(x.forms, 20).map(f => ({ n: cs(obj(f).n, 30), d: cs(obj(f).d, 4) })).filter(f => f.n), updated: cn(x.updated) }
+    : x.id === "__docs" ? { id: "__docs", docs: arr(x.docs, 50).map(d => cs(d, 100)).filter(Boolean), updated: cn(x.updated) }
     : (x.id === "__deleted" || x.id === "__seed2") ? { id: x.id, updated: cn(x.updated) }
     : safeId(x.id) && { id: x.id, name: cs(x.name, 100), checks: arr(x.checks, 300).map(c => cs(c, 300)).filter(Boolean), order: cn(x.order), created: cn(x.created), updated: cn(x.updated) },
   shots: x => safeId(x.id) && safeId(x.siteId) && safeImg(x.data) && {

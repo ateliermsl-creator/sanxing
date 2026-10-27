@@ -7,7 +7,8 @@ const ATT_MAX = 10 * 1024 * 1024;
 const attMB = n => (n >= 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(n / 1024)) + " KB");
 const attIcon = f => /pdf/i.test(f.type) || /\.pdf$/i.test(f.name) ? "📕" : /^image\//.test(f.type) ? "🖼" : /word|\.docx?$/i.test(f.type + f.name) ? "📘" : /excel|sheet|\.xlsx?$/i.test(f.type + f.name) ? "📗" : "📄";
 const attFilesOf = async recId => (await DB.all("files")).filter(f => f.recId === recId).sort((a, b) => a.created - b.created);
-async function attPurge(ids) { const set = new Set([].concat(ids)); for (const f of await DB.all("files")) if (set.has(f.recId)) await DB.del("files", f.id); }
+// recId 可能是「紀錄id」或「紀錄id_後綴」（例如試壓報告），兩者一併清除；uid 只含英數字，不會有底線，不會誤刪
+async function attPurge(ids) { const set = new Set([].concat(ids)); for (const f of await DB.all("files")) if (set.has(f.recId) || set.has(String(f.recId).split("_")[0])) await DB.del("files", f.id); }
 async function attTotal() { const fs = await DB.all("files"); return { n: fs.length, size: fs.reduce((a, f) => a + (f.size || 0), 0) }; }
 const blobToDataURL = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(b); });
 // 取出附加檔案中的圖片（縮到長邊 1600px、轉 JPEG），讓列印與 PDF 可以直接顯示

@@ -191,6 +191,7 @@ function parentHash() {
   if (page === "material") return !a ? "#/" : b === "print" ? "#/material/" + a : "#/material";
   if (page === "pour") return a === "summary" ? "#/pour" : !a ? "#/" : b === "truck" || b === "print" ? "#/pour/" + a : "#/pour";
   if (page === "shot") return a ? "#/shot" : "#/";
+  if (page === "cure") return a ? "#/cure" : "#/";
   if (page === "template") return "#/checklist";
   return "#/";
 }
@@ -219,6 +220,7 @@ async function route() {
   }
   if (page === "pour") return renderPour(a, b2, c2);
   if (page === "shot") return renderShot(a, b2);
+  if (page === "cure") return renderCure(a, b2, c2);
   if (page === "material") return renderMaterial(a, b2);
   if (page === "install") return renderInstall();
   if (page === "punch") return renderPunch(a);
@@ -233,6 +235,7 @@ async function route() {
 async function renderHome() {
   let updates = [];
   try { updates = await (await fetch("updates.json")).json(); } catch {}
+  let cuN = 0; try { cuN = await cuUrgent(); } catch {}
   if (location.hash.split("/")[1]) return;   // 讀取期間已切到別的頁面，就不要用首頁蓋掉它
   view.innerHTML = `
     ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
@@ -240,6 +243,7 @@ async function renderHome() {
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/material"><div class="ph">📦</div><div><b>材料進場驗收</b><small>類別檢查項目・簽名・照片・進場台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/pour"><div class="ph">🚛</div><div><b>混凝土澆置抽驗</b><small>車號・坍度・氯離子・試體・簽名・方量統計</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/cure"><div class="ph">🧪</div><div><b>試體養護與拆模追蹤</b><small>${cuN ? `⚠️ ${cuN} 項待處理・` : ""}7／28 天試壓提醒・拆模齡期・強度台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・面積換算</small></div><span class="arrow">›</span></a>

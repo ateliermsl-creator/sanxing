@@ -94,6 +94,7 @@ async function renderPourBatch(id) {
       <p class="cnote">系統只依你填的標準比對，沒填的項目不判定。填好後下次新增會自動沿用。</p>
       <div class="grid2"><div class="field"><label>坍度下限（cm）</label><input data-f="slumpMin" inputmode="decimal" value="${esc(bt.slumpMin)}"></div><div class="field"><label>坍度上限（cm）</label><input data-f="slumpMax" inputmode="decimal" value="${esc(bt.slumpMax)}"></div>
         <div class="field"><label>氯離子上限（kg/m³）</label><input data-f="clMax" inputmode="decimal" value="${esc(bt.clMax)}"></div><div class="field"><label>出廠→到場時限（分）</label><input data-f="limitMin" inputmode="decimal" value="${esc(bt.limitMin)}"></div></div></details>
+    ${await cuFormsPanel(bt)}
     <h2 class="t" style="font-size:17px">各車紀錄</h2>
     <div class="panel"><div class="kpis">${[["車數", stat.trucks], ["澆置方量 m³", pourVol(stat.vol)], ["已判定", stat.judged], ["合格率", pourRate(stat)]].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("")}</div>
       ${stat.rej ? `<p class="cnote">退料 ${stat.rejTrucks} 車、${pourVol(stat.rej)} m³（不計入澆置方量）</p>` : ""}</div>
@@ -109,7 +110,7 @@ async function renderPourBatch(id) {
     const t = { id: uid(), plate: "", ticket: "", leave: "", arrive: pourNow(), volume: prev?.volume || "", slump: "", chloride: "", temp: "", sampled: false, specimen: "", disp: "use", note: "", names: { tester: ls.get("pourTester", ""), driver: "" }, sigs: {}, created: Date.now() };
     bt.trucks.push(t); await flush(); location.hash = `#/pour/${bt.id}/truck/${t.id}`;
   };
-  attBind(view, bt.id);
+  attBind(view, bt.id); cuFormsBind(view, bt, save);
   { // 整批照片（配比設計書、試驗報告等）
     let bph = (await DB.all("photos")).filter(p => p.recId === bt.id).sort((a, b) => a.created - b.created);
     const draw = () => { $("#bjTh").innerHTML = bph.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
