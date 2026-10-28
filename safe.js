@@ -70,7 +70,7 @@ const CLEAN = {
     : safeId(x.id) && { id: x.id, name: cs(x.name, 100), checks: arr(x.checks, 300).map(c => cs(c, 300)).filter(Boolean), order: cn(x.order), created: cn(x.created), updated: cn(x.updated) },
   shots: x => safeId(x.id) && safeId(x.siteId) && safeImg(x.data) && {
     id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), lat: cgeo(x.lat, 90), lng: cgeo(x.lng, 180), acc: Math.max(0, cn(x.acc)), item: cs(x.item, 100), part: cs(x.part, 100), spec: cs(x.spec, 200), vendor: cs(x.vendor, 100), note: cs(x.note, 300),
-    data: x.data, raw: safeImg(x.raw) || x.data, thumb: safeImg(x.thumb), created: cn(x.created), updated: cn(x.updated) },
+    data: x.data, raw: safeImg(x.raw), thumb: safeImg(x.thumb), created: cn(x.created), updated: cn(x.updated) },
   safety: x => safeId(x.id) && safeId(x.siteId) && {
     id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), place: cs(x.place, 200), host: cs(x.host, 100), content: cs(x.content, 500), extra: cs(x.extra, 500),
     risks: arr(x.risks, 40).map(q => cs(q, 60)).filter(Boolean), hazards: arr(x.hazards, 40).map(q => cs(q, 60)).filter(Boolean), hostSig: safeImg(x.hostSig),

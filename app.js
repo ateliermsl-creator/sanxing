@@ -606,6 +606,7 @@ async function renderBackup() {
     <h2 class="t">備份與還原</h2>
     <div class="panel">上次備份：${last ? esc(new Date(last).toLocaleString("zh-TW")) : "尚未備份"}<br><small style="color:var(--mut)">資料只存在這支手機。換手機或清除瀏覽器資料前，請先下載備份檔。</small></div>
     <div class="panel" id="bkFilesBox" hidden></div>
+    <div class="panel" id="bkRawBox" hidden></div>
     <div class="panel" id="bkStore"><small style="color:var(--mut)">儲存空間檢查中…</small></div>
     <div class="row"><button id="expBtn">💾 下載備份檔</button></div>
     <div class="row"><button class="sec" id="impBtn">📂 匯入備份檔</button></div>
@@ -617,12 +618,14 @@ async function renderBackup() {
       box.innerHTML = `<b>儲存空間</b>　已用 ${attMB(usage)}${quota ? ` ／ 可用約 ${attMB(quota)}` : ""}<br><small style="color:var(--mut)">${per ? "✔ 已設為持久儲存，手機空間不足時瀏覽器不會自動清掉資料。" : "尚未取得持久儲存，手機空間不足時瀏覽器可能清掉資料，請定期備份。"}</small>`;
     } catch { box.hidden = true; }
   })();
+  DB.all("shots").then(sh => { const box = $("#bkRawBox"); if (!box || !sh.length) return; const raw = sh.reduce((a, x) => a + (x.raw && x.raw !== x.data ? x.raw.length : 0), 0) * 0.75;
+    box.hidden = false; box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkRaw" style="width:22px;height:22px"> 施工照片一併備份「原始照片」（約增加 ${attMB(raw)}）</label><p class="cnote">不勾選的話，備份檔較小：照片成品（含黑板）照常備份，只是還原後這些照片無法再修改黑板文字。縮圖不需備份，還原時自動產生。</p>`; });
   attTotal().then(({ n, size }) => { if (!n) return; const box = $("#bkFilesBox"); if (!box) return; box.hidden = false;
     box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkFiles" checked style="width:22px;height:22px"> 備份包含附加檔案（${n} 個、${attMB(size)}）</label>${size > 50 * 1048576 ? `<p class="cnote" style="color:#c0392b">附加檔案很大，備份檔會很大、匯出匯入會比較慢。可以取消勾選，只備份紀錄。</p>` : `<p class="cnote">取消勾選的話，備份檔只含紀錄與照片，不含附加的電子檔。</p>`}`; });
   $("#expBtn").onclick = async () => {
     const withFiles = $("#bkFiles") ? $("#bkFiles").checked : true;
     const files = []; if (withFiles) for (const f of await DB.all("files")) files.push({ id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, data: await blobToDataURL(f.blob) });
-    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), shots: await DB.all("shots"), safety: await DB.all("safety"), logs: await DB.all("logs"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), shots: (await DB.all("shots")).map(({ thumb, raw, ...x }) => ($("#bkRaw")?.checked ? { ...x, raw } : x)), safety: await DB.all("safety"), logs: await DB.all("logs"), sites: await DB.all("sites"), records: await DB.all("records") };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     a.download = `三星蔥工具箱備份_${today()}.json`;
@@ -687,7 +690,7 @@ async function renderBackup() {
       for (const x of d.shots || []) {
         const old = await DB.get("shots", x.id);
         if (old && (old.updated || 0) >= (x.updated || 0)) continue;
-        x.siteId = map[x.siteId] || x.siteId; await DB.put("shots", x); sn++;
+        x.siteId = map[x.siteId] || x.siteId; if (!x.thumb) { try { x.thumb = await shotThumb(x.data); } catch { x.thumb = ""; } } await DB.put("shots", x); sn++;
       }
       let an = 0;
       for (const x of d.safety || []) {

@@ -180,7 +180,8 @@ async function renderShotDetail(id) {
   view.innerHTML = `
     <h2 class="t">施工照片</h2>
     <div class="panel"><img id="sdImg" src="${safeImg(x.data)}" alt="施工照片" style="width:100%;border-radius:10px;cursor:zoom-in"></div>
-    <div class="panel"><b>黑板內容</b>
+    ${x.raw ? "" : `<div class="panel"><b>黑板內容</b><p class="cnote">這張照片沒有保留原始照片（備份時未包含），黑板文字無法再修改。</p><p>${esc([x.item, x.part, x.spec, x.vendor, x.note].filter(Boolean).join("　"))}</p></div>`}
+    <div class="panel" ${x.raw ? "" : "hidden"}><b>黑板內容</b>
       ${[["item", "查驗項目"], ["part", "施工位置"], ["spec", "設計規格"], ["vendor", "施工廠商"], ["note", "說明"]].map(([k, l]) => `<div class="field"><label>${l}</label><input data-k="${k}" value="${esc(x[k])}"></div>`).join("")}
       <div class="field"><label>日期</label><input type="date" data-k="date" value="${esc(x.date)}"></div>
       <div class="field"><label>拍攝時間</label><input type="time" data-k="time" value="${esc(x.time)}"></div>
