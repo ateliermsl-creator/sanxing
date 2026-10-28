@@ -75,6 +75,17 @@ const CLEAN = {
     id: x.id, siteId: x.siteId, date: cdate(x.date), time: ctime(x.time), place: cs(x.place, 200), host: cs(x.host, 100), content: cs(x.content, 500), extra: cs(x.extra, 500),
     risks: arr(x.risks, 40).map(q => cs(q, 60)).filter(Boolean), hazards: arr(x.hazards, 40).map(q => cs(q, 60)).filter(Boolean), hostSig: safeImg(x.hostSig),
     people: arr(x.people, 400).map(p => safeId(obj(p).id) && ({ id: p.id, name: cs(p.name, 50), co: cs(p.co, 50), sig: safeImg(p.sig) })).filter(Boolean), created: cn(x.created), updated: cn(x.updated) },
+  logs: x => safeId(x.id) && safeId(x.siteId) && (() => {
+    const tri = (v, l) => l.includes(v) ? v : "", rows = (v, keys, max = 60) => arr(v, max).map(q => safeId(obj(q).id) && Object.fromEntries([["id", q.id], ...keys.map(k => [k, cs(q[k], 200)])])).filter(Boolean);
+    const std = ["name", "unit", "contract", "design", "today", "prev", "note"];
+    return { id: x.id, siteId: x.siteId, no: cs(x.no, 60), date: cdate(x.date), wxAm: cs(x.wxAm, 20), wxPm: cs(x.wxPm, 20), contractor: cs(x.contractor, 200), approved: cs(x.approved, 10), extend: cs(x.extend, 10),
+      start: cdate(x.start), finish: cdate(x.finish), planPct: cs(x.planPct, 10), actualPct: cs(x.actualPct, 10),
+      items: rows(x.items, std), specials: rows(x.specials, std), mats: rows(x.mats, std), labor: rows(x.labor, ["name", "today", "prev"]), machines: rows(x.machines, ["name", "today", "prev"]),
+      tech: tri(x.tech, ["yes", "no"]), techItem: cs(x.techItem, 200), techNeed: cs(x.techNeed, 10),
+      techRows: arr(x.techRows, 30).map(q => safeId(obj(q).id) && ({ id: q.id, kind: cs(q.kind, 50), count: cs(q.count, 10), name: cs(q.name, 50), cert: cs(q.cert, 80), note: cs(q.note, 200), sig: safeImg(q.sig) })).filter(Boolean),
+      pre: tri(x.pre, ["yes", "no"]), newLabor: tri(x.newLabor, ["yes", "no", "none"]), ppe: tri(x.ppe, ["yes", "no"]),
+      other: cs(x.other, 3000), sampling: cs(x.sampling, 6000), notify: cs(x.notify, 3000), important: cs(x.important, 6000), sig: safeImg(x.sig), signer: cs(x.signer, 50), created: cn(x.created), updated: cn(x.updated) };
+  })(),
   files: x => safeId(x.id) && safeId(x.recId) && typeof x.data === "string" && x.data.length < 20e6 && SAFE_DATA.test(x.data) && {
     id: x.id, recId: x.recId, name: cname(x.name) || "檔案", type: SAFE_FILE_TYPES.includes(x.type) ? x.type : "application/octet-stream", size: cn(x.size), created: cn(x.created), data: x.data }
 };

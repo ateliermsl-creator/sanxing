@@ -256,3 +256,14 @@ button.on.sec,.phrow button.on{background:var(--g);color:#fff}
 .sacell canvas{width:100%;height:130px;background:#f7f8f3;border:1px dashed #aab;border-radius:6px;touch-action:none;display:block}
 .sacell .sacl{min-height:36px;font-size:14px;padding:0 14px}
 .sacell .sax{position:absolute;top:-9px;right:-9px;width:28px;min-height:28px;height:28px;padding:0;border-radius:50%;background:#999;font-size:11px;z-index:2}
+/* 施工日誌 */
+.lgrow{border:1px solid var(--line);border-radius:12px;padding:8px;margin:8px 0;background:#fff}
+.lghead{display:flex;align-items:center;gap:8px;margin-bottom:4px}.lghead .lgcum{flex:1;color:var(--g);font-size:13px;font-weight:600}
+.lggrid{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.lgrow input{min-height:40px;font-size:16px}
+canvas.lgsig{width:100%;height:80px;background:#f7f8f3;border:1px dashed #aab;border-radius:8px;touch-action:none;display:block;margin-top:6px}
+.lgpaper .lgmeta{display:flex;justify-content:space-between;font-size:13px;margin:2px 0}
+.lgt{margin-bottom:0}.lgt th{font-size:12px;text-align:center}.lgt td{font-size:12px}.lgt .lgh th{background:#f1f1f1}
+.lgt .lgsec{text-align:left;background:#fff;font-weight:600}.lgt .lgsub{background:#f6f6f6;font-weight:600}
+.lgt .lgsec2{line-height:1.7;vertical-align:top}.lgnote{font-size:10px;line-height:1.5;margin-top:3mm}
+.lgt .c{font-size:12px}
