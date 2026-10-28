@@ -270,3 +270,4 @@ canvas.lgsig{width:100%;height:80px;background:#f7f8f3;border:1px dashed #aab;bo
 .lgt th,.lgt td{padding:2px 5px;line-height:1.35}
 .lgt tr:not(.lgh) td.c:empty,.lgt td:empty{height:6.5mm}
 .lgt .lgsec2{padding:3px 6px}
+#view textarea[data-f]{display:block;width:100%;box-sizing:border-box;margin-top:8px}
