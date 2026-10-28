@@ -186,9 +186,9 @@ async function renderLogPrint(id) {
   const pad = (rows, n) => { const a = rows.slice(); while (a.length < n) a.push(null); return a; };
   const wk = lgWeek(r.date), ymd = iso => { const x = lgRoc(iso); return x ? `${x.y} 年 ${x.m} 月 ${x.d} 日` : "　　年　　月　　日"; };
   const box = (v, want, text) => `${r[v] === want ? "☑" : "□"}${text}`;
-  const line = (rows, cols) => pad(rows, 3).map(x => `<tr>${cols.map(c => c === "cum" ? `<td class="c">${x ? esc(lgSum(x.prev, x.today)) : ""}</td>` : `<td class="${c === "name" || c === "note" ? "" : "c"}">${x ? esc(x[c]) : "&nbsp;"}</td>`).join("")}</tr>`).join("");
+  const line = (rows, cols) => pad(rows, 2).map(x => `<tr>${cols.map(c => c === "cum" ? `<td class="c">${x ? esc(lgSum(x.prev, x.today)) : ""}</td>` : `<td class="${c === "name" || c === "note" ? "" : "c"}">${x ? esc(x[c]) : "&nbsp;"}</td>`).join("")}</tr>`).join("");
   const rowsSp = pad(r.specials, 2).map((x, i) => `<tr><td>${String.fromCharCode(65 + i)}.${x ? " " + esc(x.name) : ""}</td><td class="c">${x ? esc(x.unit) : ""}</td><td class="c">${x ? esc(x.contract) : ""}</td><td class="c">${x ? esc(x.today) : ""}</td><td class="c">${x ? esc(lgSum(x.prev, x.today)) : ""}</td><td>${x ? esc(x.note) : ""}</td></tr>`).join("");
-  const nL = Math.max(r.labor.length, r.machines.length, 3), lab = pad(r.labor, nL), mac = pad(r.machines, nL);
+  const nL = Math.max(r.labor.length, r.machines.length, 2), lab = pad(r.labor, nL), mac = pad(r.machines, nL);
   const lmRows = lab.map((l, i) => { const m = mac[i]; return `<tr><td>${l ? esc(l.name) : "&nbsp;"}</td><td class="c">${l ? esc(l.today) : ""}</td><td class="c">${l ? esc(lgSum(l.prev, l.today)) : ""}</td><td>${m ? esc(m.name) : ""}</td><td class="c">${m ? esc(m.today) : ""}</td><td class="c">${m ? esc(lgSum(m.prev, m.today)) : ""}</td></tr>`; }).join("");
   const multi = s => esc(s).replace(/\n/g, "<br>");
   view.innerHTML = `

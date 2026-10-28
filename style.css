@@ -267,3 +267,6 @@ canvas.lgsig{width:100%;height:80px;background:#f7f8f3;border:1px dashed #aab;bo
 .lgt .lgsec{text-align:left;background:#fff;font-weight:600}.lgt .lgsub{background:#f6f6f6;font-weight:600}
 .lgt .lgsec2{line-height:1.7;vertical-align:top}.lgnote{font-size:10px;line-height:1.5;margin-top:3mm}
 .lgt .c{font-size:12px}
+.lgt th,.lgt td{padding:2px 5px;line-height:1.35}
+.lgt tr:not(.lgh) td.c:empty,.lgt td:empty{height:6.5mm}
+.lgt .lgsec2{padding:3px 6px}

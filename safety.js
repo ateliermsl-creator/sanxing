@@ -135,7 +135,7 @@ async function renderSafetyPrint(id) {
   const cfg = await saCfg(), site = sites.find(s => s.id === r.siteId), company = ls.get("company", ""), photos = await photosOf(id);
   const ppl = r.people.filter(p => p.name || p.sig), rows = Math.ceil(Math.max(ppl.length, 10) / 2);
   const hz = [...cfg.hazards, ...r.hazards.filter(x => !cfg.hazards.includes(x))], rk = [...cfg.risks, ...r.risks.filter(x => !cfg.risks.includes(x))];
-  const cell = (p, n) => p ? `<td class="c">${n}</td><td>${esc(p.name)}</td><td><small>${esc(p.co)}</small></td><td class="c sgc">${p.sig ? `<img src="${safeImg(p.sig)}" style="max-height:11mm;max-width:30mm;display:block;margin:0 auto">` : ""}</td>` : `<td class="c">${n}</td><td></td><td></td><td class="sgc"></td>`;
+  const cell = (p, n) => p ? `<td class="c">${n}</td><td>${esc(p.name)}</td><td><small>${esc(p.co)}</small></td><td class="c sgc">${p.sig ? `<img src="${safeImg(p.sig)}" style="max-height:8mm;max-width:30mm;display:block;margin:0 auto">` : ""}</td>` : `<td class="c">${n}</td><td></td><td></td><td class="sgc"></td>`;
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
     <div class="paper">
@@ -146,8 +146,8 @@ async function renderSafetyPrint(id) {
         <tr><th>危害告知</th><td colspan="5" style="line-height:1.7">${hz.map(x => `${r.hazards.includes(x) ? "☑" : "□"} ${esc(x)}`).join("　")}${r.extra ? `<br>其他：${esc(r.extra)}` : ""}</td></tr></table>
       <p style="margin:2mm 0;font-size:12px">${esc(cfg.statement)}</p>
       <table class="pt items sm"><tr><th>序</th><th>姓名</th><th>單位／工班</th><th style="width:34mm">簽名</th><th>序</th><th>姓名</th><th>單位／工班</th><th style="width:34mm">簽名</th></tr>
-        ${Array.from({ length: rows }, (_, i) => `<tr style="height:14mm">${cell(ppl[i], i + 1)}${cell(ppl[i + rows], i + rows + 1)}</tr>`).join("")}</table>
-      <div class="psigs"><div>${r.hostSig ? `<img src="${safeImg(r.hostSig)}">` : "<br><br>"}主持人${r.host ? "：" + esc(r.host) : ""}</div><div><br><br>共 ${ppl.length} 人，已簽名 ${saSigned(r)} 人</div></div>
+        ${Array.from({ length: rows }, (_, i) => `<tr style="height:10mm">${cell(ppl[i], i + 1)}${cell(ppl[i + rows], i + rows + 1)}</tr>`).join("")}</table>
+      <div class="psigs" style="margin-top:4mm"><div>${r.hostSig ? `<img src="${safeImg(r.hostSig)}" style="max-height:14mm">` : "<br><br>"}主持人${r.host ? "：" + esc(r.host) : ""}</div><div><br><br>共 ${ppl.length} 人，已簽名 ${saSigned(r)} 人</div></div>
     </div>
     ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：勤前教育全體合照</div><div class="gal" style="grid-template-columns:1fr">${photos.map(p => `<figure><img src="${safeImg(p.data)}" style="max-height:150mm"><figcaption>${esc(pRoc(r.date))} ${esc(r.time)}　${esc(site?.name)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
   { const ln = await attNamesLine(id, true); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); const g = await attGallery(id); if (g) view.insertAdjacentHTML("beforeend", g); }
