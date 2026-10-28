@@ -7,7 +7,7 @@
 
 const CU_DEF_FORMS = ["柱側模", "牆側模", "樑側模", "版底模", "樑底模", "懸臂版底模"];
 const cuDay = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) / 864e5 : NaN; };
-const cuIso = n => new Date(n * 864e5).toISOString().slice(0, 10);
+const cuIso = n => Number.isFinite(n) ? new Date(n * 864e5).toISOString().slice(0, 10) : "";
 const cuToday = () => { const d = new Date(); return Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 864e5; };
 const cuLocalIso = () => cuIso(cuToday());
 const cuMD = n => { const [, m, d] = cuIso(n).split("-"); return `${+m}/${+d}`; };

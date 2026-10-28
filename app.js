@@ -3,7 +3,7 @@ const $ = (s, el = document) => el.querySelector(s);
 const view = $("#view");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-const today = () => new Date().toISOString().slice(0, 10);
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };   // 用手機的本地日期（toISOString 是 UTC，台灣凌晨 0～8 點會算成前一天）
 const ls = {
   get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }
@@ -549,8 +549,8 @@ async function renderPreview(id) {
 async function renderTemplateEditor(id) {
   const isNew = id === "new";
   const tpl = isNew ? { id: uid(), custom: true, cat: "", name: "", sub: "", items: [{ t: "", std: "" }], created: Date.now() }
-    : structuredClone(TEMPLATES.find(t => t.id === id && t.custom));
-  if (!tpl.id) { goReplace("#/checklist"); return; }
+    : structuredClone(TEMPLATES.find(t => t.id === id && t.custom) || null);
+  if (!tpl?.id) { goReplace("#/checklist"); return; }
   // 已有紀錄使用時，不可刪除或搬動項目（紀錄以項目順序對應），只能改文字與新增
   const used = isNew ? 0 : (await DB.all("records")).filter(r => r.templateId === tpl.id).length;
   const cats = [...new Set(TEMPLATES.map(t => t.cat))];
@@ -606,9 +606,17 @@ async function renderBackup() {
     <h2 class="t">備份與還原</h2>
     <div class="panel">上次備份：${last ? esc(new Date(last).toLocaleString("zh-TW")) : "尚未備份"}<br><small style="color:var(--mut)">資料只存在這支手機。換手機或清除瀏覽器資料前，請先下載備份檔。</small></div>
     <div class="panel" id="bkFilesBox" hidden></div>
+    <div class="panel" id="bkStore"><small style="color:var(--mut)">儲存空間檢查中…</small></div>
     <div class="row"><button id="expBtn">💾 下載備份檔</button></div>
     <div class="row"><button class="sec" id="impBtn">📂 匯入備份檔</button></div>
     <input type="file" id="impFile" accept=".json,application/json" hidden>`;
+  (async () => {   // 儲存空間：用量與是否為「持久儲存」（持久的話，手機空間不足時瀏覽器不會自動清掉資料）
+    const box = $("#bkStore"); if (!box || !navigator.storage?.estimate) { if (box) box.hidden = true; return; }
+    try {
+      const { usage = 0, quota = 0 } = await navigator.storage.estimate(), per = navigator.storage.persisted ? await navigator.storage.persisted() : false;
+      box.innerHTML = `<b>儲存空間</b>　已用 ${attMB(usage)}${quota ? ` ／ 可用約 ${attMB(quota)}` : ""}<br><small style="color:var(--mut)">${per ? "✔ 已設為持久儲存，手機空間不足時瀏覽器不會自動清掉資料。" : "尚未取得持久儲存，手機空間不足時瀏覽器可能清掉資料，請定期備份。"}</small>`;
+    } catch { box.hidden = true; }
+  })();
   attTotal().then(({ n, size }) => { if (!n) return; const box = $("#bkFilesBox"); if (!box) return; box.hidden = false;
     box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkFiles" checked style="width:22px;height:22px"> 備份包含附加檔案（${n} 個、${attMB(size)}）</label>${size > 50 * 1048576 ? `<p class="cnote" style="color:#c0392b">附加檔案很大，備份檔會很大、匯出匯入會比較慢。可以取消勾選，只備份紀錄。</p>` : `<p class="cnote">取消勾選的話，備份檔只含紀錄與照片，不含附加的電子檔。</p>`}`; });
   $("#expBtn").onclick = async () => {
@@ -707,4 +715,5 @@ $("#camErrClose").onclick = () => $("#camErr").close();
   await loadSites();
   route();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  try { navigator.storage?.persist?.(); } catch {}   // 申請持久儲存（不一定會核准，瀏覽器自行判斷）
 })();
