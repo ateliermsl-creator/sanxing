@@ -408,7 +408,7 @@ async function renderForm(id) {
   const inp = (k, lab, ph) => `<div class="field"><label>${lab}</label><input data-f="${k}" value="${esc(rec[k])}" placeholder="${ph || ""}"></div>`;
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">${esc(tpl.name)}</h2>
-    <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#c77d00;font-weight:700">${prog()}</span></div>
+    <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#a8782e;font-weight:700">${prog()}</span></div>
     <div class="panel">
       ${inp("contractor", "承攬廠商", "廠商名稱")}${inp("subcontractor", "協力廠商", "協力廠商（如有）")}
       ${inp("location", "檢查位置", "例如：2F、B1 東側")}
@@ -621,7 +621,7 @@ async function renderBackup() {
   DB.all("shots").then(sh => { const box = $("#bkRawBox"); if (!box || !sh.length) return; const raw = sh.reduce((a, x) => a + (x.raw && x.raw !== x.data ? x.raw.length : 0), 0) * 0.75;
     box.hidden = false; box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkRaw" style="width:22px;height:22px"> 施工照片一併備份「原始照片」（約增加 ${attMB(raw)}）</label><p class="cnote">不勾選的話，備份檔較小：照片成品（含黑板）照常備份，只是還原後這些照片無法再修改黑板文字。縮圖不需備份，還原時自動產生。</p>`; });
   attTotal().then(({ n, size }) => { if (!n) return; const box = $("#bkFilesBox"); if (!box) return; box.hidden = false;
-    box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkFiles" checked style="width:22px;height:22px"> 備份包含附加檔案（${n} 個、${attMB(size)}）</label>${size > 50 * 1048576 ? `<p class="cnote" style="color:#c0392b">附加檔案很大，備份檔會很大、匯出匯入會比較慢。可以取消勾選，只備份紀錄。</p>` : `<p class="cnote">取消勾選的話，備份檔只含紀錄與照片，不含附加的電子檔。</p>`}`; });
+    box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkFiles" checked style="width:22px;height:22px"> 備份包含附加檔案（${n} 個、${attMB(size)}）</label>${size > 50 * 1048576 ? `<p class="cnote" style="color:var(--bad)">附加檔案很大，備份檔會很大、匯出匯入會比較慢。可以取消勾選，只備份紀錄。</p>` : `<p class="cnote">取消勾選的話，備份檔只含紀錄與照片，不含附加的電子檔。</p>`}`; });
   $("#expBtn").onclick = async () => {
     const withFiles = $("#bkFiles") ? $("#bkFiles").checked : true;
     const files = []; if (withFiles) for (const f of await DB.all("files")) files.push({ id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, data: await blobToDataURL(f.blob) });

@@ -160,8 +160,8 @@ async function renderMatForm(id) {
   const result = () => {
     const j = matJudge(r), f = matFinal(r), ng = r.checks.filter(c => c.r === "ng");
     $("#mResult").innerHTML = `<b>結果</b>　${matBadge(r)}${j === "part" ? ` <small style="color:var(--mut)">還有 ${r.checks.filter(c => !c.r).length} 項未檢查</small>` : ""}
-      ${ng.length ? `<div class="cnote" style="color:#c0392b">不合格項目：${ng.map(c => esc(c.t)).join("、")}</div>` : ""}
-      ${ng.length && r.disp === "accept" ? `<div class="legend" style="margin:8px 0 0;color:#c0392b">⚠ 有不合格項目，但處置是「驗收」，請確認；要退貨請改選「退貨」或「待確認」。</div>` : ""}`;
+      ${ng.length ? `<div class="cnote" style="color:var(--bad)">不合格項目：${ng.map(c => esc(c.t)).join("、")}</div>` : ""}
+      ${ng.length && r.disp === "accept" ? `<div class="legend" style="margin:8px 0 0;color:var(--bad)">⚠ 有不合格項目，但處置是「驗收」，請確認；要退貨請改選「退貨」或「待確認」。</div>` : ""}`;
   };
   result();
   const drawTh = () => { $("#mTh").innerHTML = photos.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
@@ -226,7 +226,7 @@ async function renderMatPrint(id) {
         <tr><th>送貨單號</th><td>${esc(r.ticket)}</td><th>批號／爐號</th><td>${esc(r.lot)}</td></tr>
         <tr><th>存放位置</th><td>${esc(r.location)}</td><th>檢附文件</th><td>${r.docs.map(d => `${d.v ? "☑" : "□"}${esc(d.n)}`).join("　") || "—"}</td></tr></table>
       <table class="pt items"><tr><th style="width:9mm">#</th><th>檢查項目</th><th style="width:20mm">結果</th><th>備註</th></tr>
-        ${r.checks.map((c, i) => `<tr><td class="c">${i + 1}</td><td>${esc(c.t)}</td><td class="c" style="${c.r === "ng" ? "color:#c0392b;font-weight:700" : ""}">${c.r ? SYM[c.r] : ""}</td><td>${esc(c.note)}</td></tr>`).join("") || `<tr><td colspan="4" class="c" style="color:#777">（未設定檢查項目）</td></tr>`}
+        ${r.checks.map((c, i) => `<tr><td class="c">${i + 1}</td><td>${esc(c.t)}</td><td class="c" style="${c.r === "ng" ? "color:var(--bad);font-weight:700" : ""}">${c.r ? SYM[c.r] : ""}</td><td>${esc(c.note)}</td></tr>`).join("") || `<tr><td colspan="4" class="c" style="color:#777">（未設定檢查項目）</td></tr>`}
         <tr><td colspan="4" class="recheck">結果：<b>${MAT_LABEL[matFinal(r)]}</b>　處置：<b>${MAT_DISP[r.disp] || ""}</b>${r.note ? `<br>備註：${esc(r.note)}` : ""}<br><small>結果標記：○ 合格　✕ 不合格　／ 不適用</small></td></tr></table>
       <div class="psigs tall">${sig("deliver")}${sig("inspector")}</div>
     </div>
@@ -276,7 +276,7 @@ async function renderMatSummary() {
   const keyOf = x => matGroup === "vendor" ? (x.vendor || "（未填廠商）") : (x.catName || "（未分類）");
   const keys = [...new Set(all.map(keyOf))].sort((m, n) => m.localeCompare(n, "zh-Hant"));
   const st = l => { const c = { n: l.length, ok: 0, ng: 0, reject: 0, pending: 0, na: 0 }; const qty = {}; l.forEach(x => { c[matFinal(x)]++; const v = parseFloat(x.qty); if (Number.isFinite(v)) { const u = x.unit && x.unit !== "其他" ? x.unit : ""; qty[u] = (qty[u] || 0) + v; } }); c.qty = Object.entries(qty).map(([u, v]) => `${fmt(v, 2)}${u ? " " + u : ""}`).join("、") || "—"; c.done = c.ok + c.ng + c.reject; c.rate = c.done ? Math.round(c.ok / c.done * 100) + "%" : "—"; return c; };
-  const line = (lab, c) => `<td><b>${esc(lab)}</b></td><td class="c">${c.n}</td><td class="c">${esc(c.qty)}</td><td class="c">${c.ok}</td><td class="c" style="${c.ng ? "color:#c0392b;font-weight:700" : ""}">${c.ng}</td><td class="c" style="${c.reject ? "color:#c0392b;font-weight:700" : ""}">${c.reject}</td><td class="c">${c.pending}</td><td class="c">${c.na}</td><td class="c"><b>${c.rate}</b></td>`;
+  const line = (lab, c) => `<td><b>${esc(lab)}</b></td><td class="c">${c.n}</td><td class="c">${esc(c.qty)}</td><td class="c">${c.ok}</td><td class="c" style="${c.ng ? "color:var(--bad);font-weight:700" : ""}">${c.ng}</td><td class="c" style="${c.reject ? "color:var(--bad);font-weight:700" : ""}">${c.reject}</td><td class="c">${c.pending}</td><td class="c">${c.na}</td><td class="c"><b>${c.rate}</b></td>`;
   const tot = st(all);
   view.innerHTML = `
     <div class="noprint"><h2 class="t">材料進場台帳</h2>
@@ -291,7 +291,7 @@ async function renderMatSummary() {
         ${keys.map(k => `<tr>${line(k, st(all.filter(x => keyOf(x) === k)))}</tr>`).join("")}<tr>${line("合計", tot)}</tr></table>
         <div style="font-weight:700;margin:4mm 0 1mm">進場明細</div>
         <table class="pt items sm"><tr><th>日期</th><th>類別</th><th>品名規格</th><th>數量</th><th>廠商</th><th>送貨單</th><th>結果</th></tr>
-          ${all.map(x => `<tr><td class="c nw">${esc(pRoc(x.date))}</td><td>${esc(x.catName)}</td><td>${esc(matName(x))}</td><td class="c nw">${esc(matQty(x))}</td><td>${esc(x.vendor)}</td><td>${esc(x.ticket)}</td><td class="c nw" style="${["ng", "reject"].includes(matFinal(x)) ? "color:#c0392b;font-weight:700" : ""}">${MAT_LABEL[matFinal(x)]}</td></tr>`).join("")}</table>
+          ${all.map(x => `<tr><td class="c nw">${esc(pRoc(x.date))}</td><td>${esc(x.catName)}</td><td>${esc(matName(x))}</td><td class="c nw">${esc(matQty(x))}</td><td>${esc(x.vendor)}</td><td>${esc(x.ticket)}</td><td class="c nw" style="${["ng", "reject"].includes(matFinal(x)) ? "color:var(--bad);font-weight:700" : ""}">${MAT_LABEL[matFinal(x)]}</td></tr>`).join("")}</table>
         <p class="cnote">合格率 = 合格 ÷（合格 + 不合格 + 退貨）；待確認與未判定不計入。數量依單位分別加總。</p>` : `<p style="color:var(--mut)">這個期間沒有進場紀錄。</p>`}
     </div>`;
   $("#sFrom").onchange = e => { matFrom = e.target.value; renderMatSummary(); };
