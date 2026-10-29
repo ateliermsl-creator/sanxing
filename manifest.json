@@ -1,12 +1,12 @@
 {
-  "name": "三星蔥營造工具箱",
+  "name": "三星蔥工具箱",
   "short_name": "三星蔥工具箱",
   "description": "工地隨身工具，沒有網路也能用",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#eef5df",
-  "theme_color": "#3b6b22",
+  "background_color": "#e8e3d8",
+  "theme_color": "#4b473a",
   "icons": [
     {
       "src": "icon-192.png",

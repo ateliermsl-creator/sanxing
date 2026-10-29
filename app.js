@@ -243,7 +243,7 @@ async function renderHome() {
   if (location.hash.split("/")[1]) return;   // 讀取期間已切到別的頁面，就不要用首頁蓋掉它
   view.innerHTML = `
     ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
-    <section class="hero"><img src="leek.png" alt=""><h1>三星蔥營造工具箱</h1><p>工地隨身工具・沒有網路也能用</p></section>
+    <section class="hero"><img src="leek.png" alt=""><h1>三星蔥工具箱</h1><p>粗糲的現場，需要最純粹的隨身器物</p></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/safety"><div class="ph">👷</div><div><b>職安衛勤前教育／危害告知</b><small>全體合照・高風險作業・九宮格手寫簽到・A4 簽到表</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/log"><div class="ph">📒</div><div><b>施工日誌</b><small>B14-4 格式・自動累計・帶入材料與取樣・A4 PDF</small></div><span class="arrow">›</span></a>

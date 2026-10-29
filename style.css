@@ -271,3 +271,49 @@ canvas.lgsig{width:100%;height:80px;background:#f7f8f3;border:1px dashed #aab;bo
 .lgt tr:not(.lgh) td.c:empty,.lgt td:empty{height:6.5mm}
 .lgt .lgsec2{padding:3px 6px}
 #view textarea[data-f]{display:block;width:100%;box-sizing:border-box;margin-top:8px}
+
+/* ===== 侘寂風配色：和紙灰米、石、苔、陶土；低彩度、不鮮豔 ===== */
+:root{--g:#59573f;--g2:#8b8566;--bg:#e8e3d8;--card:#f5f1e8;--tx:#37332b;--mut:#8a8374;--line:#d2cabb;--bad:#99493a;--ok:#66754f}
+body{background:var(--bg);color:var(--tx)}
+.paper,.pdfmode .paper{color:#000}
+@media print{body{color:#000}}
+button.sec{background:#dcd5c5;color:#4a4736}
+button.danger{background:#e6d5cc;color:#8c4535}
+#topbar{background:#4b473a}
+#topbar select{background:#f5f1e8;color:var(--tx)}
+#backupWarn{background:#eadfc6;color:#6a5830}
+.hero{background:#ddd6c6;border:1px solid #cdc4b1;border-radius:0 0 4px 4px}
+.hero h1{font-family:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;font-weight:600;letter-spacing:.18em;color:#3d3a2e}
+.hero p{font-family:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;color:#7b755f;letter-spacing:.12em;font-size:15px;line-height:1.8;margin-top:6px}
+.hero img{border-radius:18px;filter:saturate(.7) sepia(.15)}
+.card,.panel,.rec,.item{background:var(--card);border-color:var(--line);border-radius:6px}
+.card img{filter:saturate(.7) sepia(.15)}
+.card .ph{background:#ddd6c6;color:#8b8571;border-radius:6px}
+.card.soon{background:#ece7dc}
+.field input,.field textarea,.sacell input,.lgrow input,#view textarea,input[type=date],input[type=time],select{background:#faf7ef}
+.item input.note{background:#efe9dc;border-color:var(--line)}
+.chip{background:var(--card);color:#4d4938}
+.chip.on{background:var(--g);color:#f5f1e8;border-color:var(--g)}
+.phbtn,button.phbtn{background:#dcd5c5;color:#4a4736;border-radius:6px}
+.phbtn.alt{background:#e3ddd0;color:#5d5948}
+.sym button{background:#faf7ef;color:#5d5948}
+.sym button.on[data-r=na]{background:#8d877a;border-color:#8d877a}
+.legend{background:#ece3cf;border-color:#d8cdb0}
+#iab{background:#eadccb;border-color:#d9c6ac;color:#6b4a2a}
+.late{color:var(--bad)}
+.st-未填{color:#9b9484}.st-填寫中{color:#a8782e}
+.ct th{background:#e6e0d3}.ct tr:nth-child(even) td{background:#efeadf}.ct tr.sel td,.ct tr.sel th{background:#d6d3b7}
+.sigbox canvas,.sacell canvas,canvas.lgsig{background:#faf7ef;border-color:#b9b19e}
+.th img{border-color:var(--line)}
+.sth{background:var(--card);border-radius:6px}.sth.pick{outline-color:#8b8566}.sth.pick i{background:#59573f}
+#shotCam .scOpt button.on{background:#8b8566}
+button{border-radius:6px}
+.btnlink{background:#dcd5c5;color:#4a4736;border-radius:6px}
+.saved{color:var(--ok)}
+.panel .d{color:#6d6a4c}
+dialog{background:#f5f1e8;color:var(--tx);border-radius:8px}
+@media screen{
+  .hint{background:#e9e0cc;border-color:#d6cbb0;color:#5b4d2c}.hint a{color:#5b4d2c}
+  .pb.ok{background:#dde3cf;color:#4f5e3a}.pb.ng{background:#ead3ca;color:#8c4535}.pb.na{background:#e3ddd0;color:#7d776a}
+  #backupWarn a,main a:not(.card):not(.rec):not(.btnlink):not(.chip){color:#6a5a33}
+}
