@@ -325,3 +325,6 @@ input[type=checkbox],input[type=radio]{accent-color:#59573f}
 .grid2>*{min-width:0}.field{min-width:0}
 input[type=date],input[type=time]{max-width:100%}
 input[type=time]{padding-left:8px;padding-right:4px}
+/* 簽名圖（手機畫布很寬）不可撐破版面：限制在各自欄位內 */
+.psigs div{min-width:0}
+.psigs img{max-width:100%;max-height:22mm;object-fit:contain}

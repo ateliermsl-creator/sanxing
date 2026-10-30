@@ -1,5 +1,5 @@
 // 每次更新程式請把版本號 +1，手機才會換掉舊快取
-const VERSION = "v105";
+const VERSION = "v106";
 const FILES = ["./", "index.html", "style.css", "app.js", "templates.js", "safe.js", "attach.js", "pdf.js", "lib/html2canvas.min.js", "lib/jspdf.umd.min.js", "calc.js", "workorder.js", "punch.js", "pour.js", "material.js", "shot.js", "cure.js", "safety.js", "log.js", "updates.json", "manifest.json", "leek.png", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
