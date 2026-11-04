@@ -1,0 +1,20 @@
+// shot_camera_gps：見 tests/README.md
+const {chromium}=require('playwright');const fs=require('fs');
+const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S+'pdfs',{recursive:true});require('fs').mkdirSync(S+'theme',{recursive:true});
+(async()=>{const b=await chromium.launch({args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
+const ctx=await b.newContext({viewport:{width:390,height:844},permissions:['camera','geolocation'],geolocation:{latitude:24.67201,longitude:121.77402,accuracy:8}});const p=await ctx.newPage();const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+await p.goto('http://localhost:8793/index.html');await p.waitForSelector('#setup[open]');await p.fill('#sName','宜蘭三星蔥新建工程');await p.fill('#sCompany','三星蔥營造有限公司');await p.click('#sOk');await p.waitForTimeout(500);
+await p.goto('http://localhost:8793/index.html#/shot');await p.waitForSelector('#shCam');
+await p.click('#shCam');await p.waitForSelector('#shotCam video');await p.waitForTimeout(1500);console.log('定位列:',await p.innerText('#scGps'));
+await p.click('#scEdit');await p.fill('[data-k=item]','鋼筋綁紮');await p.fill('[data-k=part]','3F 柱 C1');await p.fill('[data-k=spec]','D19@15 主筋 8-D25');await p.fill('[data-k=vendor]','甲鋼筋工程行');await p.fill('[data-k=note]','主筋間距檢查，箍筋彎鉤135度');
+await p.click('#scEdit');await p.screenshot({path:S+'s52cam.png'});
+await p.click('#scShot');await p.waitForTimeout(700);
+await p.click('#scEdit');await p.click('[data-o=theme][data-v=white]');await p.click('#scEdit');await p.click('#scShot');await p.waitForTimeout(700);
+console.log('GPS狀態',await p.evaluate(()=>0));console.log('已拍',await p.innerText('#scCount'));await p.click('#scDone');await p.waitForTimeout(600);
+console.log('縮圖數',await p.$$eval('.sth',x=>x.length));await p.screenshot({path:S+'s52list.png'});
+const first=await p.$eval('.sth','e=>e.dataset.id');await p.click('.sth');await p.waitForSelector('#sdImg');await p.screenshot({path:S+'s52det.png'});
+await p.fill('[data-k=note]','改過的說明');await p.click('#sdUpd');await p.waitForTimeout(500);
+console.log('明細更新後 note',await p.evaluate(async()=>(await DB.get('shots',location.hash.split('/').pop())).note));
+await p.goto('http://localhost:8793/index.html#/shot');await p.waitForSelector('.sth');await p.click('#shSel');await p.click('.sth');await p.click('#shBook');await p.waitForSelector('.shotal');await p.waitForTimeout(500);
+console.log('照片冊圖數',await p.$$eval('.shotal img',i=>i.length),(await p.innerText('.shotal figcaption')));await p.screenshot({path:S+'s52album.png',fullPage:true});
+console.log('紀錄',JSON.stringify(await p.evaluate(async()=>{const a=(await DB.all('shots'))[0];return {time:a.time,lat:a.lat,lng:a.lng,acc:a.acc}})));console.log('錯誤',e);await b.close();})();

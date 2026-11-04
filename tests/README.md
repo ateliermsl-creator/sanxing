@@ -1,0 +1,31 @@
+# 模擬測試
+
+用 Playwright 在無頭瀏覽器裡操作 App，模擬手機畫面。**不是嚴格的通過／失敗測試**，每支會印出檢查結果，由人（或接手的 Claude）判讀。
+
+## 執行
+```bash
+cd tests && npm install && npx playwright install chromium && cd ..
+bash tests/run.sh                 # 全部
+bash tests/run.sh xss_render      # 單支
+```
+`run.sh` 會在 8793 埠啟動靜態伺服器，結果的截圖與 PDF 放在 `tests/out/`（不進版控）。
+
+## 各支測試與「正常」的結果
+| 測試 | 檢查什麼 | 正常結果 |
+|---|---|---|
+| `xss_render` | 把惡意字串直接寫進所有資料表（繞過匯入驗證）、拿掉 CSP，開 43 個頁面 | `XSS 觸發 0` |
+| `backup_roundtrip` | 備份→匯入全新環境，逐欄比對 | 只剩 `shots.thumb` 的差異（測試資料的縮圖是空字串，匯入後自動產生）；其他不得有「遺失」或「不同」 |
+| `backup_shot_raw` | 施工照片原始照片選項、縮圖還原 | 不含原圖約為含原圖的一半；匯入後 `thumb` 為 true |
+| `db_upgrade_delete_site` | 舊版 v8 資料庫升級到 v11；刪除工地的關聯清理 | `ver":11`；刪除後各表剩餘皆為 0 |
+| `pdf_all_outputs` | 產生 11 種單據 PDF 存到 `out/pdfs/`，人工看版面 | 頁數合理、沒有被切掉 |
+| `print_overflow` | 用 A4 實際寬度與很寬的簽名圖，檢查單據有無超出紙張 | 全部 `OK` |
+| `narrow_overflow` | 360／320 px 窄螢幕開所有畫面，檢查橫向捲動 | `無` |
+| `screens_theme_scan` | 逐頁截圖到 `out/theme/`，並掃描高彩度顏色 | 只應剩下刻意使用的陶土紅（rgb 153,73,58 / 140,69,53） |
+| `shot_camera_gps` | 電子黑板相機（假鏡頭＋假定位）、照片冊 | 已拍 2 張、定位列「已定位」、無 JS 錯誤 |
+| `cure_tracking` / `cure_backup_xss` | 試體養護與拆模追蹤；備份往返 | 文字符合預期、`xss undefined` |
+| `safety_signin` | 勤前教育簽到、帶入上次名單 | 簽名圖數 3、帶入名單 3 人 |
+| `work_log` | 施工日誌：工期、累計滾動、帶入按鈕 | 累計工期 10 天、前累計 35 |
+| `calc_tabs` | 計算機新增三個分頁的數值 | 與手算一致 |
+
+## 已知會失敗、與程式無關的舊測試
+早期的測試（檢查表返回鍵、澆置統計列、附加檔案以新分頁開啟）已因介面調整而過時，沒有放進這個資料夾。

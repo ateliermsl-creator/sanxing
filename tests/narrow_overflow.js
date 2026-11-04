@@ -1,0 +1,16 @@
+// narrow_overflow：見 tests/README.md
+const {chromium}=require('playwright');const fs=require('fs');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S+'pdfs',{recursive:true});require('fs').mkdirSync(S+'theme',{recursive:true});
+const seed=fs.readFileSync(__dirname+'/seed_all.txt','utf8');
+(async()=>{const b=await chromium.launch({args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});const c=await b.newContext({viewport:{width:390,height:844},permissions:['camera','geolocation'],geolocation:{latitude:24.67,longitude:121.77}});const p=await c.newPage();const errs=[];p.on('pageerror',x=>errs.push(x.message));p.on('dialog',d=>d.accept());
+await p.goto('http://localhost:8793/index.html');await p.waitForTimeout(700);
+await p.evaluate(`(async()=>{${seed.replace(/^await p\.evaluate\(async\(\)=>\{/,'').replace(/\}\);\s*$/,'').replace("const lid=await lgNew();","siteId='s9';const lid=await lgNew();")}})()`);
+await p.evaluate(async()=>{await DB.put('matcats',{id:'c1',name:'竹節鋼筋',checks:['a'],order:1,created:1,updated:2});await DB.put('matcats',{id:'__cure',ages:[7,28],forms:[{n:'樑底模',d:'14'}],updated:1});const j=await DB.get('pours','j1');j.forms={'樑底模':{strip:''}};await DB.put('pours',j);});
+await p.reload();await p.waitForTimeout(700);
+const lid=await p.evaluate(async()=>(await DB.all('logs'))[0].id);
+const routes=[['home','#/'],['install','#/install'],['checklist','#/checklist'],['form','#/checklist/r1'],['preview','#/checklist/r1/preview'],['workorder','#/workorder'],['wo_form','#/workorder/w1'],['wo_prev','#/workorder/w1/preview'],['punch','#/punch'],['punch_form','#/punch/pu1'],['punch_report','#/punch/report'],['punch_sum','#/punch/summary'],['pour','#/pour'],['pour_batch','#/pour/j1'],['pour_truck','#/pour/j1/truck/t0'],['pour_print','#/pour/j1/print'],['material','#/material'],['mat_form','#/material/m1'],['mat_cfg','#/material/cfg'],['shot','#/shot'],['shot_det','#/shot/sp1'],['safety','#/safety'],['safety_form','#/safety/sa1'],['safety_set','#/safety/set'],['cure','#/cure'],['cure_test','#/cure/test/t0/28'],['cure_set','#/cure/set'],['log','#/log'],['log_form','#/log/'+lid],['calc','#/calc'],['calc_wt','#/calc/wt'],['calc_vol','#/calc/vol'],['calc_sleeve','#/calc/sleeve'],['backup','#/backup']];
+const report=[];
+for(const W of [360,320]){await p.setViewportSize({width:W,height:740});
+for(const [n,h] of routes){await p.goto('http://localhost:8793/index.html'+h);await p.waitForTimeout(450);
+ const r=await p.evaluate(()=>{const iw=document.documentElement.clientWidth,out=[];document.querySelectorAll('#view *, #topbar *').forEach(el=>{if(el.closest('.paper')||el.closest('.tblwrap')||el.closest('#cam')||el.closest('#shotCam'))return;const r=el.getBoundingClientRect();if(!r.width||!r.height)return;const cs=getComputedStyle(el);if(cs.position==='fixed')return;if(r.right>iw+1)out.push(el.tagName.toLowerCase()+'.'+String(el.className||'').slice(0,20)+'+'+Math.round(r.right-iw))});return {sw:document.documentElement.scrollWidth-iw,out:[...new Set(out)].slice(0,3)}});
+ if(r.sw>1||r.out.length)report.push(W+' '+n+': 橫向捲動 '+r.sw+'px '+r.out.join(','));}}
+console.log('版面超出:\n'+(report.join('\n')||'無'));console.log('JS錯誤',errs);await b.close();})();

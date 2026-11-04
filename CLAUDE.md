@@ -1,0 +1,66 @@
+# 三星蔥工具箱（sanxing）— 交接說明
+
+給接手維護的 Claude 與人。使用者是建築師、土木技師，在營造公司擔任協理；這是給工地現場用的離線 PWA（手機優先，繁體中文）。
+網站：GitHub Pages（`main` 分支、根目錄），推送後約 1～2 分鐘自動更新：https://ateliermsl-creator.github.io/sanxing/
+
+## 技術概況
+- 純前端、無框架、無建置步驟。直接編輯檔案即可。第三方只有 `lib/html2canvas`、`lib/jspdf`（皆 MIT，授權檔在 `lib/`）。
+- 資料只存在使用者手機瀏覽器的 IndexedDB（庫名 `avocado-toolbox`，歷史原因沒改名，**不要改**，會讓既有資料消失）。目前版本 **11**，資料表：`sites records templates photos workorders punch pours matrecs matcats files shots safety logs`。
+- 沒有伺服器、沒有帳號。`localStorage` 只放個人偏好（公司名、上次選的工地等）。
+- 路由是 hash（`#/頁面/id/子頁`），在 `app.js` 的 `route()` 分派，各功能一支檔案：
+
+| 檔案 | 內容 |
+|---|---|
+| `app.js` | 資料庫包裝、路由、首頁、自主檢查表、備份／匯入、相機、燈箱、工地設定 |
+| `templates.js` | 內建自主檢查表範本（新增範本在這裡加一筆） |
+| `safe.js` | **匯入備份的驗證與清理**，以及 `safeImg` / `safeId` |
+| `attach.js` | 附加檔案（Blob，單檔 10 MB） |
+| `pdf.js` | 「分享 PDF」：html2canvas + jsPDF，把 `.paper` 轉成 A4 |
+| `workorder.js punch.js pour.js material.js` | 點工單、缺失改善、混凝土澆置抽驗、材料進場驗收 |
+| `cure.js` | 試體養護與拆模追蹤（讀澆置資料） |
+| `shot.js` | 施工照片（電子黑板相機）、照片冊 |
+| `safety.js` | 職安衛勤前教育／危害告知簽到 |
+| `log.js` | 施工日誌（B14-4 格式） |
+| `calc.js` | 工程計算機（八個分頁） |
+| `sw.js` | Service Worker（網路優先、離線備援） |
+
+## 每次修改一定要做的事
+1. **`sw.js` 的 `VERSION` 加 1**（`"v106"` → `"v107"`）。不加的話，已安裝的手機不會換新版。
+2. 新增 `.js` 檔：同時加進 `index.html` 的 `<script>` 與 `sw.js` 的 `FILES`。
+3. **新增或改名資料欄位：同步改 `safe.js` 的 `CLEAN` 規則。** 沒改的話，匯入備份時該欄位會被丟掉（`tests/backup_roundtrip.js` 會抓到）。
+4. 新增資料表：`app.js` 的資料庫版本加 1、加進 `onupgradeneeded` 的名單、備份匯出／匯入、`sanitizeBackup`、刪除工地的 `stores`。
+5. 所有顯示到畫面的動態文字用 `esc()`；圖片來源用 `safeImg()`；id 放進屬性要 `esc()`。不要用行內事件（`onclick=`），網頁有 CSP（`index.html`）。
+6. 日期一律用本地日期（`today()`、`shotLocalDate()`）。**不要用 `toISOString()` 取日期**，台灣凌晨會變成前一天。
+7. `updates.json`（首頁「最新更新」）的日期**不得晚於今天**。
+8. 推送前跑相關測試（見下）。
+
+## 不可違反的原則
+- **不內建、不估算任何法規數值**：拆模天數、搭接／錨定長度、坍度與氯離子標準、判定標準、穿樑規則等，一律由使用者依契約與規範填寫；工具只做日期提醒與數值計算。使用者曾明確要求，也曾要求拿掉搭接長度功能。使用者貼來的規則（如穿樑套管 1/3）只當成可修改的預設值並註明「非規範原文」。
+- 單據（`.paper`）永遠白底黑字，不受配色影響；簽名圖要限制在欄位內（`.psigs img`）。
+- 不要加版本號顯示與「檢查更新」按鈕（使用者說先不用）。
+- 使用者資料不離開手機。不要加任何會把資料送到外部的功能，除非使用者明確同意。
+- 備份檔沒有加密（已告知風險），GitHub Pages 同帳號下的專案共用同源——不要在同一個 GitHub 帳號下放其他會讀取 IndexedDB 的網站。
+
+## 視覺與版面
+- 配色是「侘寂風」，變數與覆寫在 `style.css` 最下方（`:root` 重新定義）。新增元件請用 `var(--g) var(--bad) var(--ok) var(--mut) var(--line) var(--card)`，不要寫死鮮豔的顏色。
+- 單據 PDF 的分頁邏輯在 `pdf.js`：在 `tr, figure, .psigs, .kpis, .pbar` 的下緣換頁，表格列不要做超高的列。
+- 窄螢幕（320 px）不得出現橫向捲動；輸入框不要加固定寬度。
+
+## 測試
+`tests/` 是 Playwright 模擬測試，說明與預期結果見 `tests/README.md`。常用：
+```bash
+bash tests/run.sh xss_render          # 資安：惡意資料與渲染轉義
+bash tests/run.sh backup_roundtrip    # 備份往返，找被清理器丟掉的欄位
+bash tests/run.sh print_overflow narrow_overflow pdf_all_outputs   # 版面
+```
+改 `safe.js`、資料庫、備份：至少跑 `backup_roundtrip`、`db_upgrade_delete_site`、`xss_render`。改版面：跑 `print_overflow`、`narrow_overflow`。
+
+## 還沒做、等使用者決定
+- App 鎖（PIN／生物辨識）與備份檔加密——使用者說先暫緩。要做之前先問：密碼位數、忘記密碼怎麼處理、備份密碼忘記打不開是否可接受。
+- 施工日誌簽名後鎖定（正式日誌簽了通常不可改）。
+- 自主檢查表跨頁時，第 2 頁不會重複標題列。
+- 使用者會陸續提供更多自主檢查表範本（Word／PDF），收到後加到 `templates.js`，欄位照原文，沒有的「管理標準」留空。
+- 施工日誌的「點工單」刻意不連動（使用者要求）。
+
+## 溝通
+使用者習慣繁體中文、白話說明；回報時要誠實分開「我測過什麼」與「沒測到什麼」，不要誇大。涉及法規、結構安全的內容，標示「依契約與規範為準」，不下判斷。

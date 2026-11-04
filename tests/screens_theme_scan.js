@@ -1,0 +1,18 @@
+// screens_theme_scan：見 tests/README.md
+const {chromium}=require('playwright');const fs=require('fs');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S+'pdfs',{recursive:true});require('fs').mkdirSync(S+'theme',{recursive:true});
+const seed=fs.readFileSync(__dirname+'/seed_all.txt','utf8');
+(async()=>{const b=await chromium.launch({args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});const c=await b.newContext({viewport:{width:390,height:844},permissions:['camera','geolocation'],geolocation:{latitude:24.67,longitude:121.77}});const p=await c.newPage();const errs=[];p.on('pageerror',x=>errs.push(x.message));p.on('dialog',d=>d.accept());
+await p.goto('http://localhost:8793/index.html');await p.waitForTimeout(700);
+await p.evaluate(`(async()=>{${seed.replace(/^await p\.evaluate\(async\(\)=>\{/,'').replace(/\}\);\s*$/,'').replace("const lid=await lgNew();","siteId='s9';const lid=await lgNew();")}})()`);
+await p.evaluate(async()=>{await DB.put('matcats',{id:'c1',name:'竹節鋼筋',checks:['a'],order:1,created:1,updated:2});await DB.put('matcats',{id:'__cure',ages:[7,28],forms:[{n:'樑底模',d:'14'}],updated:1});const j=await DB.get('pours','j1');j.forms={'樑底模':{strip:''}};await DB.put('pours',j);});
+await p.reload();await p.waitForTimeout(700);
+const lid=await p.evaluate(async()=>(await DB.all('logs'))[0].id);
+const routes=[['home','#/'],['install','#/install'],['checklist','#/checklist'],['form','#/checklist/r1'],['preview','#/checklist/r1/preview'],['workorder','#/workorder'],['wo_form','#/workorder/w1'],['wo_prev','#/workorder/w1/preview'],['punch','#/punch'],['punch_form','#/punch/pu1'],['punch_report','#/punch/report'],['punch_sum','#/punch/summary'],['pour','#/pour'],['pour_batch','#/pour/j1'],['pour_truck','#/pour/j1/truck/t0'],['pour_print','#/pour/j1/print'],['material','#/material'],['mat_form','#/material/m1'],['mat_cfg','#/material/cfg'],['shot','#/shot'],['shot_det','#/shot/sp1'],['safety','#/safety'],['safety_form','#/safety/sa1'],['safety_set','#/safety/set'],['cure','#/cure'],['cure_test','#/cure/test/t0/28'],['cure_set','#/cure/set'],['log','#/log'],['log_form','#/log/'+lid],['calc','#/calc'],['calc_wt','#/calc/wt'],['calc_vol','#/calc/vol'],['calc_sleeve','#/calc/sleeve'],['backup','#/backup']];
+const report=[];
+for(const [n,h] of routes){await p.goto('http://localhost:8793/index.html'+h);await p.waitForTimeout(550);
+ // 偵測高彩度（藍、鮮綠、鮮紅…）的可見元素
+ const odd=await p.evaluate(()=>{const out=new Set();const conv=s=>{const m=s.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);if(!m)return null;let [r,g,b]=[+m[1]/255,+m[2]/255,+m[3]/255];const a=m[4]===undefined?1:+m[4];if(a<.3)return null;const mx=Math.max(r,g,b),mn=Math.min(r,g,b),l=(mx+mn)/2,d=mx-mn;const s2=d===0?0:d/(1-Math.abs(2*l-1));let h=0;if(d){if(mx===r)h=((g-b)/d)%6;else if(mx===g)h=(b-r)/d+2;else h=(r-g)/d+4;h*=60;if(h<0)h+=360}return {s:s2,l,h}};
+ document.querySelectorAll('#view *, #topbar *, #topbar').forEach(el=>{const r=el.getBoundingClientRect();if(!r.width||!r.height||r.bottom<0||r.top>1600)return;const cs=getComputedStyle(el);if(cs.visibility==='hidden'||cs.display==='none')return;if(el.closest('.paper'))return;for(const prop of ['backgroundColor','color','borderTopColor']){const v=conv(cs[prop]);if(v&&v.s>0.42&&v.l>.15&&v.l<.92){out.add(el.tagName.toLowerCase()+'.'+(el.className||'').toString().slice(0,30)+' '+prop+' '+cs[prop]);}}});return [...out].slice(0,6)});
+ if(odd.length)report.push(n+': '+odd.join(' | '));
+ await p.screenshot({path:S+'theme/'+n+'.png'});}
+console.log('高彩度元素:\n'+(report.join('\n')||'無'));console.log('JS錯誤',errs);await b.close();})();

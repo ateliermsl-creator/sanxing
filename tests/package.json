@@ -1,0 +1,6 @@
+{
+  "name": "sanxing-tests",
+  "private": true,
+  "description": "三星蔥工具箱的模擬測試（Playwright）。用法見 README.md",
+  "devDependencies": { "playwright": "^1.48.0" }
+}
