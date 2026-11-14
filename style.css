@@ -387,3 +387,40 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 #view .cfj.ok:not(.paper *)::before{content:"✓ "}
 .cfres tr.cbflash>*{animation:cbflash 1.6s ease-out}
 @keyframes cbflash{0%,40%{box-shadow:inset 0 0 0 3px var(--bad)}100%{box-shadow:none}}
+/* ===== 電腦版自動排版（UX C）：依螢幕寬度自動切換，手機（< 768px）完全不變 ===== */
+#sideNav{display:none}
+@media screen and (min-width:768px){
+  main{max-width:900px}
+  #copyright{max-width:900px}
+  /* 首頁功能卡片改格狀 */
+  #view:has(> .hero){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;padding:0 12px 40px}
+  #view:has(> .hero) > :not(.card){grid-column:1 / -1}
+  #view:has(> .hero) > .card{margin:6px 0}
+  #view:has(> .hero) > .panel,#view:has(> .hero) > .hint{margin-left:0;margin-right:0}
+  #topbar select{flex:0 1 420px}
+  #topbar #addSiteBtn{margin-left:auto}
+}
+@media screen and (min-width:1024px){
+  /* 模板與施工架計算機：左邊輸入、右邊固定顯示檢核結果，改數字立刻看到 */
+  main:has(#calcBox > .cfsteps){max-width:1240px}
+  #calcBox:has(> .cfsteps){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+  #calcBox:has(> .cfsteps) > *{grid-column:1}
+  #calcBox:has(> .cfsteps) > section.panel:last-of-type{grid-column:2;grid-row:1 / span 30;position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;overscroll-behavior:contain}
+  #calcBox:has(> .cfsteps) .cfsteps a[href$="4"]:last-child,#calcBox:has(> .cfsteps) .cfsteps a[href$="5"]:last-child{display:none}
+}
+@media screen and (min-width:1200px){
+  body{padding-left:232px}
+  #sideNav{display:flex;flex-direction:column;gap:2px;position:fixed;top:0;bottom:0;left:0;width:232px;z-index:6;overflow-y:auto;padding:14px 10px 20px;background:var(--card);border-right:1px solid var(--line)}
+  #sideNav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:6px;color:var(--tx);text-decoration:none;font-size:15px}
+  #sideNav a span{width:24px;text-align:center;flex:none}
+  #sideNav a:hover{background:#e9e3d6}
+  #sideNav a.on{background:var(--g);color:#f5f1e8;font-weight:600}
+  #sideNav .snBrand{gap:10px;margin-bottom:10px;padding:4px 8px 12px;border-bottom:1px solid var(--line);border-radius:0;font-family:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;font-weight:600;letter-spacing:.12em;color:#3d3a2e}
+  #sideNav .snBrand span{width:auto;font-size:17px}
+  #sideNav .snBrand img{width:40px;height:40px;border-radius:8px;filter:saturate(.7) sepia(.15)}
+  #sideNav .snBrand:hover{background:transparent}
+  main{max-width:1080px}
+  #copyright{max-width:1080px}
+  #view:has(> .hero){grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media print{#sideNav{display:none!important}body{padding-left:0!important}}
