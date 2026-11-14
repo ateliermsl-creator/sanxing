@@ -1,5 +1,5 @@
 "use strict";
-/* 慣性矩及斷面性質（工程計算機的「斷面性質」分頁，另有 A4 計算書 #/calc/sec/sheet）
+/* 慣性矩及斷面性質（結構計算的「斷面性質」分頁，另有 A4 計算書 #/struct/sec/sheet）
    參考網站 realizcalc.com「慣性矩及斷面性質計算」（2026-11-15 讀取）：外輪廓與孔洞以頂點座標輸入（x, y，
    空白／Tab／逗號分隔，順逆時針皆可、自動閉合），座標單位只是標示、不縮放；輸出淨面積、形心、Ix、Iy、Ixy、
    極慣性矩 Jc = Ix + Iy、主慣性矩 Iu／Iv 與主軸角、四側斷面模數 Sx±＝Ix/cy±、Sy±＝Iy/cx±。
@@ -251,7 +251,7 @@ function tabSection(box) {
         <div class="row">${st.holes.length < SEC_MAX_HOLES ? `<button type="button" class="sec" id="spHole">＋ 新增孔洞</button>` : ""}<button type="button" class="sec" id="spClear">清除輸入</button></div>
         <p class="cnote">孔洞要完全在外輪廓內、彼此不重疊，所有孔洞使用相同座標系。</p></section>
       <section class="panel" id="sp3"><h2><span class="cfno">3</span>斷面性質</h2><div id="spRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/sec/sheet" id="spSheet">📄 產生計算書（A4）</a></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/sec/sheet" id="spSheet">📄 產生計算書（A4）</a></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>以多邊形頂點計算（格林定理），不含圓角；型鋼、鋼管的實際斷面性質請以產品型錄或規範表列值為準。Jc 為極慣性矩，不是扭轉常數。結果僅供施工規劃參考。</p>`;
     bind(); calc();
   };
@@ -312,7 +312,7 @@ function tabSection(box) {
     box.querySelectorAll("[data-hdel]").forEach(b => b.onclick = () => { st.holes.splice(+b.dataset.hdel, 1); draw(); });
     $("#spClear").onclick = () => { if (!confirm("清除斷面性質的輸入？")) return; Object.assign(st, secBlank(), { outer: "", holes: [] }); draw(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
-    $("#spSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/sec/sheet"; };
+    $("#spSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/sec/sheet"; };
   };
   draw();
 }
@@ -343,7 +343,7 @@ function renderSecSheet() {
       <table class="pt"><tr><td style="font-size:9pt">註：以多邊形頂點依格林定理計算，理想化直角斷面、不含圓角；圓形以內接正 ${SEC_CIRC_N} 邊形近似。θu 為 x 軸逆時針轉至最大主慣性矩軸的角度；Sx± = Ix／cy±、Sy± = Iy／cx±。Jc = Ix + Iy 為極慣性矩，非扭轉常數。型鋼與鋼管請以產品型錄或規範表列值為準，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#spBack").onclick = () => goBack("#/calc/sec");
+  $("#spBack").onclick = () => goBack("#/struct/sec");
   $("#pvPrint").onclick = doPrint;
 }
 
@@ -356,4 +356,4 @@ document.addEventListener("click", e => {
   b.textContent = `已帶入 A ${c.A}、I ${c.I}、S ${c.S}（${c.axis === "y" ? "繞 y 軸" : "繞 x 軸"}）`;
 });
 
-CALC_TABS.push(["sec", "斷面性質", tabSection]);
+STRUCT_TABS.push(["sec", "斷面性質", tabSection]);

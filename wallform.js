@@ -1,5 +1,5 @@
 "use strict";
-/* 牆身模板檢核（工程計算機的「牆模板」分頁，另有 A4 計算書 #/calc/wall/sheet）
+/* 牆身模板檢核（結構計算的「牆模板」分頁，另有 A4 計算書 #/struct/wall/sheet）
    三種型式：
    ‧三層模：側壓力 → 襯板 → 小格柵 → 第一層大格柵 → 螺桿（大格柵以螺桿垂直間距 H4 為跨距）
    ‧四層模：側壓力 → 襯板 → 小格柵 → 第一層大格柵 → 第二層大格柵 → 螺桿（同柱模板）
@@ -213,7 +213,7 @@ function tabWallForm(box) {
         <h3 class="cfh">側壓力分布圖</h3><div id="wfPsvg"></div>
         <h3 class="cfh">牆模板配置示意圖</h3><div id="wfLay"></div></section>
       <section class="panel" id="wf4"><h2><span class="cfno">4</span>檢核結果</h2><div id="wfRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/wall/sheet" id="wfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="wfClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/wall/sheet" id="wfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="wfClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本頁只做數值計算：各構件視為均布載重的梁，每一階以該階最深處的側壓力檢核。容許值由你輸入或取自參考表，結果僅供施工規劃參考；模板支撐的安全仍應依施工規範、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -273,7 +273,7 @@ function tabWallForm(box) {
     $("#wfTierDel") && ($("#wfTierDel").onclick = () => { st.tiers.pop(); st.tiers[st.tiers.length - 1].top = ""; draw(); });
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#wfClear").onclick = () => { if (!confirm("清除牆模板的輸入？（材料庫會保留）")) return; Object.assign(st, wfBlank()); draw(); };
-    $("#wfSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/wall/sheet"; };
+    $("#wfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/wall/sheet"; };
   };
   draw();
 }
@@ -328,8 +328,8 @@ function renderWallSheet() {
         <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算，各階以該階最深處之側壓力檢核。材料容許值、撓度限制與側壓力公式由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#wfBack").onclick = () => goBack("#/calc/wall");
+  $("#wfBack").onclick = () => goBack("#/struct/wall");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["wall", "牆模板", tabWallForm]);
+STRUCT_TABS.push(["wall", "牆模板", tabWallForm]);
