@@ -66,11 +66,11 @@ async function renderSafetyForm(id) {
       <div class="field" style="margin-top:10px"><label>其他告知事項（可空白）</label><input data-f="extra" placeholder="例：今日有吊車作業，下方禁止進入" value="${esc(r.extra)}"></div></div>
     <div class="panel"><b>全體合照</b><div class="phrow"><button type="button" class="phbtn" id="saCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="saFile"></label><div class="thumbs" id="saTh"></div></div></div>
     <h2 class="t" style="font-size:17px;margin-bottom:0">簽到（傳閱手機）</h2>
-    <p class="cnote" style="margin:0 12px 6px">${esc(cfg.statement)}<br>請每位人員填姓名，並在自己的簽名區用手指簽名。</p>
+    <p class="cnote" style="margin:0 12px 6px">${esc(cfg.statement)}<br>請每位人員填姓名，再點自己那格的「點此簽名」，在跳出的大簽名框裡用手指簽名、按「確認」。</p>
     <div class="row" style="margin:0 12px 8px"><button class="sec" id="saPrev" ${all.length ? "" : "disabled"}>📋 帶入上次名單</button><button class="sec" id="saMore">＋ 再加 9 人</button></div>
     <div id="saGrid"></div>
     <datalist id="saNames">${known("name").map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="saCos">${known("co").map(x => `<option value="${esc(x)}">`).join("")}</datalist>
-    <div class="panel"><div class="bar" style="display:flex;justify-content:space-between;align-items:center"><b>主持人簽名</b><button class="sec" id="saHostClr" style="min-height:36px">清除</button></div><div class="sigbox"><canvas data-sig="host"></canvas></div></div>
+    <div class="panel"><b>主持人簽名</b><button type="button" class="sasig" id="saHostSig" style="margin-top:8px"></button></div>
     ${attBlock("附加檔案（危害告知單、教育訓練資料等）")}
     <div class="row"><button class="sec" id="saPrint">👁 預覽／列印（A4）</button></div>
     <div class="row"><button class="danger" id="saDel">刪除這筆紀錄</button></div>`;
@@ -90,24 +90,30 @@ async function renderSafetyForm(id) {
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
   // 九宮格簽到
-  const holder = { sigs: {} };
-  const syncSigs = () => { for (const p of r.people) p.sig = holder.sigs[p.id] || ""; };
+  // 簽名不直接畫在清單上（捲動時容易誤觸），點「點此簽名」才跳出大簽名框
+  const sigBtn = (btn, sig) => { btn.innerHTML = sig ? `<img src="${safeImg(sig)}" alt="簽名">` : "<span>✍ 點此簽名</span>"; btn.classList.toggle("on", !!sig); };
+  const askSign = (title, cur, done) => {
+    if (cur && !confirm(`${title}已經簽過了，要重新簽名嗎？`)) return;
+    saSigPad(title, cur, done);
+  };
   const drawGrid = () => {
-    holder.sigs = Object.fromEntries(r.people.filter(p => p.sig).map(p => [p.id, p.sig]));
     const pages = []; for (let i = 0; i < r.people.length; i += SA_PAGE) pages.push(r.people.slice(i, i + SA_PAGE));
     $("#saGrid").innerHTML = pages.map((pg, pi) => `${pages.length > 1 ? `<small class="cnote" style="margin:4px 12px;display:block">第 ${pi + 1} 頁</small>` : ""}<div class="sagrid">${pg.map(p => `<div class="sacell" data-a="${esc(p.id)}"><button type="button" class="sax" data-rm="${esc(p.id)}" aria-label="刪除這格">✕</button>
       <div class="sarow"><input data-n="name" placeholder="姓名" list="saNames" value="${esc(p.name)}"><input data-n="co" placeholder="單位／工班" list="saCos" value="${esc(p.co)}"></div>
-      <canvas data-sig="${esc(p.id)}"></canvas><div class="sabar"><small>${pi * SA_PAGE + pg.indexOf(p) + 1}</small><button type="button" class="sec sacl" data-clr="${esc(p.id)}">清除簽名</button></div></div>`).join("")}</div>`).join("");
-    $("#saGrid").querySelectorAll("canvas").forEach(c => setupSig(c, holder, () => { syncSigs(); save(); }));
+      <button type="button" class="sasig" data-sg="${esc(p.id)}"></button><div class="sabar"><small>${pi * SA_PAGE + pg.indexOf(p) + 1}</small></div></div>`).join("")}</div>`).join("");
     $("#saGrid").querySelectorAll(".sacell").forEach(cell => {
       const p = r.people.find(x => x.id === cell.dataset.a);
       cell.querySelectorAll("[data-n]").forEach(el => el.oninput = () => { p[el.dataset.n] = el.value; save(); });
-      $("[data-clr]", cell).onclick = () => { delete holder.sigs[p.id]; const c = $("canvas", cell); c.getContext("2d").clearRect(0, 0, c.width, c.height); syncSigs(); save(); };
+      const sb = $("[data-sg]", cell); sigBtn(sb, p.sig);
+      sb.onclick = () => {
+        const no = r.people.indexOf(p) + 1;
+        askSign(p.name ? `${p.name}` : `第 ${no} 格`, p.sig, sig => { p.sig = sig; sigBtn(sb, sig); save(); });
+      };
       $("[data-rm]", cell).onclick = () => { if ((p.name || p.sig) && !confirm("刪除這一格（含姓名與簽名）？")) return; r.people = r.people.filter(x => x.id !== p.id); if (!r.people.length) r.people = saCells(); drawGrid(); save(); };
     });
   };
   drawGrid();
-  $("#saMore").onclick = () => { syncSigs(); r.people = [...r.people, ...saCells()]; drawGrid(); save(); };
+  $("#saMore").onclick = () => { r.people = [...r.people, ...saCells()]; drawGrid(); save(); };
   $("#saPrev").onclick = () => {
     const prev = all[0]; if (!prev) return;
     const names = prev.people.filter(p => p.name).map(p => ({ id: uid(), name: p.name, co: p.co, sig: "" }));
@@ -116,15 +122,71 @@ async function renderSafetyForm(id) {
     r.people = names; while (r.people.length % SA_PAGE) r.people.push(...saCells(1)); drawGrid(); save();
   };
   // 主持人簽名
-  const hs = { sigs: { host: r.hostSig } };
-  setupSig($('canvas[data-sig="host"]'), hs, () => { r.hostSig = hs.sigs.host || ""; save(); });
-  $("#saHostClr").onclick = () => { const c = $('canvas[data-sig="host"]'); c.getContext("2d").clearRect(0, 0, c.width, c.height); delete hs.sigs.host; r.hostSig = ""; save(); };
+  const hb = $("#saHostSig"); sigBtn(hb, r.hostSig);
+  hb.onclick = () => askSign(r.host ? `主持人 ${r.host}` : "主持人", r.hostSig, sig => { r.hostSig = sig; sigBtn(hb, sig); save(); });
   attBind(view, id);
-  $("#saPrint").onclick = async () => { syncSigs(); await flush(); location.hash = `#/safety/${id}/print`; };
+  $("#saPrint").onclick = async () => { await flush(); location.hash = `#/safety/${id}/print`; };
   $("#saDel").onclick = async () => {
     if (!confirm("確定刪除這筆勤前教育紀錄？含合照、簽名與附加檔案，無法復原。")) return;
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(id); await DB.del("safety", id); goBack("#/safety");
+  };
+}
+
+/* ---------- 大簽名框 ----------
+   全螢幕視窗：只有這個畫布會畫線（touch-action:none 只在視窗內），按「確認」才存；「取消」或返回鍵不變更。
+   空白按確認 = 清除簽名（原本有簽才會問）。輸出只裁切有筆跡的範圍（單據與縮圖才不會縮得很小），再縮成最寬 600 px 的 PNG，避免資料庫變大。 */
+function saSigPad(title, cur, done) {
+  const ov = document.createElement("div");
+  ov.className = "sapad"; ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true");
+  ov.innerHTML = `<div class="sapadtop"><b>${esc(title)}　簽名</b><small>請在下方白色框內用手指簽名</small></div>
+    <div class="sapadstage"><canvas></canvas><span class="sapadline"></span></div>
+    <div class="sapadbar"><button type="button" class="sec" data-k="cancel">取消</button><button type="button" class="sec" data-k="clear">清除</button><button type="button" data-k="ok">確認</button></div>`;
+  document.body.appendChild(ov);
+  document.documentElement.classList.add("sapadopen");
+  const c = $("canvas", ov), g = c.getContext("2d"), ratio = window.devicePixelRatio || 1;
+  let inked = false, drawing = false, closed = false, box = null;   // box：筆跡範圍（CSS px）
+  const fit = () => {   // 轉向時重設尺寸，保留已畫內容
+    const old = inked ? c.toDataURL() : null;
+    c.width = c.clientWidth * ratio; c.height = c.clientHeight * ratio;
+    g.setTransform(ratio, 0, 0, ratio, 0, 0); g.lineWidth = 3.5; g.lineCap = g.lineJoin = "round"; g.strokeStyle = "#111";
+    box = null;
+    if (old) { box = [0, 0, c.clientWidth, c.clientHeight]; const im = new Image(); im.onload = () => g.drawImage(im, 0, 0, c.clientWidth, c.clientHeight); im.src = old; }
+  };
+  fit();
+  const pos = e => {
+    const b = c.getBoundingClientRect(), x = e.clientX - b.left, y = e.clientY - b.top;
+    box = box ? [Math.min(box[0], x), Math.min(box[1], y), Math.max(box[2], x), Math.max(box[3], y)] : [x, y, x, y];
+    return [x, y];
+  };
+  c.onpointerdown = e => { e.preventDefault(); drawing = true; c.setPointerCapture(e.pointerId); g.beginPath(); g.moveTo(...pos(e)); g.lineTo(...pos(e)); g.stroke(); inked = true; };
+  c.onpointermove = e => { if (!drawing) return; g.lineTo(...pos(e)); g.stroke(); };
+  c.onpointerup = c.onpointercancel = () => { drawing = false; };
+  const out = () => {
+    const pad = 10, x0 = Math.max(0, box[0] - pad), y0 = Math.max(0, box[1] - pad);
+    const bw = Math.max(40, Math.min(c.clientWidth, box[2] + pad) - x0), bh = Math.max(20, Math.min(c.clientHeight, box[3] + pad) - y0);
+    const sc = Math.min(1, 600 / (bw * ratio)), k = document.createElement("canvas");
+    k.width = Math.round(bw * ratio * sc); k.height = Math.round(bh * ratio * sc);
+    k.getContext("2d").drawImage(c, x0 * ratio, y0 * ratio, bw * ratio, bh * ratio, 0, 0, k.width, k.height); return k.toDataURL("image/png");
+  };
+  const close = fromPop => {
+    if (closed) return; closed = true;
+    ov.remove(); document.documentElement.classList.remove("sapadopen");
+    window.removeEventListener("popstate", onPop); window.removeEventListener("resize", fit); document.removeEventListener("keydown", onKey);
+    if (!fromPop && history.state?.sapad) history.back();
+  };
+  const onPop = () => close(true);
+  const onKey = e => { if (e.key === "Escape") close(); };
+  window.addEventListener("popstate", onPop); window.addEventListener("resize", fit); document.addEventListener("keydown", onKey);
+  history.pushState({ sapad: 1 }, "");   // Android 返回鍵＝取消
+  ov.querySelector(".sapadbar").onclick = e => {
+    const k = e.target.closest("[data-k]")?.dataset.k;
+    if (k === "cancel") close();
+    else if (k === "clear") { g.clearRect(0, 0, c.width, c.height); inked = false; box = null; }
+    else if (k === "ok") {
+      if (!inked) { if (cur && !confirm("框內是空白的，要清除原本的簽名嗎？")) return; if (!cur) { close(); return; } }
+      const sig = inked ? out() : ""; close(); done(sig);
+    }
   };
 }
 
