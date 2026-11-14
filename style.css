@@ -344,6 +344,7 @@ section.panel{scroll-margin-top:64px}
 .cfres th{font-size:12px;text-align:left}.cfres td small,.cfres th small{display:block;font-size:11px;font-weight:500;color:var(--mut)}
 .cfres td.ok{color:var(--ok)}.cfres td.bad{color:var(--bad)}.cfres td.bad small{color:var(--bad)}
 .cfref th{text-align:left;font-size:12px}.cfref th small{display:block;font-weight:400;color:var(--mut);font-size:11px}.cfref td{font-size:13px}.cfref tr.sel td,.cfref tr.sel th{background:#e9e3d2}
+.wfchk{display:flex;align-items:center;gap:8px;margin:0 0 8px;font-size:14px}.wfchk input{width:auto;min-height:0}
 .cfdet{margin-top:8px}.cfdh{margin:10px 0 0;font-size:13px;color:var(--mut)}
 .cfpaper .pt .c{font-size:inherit}.cfpaper .pt th[colspan]{text-align:left}.cfpaper .pt{margin-bottom:3mm}
 .cfpaper .cffig{margin:0 0 3mm}.cfpaper .cfsvg{color:#000;max-width:100%}.cfpaper .cffig .cnote{color:#000;font-size:8.5pt}

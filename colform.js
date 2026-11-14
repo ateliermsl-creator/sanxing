@@ -5,7 +5,7 @@
    ‧側壓力：深度 d 處 P = γ × d，可填「側壓力上限」（依採用的公式自行計算）取較小值；每一階以該階底部（最深處）的側壓力檢核。
    ‧材料容許應力、E 值、撓度限制、螺桿容許拉力：本工具「不內建任何數值」，由使用者建立材料庫（localStorage calcColLib）。
      例外：使用者提供的參考材料表（2026-11-14 截圖）內建為 COL_SPECIES（木材樹種容許應力）與 COL_PRESETS（襯板、木角材斷面），
-     畫面註明「依使用者提供的參考表，非規範原文」；木料的 fb、fv、E 依所選樹種。鋼材（Fb、Fv、E）、鋼角材斷面、螺桿斷面積也取自同一參考表；螺桿容許拉應力參考表沒有，由使用者填。
+     畫面註明「依使用者提供的參考表，非規範原文」；木料的 fb、fv、E 依所選樹種。鋼材（Fb、Fv、E）、鋼角材斷面、螺桿斷面積也取自同一參考表；螺桿容許拉應力 Ft 預設 1800（參考網站螺桿資料 18 kgf/mm²，2026-11-14 使用者同意帶入，非規範原文，可改）。
    ‧構件依均布載重的梁：簡支 M = wL²/8、V = wL/2、δ = 5wL⁴/384EI；三跨以上連續（近似）M = wL²/10、V = 0.6wL、δ = wL⁴/145EI。
    ‧單位：長度 cm、力 kgf、應力 kgf/cm²；γ 用 t/m³、側壓力上限用 t/m²。 */
 
@@ -49,7 +49,7 @@ const colStr = v => (typeof v === "string" || typeof v === "number") ? String(v)
 const colTier = () => ({ top: "", H1: "", B2: "", H3: "", H4: "", B4: "" });
 const colBlank = () => ({
   info: { proj: "", loc: "", no: "", bx: "", by: "", H: "", who: "" },
-  gamma: "2.4", pmax: "", cont: "c", species: "c3", tieFt: "", defP: { n: "", a: "3" }, defB: { n: "", a: "" },
+  gamma: "2.4", pmax: "", cont: "c", species: "c3", tieFt: "1800", defP: { n: "", a: "3" }, defB: { n: "", a: "" },
   sel: { ply: "p_ply15", stud: "p_b3645", w1: "p_b9045", w2: "p_b9045", tie: "p_t25" }, tiers: [colTier()]
 });
 // 讀回存檔時只留下已知欄位、都轉成字串，避免舊資料或改壞的資料影響畫面
@@ -122,7 +122,7 @@ function colCalc(st, lib = colLib()) {
 const colJudge = c => !Number.isFinite(c.v) ? ["—", ""] : !(c.a > 0) ? ["未填容許值", ""] : c.v <= c.a ? ["OK", "ok"] : ["NG", "bad"];
 
 /* ---------- 圖：側壓力分布、配置示意 ---------- */
-function colPressureSvg(r) {
+function colPressureSvg(r, base = "柱底") {
   if (!(r.H > 0) || !(r.g > 0)) return "";
   const W = 260, Ht = 210, x0 = 40, y0 = 14, pw = 130, ph = 170, pb = r.pAt(r.H), sx = p => x0 + p / pb * pw, sy = z => y0 + (r.H - z) / r.H * ph;
   const pts = [[x0, sy(r.H)]];
@@ -135,7 +135,7 @@ function colPressureSvg(r) {
       <text x="${x0 - 4}" y="${y0 + 4}" text-anchor="end">${fmt(r.H, 0)}</text><text x="${x0 - 4}" y="${sy(0) + 4}" text-anchor="end">0</text>
       ${r.tiers.map(t => `<line x1="${x0}" x2="${x0 + pw + 8}" y1="${sy(t.lo).toFixed(1)}" y2="${sy(t.lo).toFixed(1)}" stroke="currentColor" stroke-dasharray="3 3" opacity=".6"/>
         <circle cx="${sx(t.P).toFixed(1)}" cy="${sy(t.lo).toFixed(1)}" r="2.5"/><text x="${(sx(t.P) + 5).toFixed(1)}" y="${(sy(t.lo) - 3).toFixed(1)}">${COL_TIER_N[t.i]} ${fmt(t.P, 3)}</text>`).join("")}
-      <text x="4" y="${Ht - 6}">橫軸：側壓力 P（kgf/cm²）　縱軸：距柱底（cm）</text></g></svg>`;
+      <text x="4" y="${Ht - 6}">橫軸：側壓力 P（kgf/cm²）　縱軸：距${base}（cm）</text></g></svg>`;
 }
 function colLayoutSvg(r, st) {
   const H = r.H, Wc = colF(st.info.bx) > 0 ? colF(st.info.bx) : 60;
@@ -158,23 +158,38 @@ function colLayoutSvg(r, st) {
 }
 
 /* ---------- 畫面 ---------- */
+function colLibCard(p) {
+  const f = (k, l, ph = "") => `<div class="field"><label>${l}</label><input data-l="${esc(p.id)}" data-lk="${k}" ${k === "n" ? "" : 'inputmode="decimal"'} value="${esc(p[k])}" placeholder="${esc(ph)}"></div>`;
+  const sects = p.kind === "ply" ? [["t", "板厚 t"], ["custom", "自行輸入 I、S、A"]] : [["rect", "矩形 b × h"], ["custom", "自行輸入 I、S、A"]];
+  return `<div class="cflib" data-card="${esc(p.id)}">
+    <div class="cflibtop"><b>${COL_KINDS[p.kind]}</b><button type="button" class="danger" data-ldel="${esc(p.id)}" aria-label="刪除此材料">✕</button></div>
+    ${f("n", "名稱", p.kind === "ply" ? "例：膠合板 1.8 cm" : p.kind === "tie" ? "例：○分螺桿" : "例：角材 3.6×4.5")}
+    ${p.kind === "tie" ? `<div class="grid2">${f("ta", "容許拉力 Ta（kgf）", "依產品規格")}</div>` : `
+    <div class="field"><label>斷面</label><select data-l="${esc(p.id)}" data-lk="sect">${sects.map(([v, l]) => `<option value="${v}" ${p.sect === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
+    <div class="grid2">${p.sect === "t" ? f("t", "板厚 t（cm）") : p.sect === "rect" ? f("b", "寬 b（cm）") + f("h", "高 h（受力方向，cm）") : f("I", p.kind === "ply" ? "I（cm⁴／100 cm 寬）" : "I（cm⁴／每根）") + f("S", p.kind === "ply" ? "S（cm³／100 cm 寬）" : "S（cm³／每根）") + f("A", p.kind === "ply" ? "A（cm²／100 cm 寬）" : "A（cm²／每根）") + f("kv", "剪應力係數 k", "矩形 1.5")}
+      ${p.kind === "beam" ? f("cnt", "並排根數", "雙鋼管填 2") : ""}
+      ${f("fb", "容許彎曲應力 fb（kgf/cm²）")}${f("fv", p.kind === "ply" ? "容許（滾動）剪應力 fv" : "容許剪應力 fv（kgf/cm²）")}${f("E", "彈性模數 E（kgf/cm²）")}</div>`}</div>`;
+}
+// 參考表（木材容許應力、內建斷面、螺桿斷面積）；牆模板也用
+function colRefHtml(species, extra = "") {
+  return `<h3 class="cfh">木材容許應力（kgf/cm²）</h3>
+          <div class="tblwrap"><table class="ct cfref"><tr><th>樹種</th><th>F<sub>b</sub></th><th>F<sub>c</sub></th><th>F<sub>v</sub></th><th>E</th></tr>
+            ${COL_SPECIES.map(x => `<tr class="${x.id === species ? "sel" : ""}"><th>${x.n}<small>${x.note}</small></th><td>${x.fb}</td><td>${x.fc}</td><td>${x.fv}</td><td>${Number(x.E).toLocaleString("en")}</td></tr>`).join("")}
+            <tr><th>${COL_STEEL.n}<small>F<sub>y</sub> ${COL_STEEL.fy}</small></th><td>${COL_STEEL.fb}</td><td>${COL_STEEL.fc}</td><td>${COL_STEEL.fv}</td><td>${Number(COL_STEEL.E).toLocaleString("en")}</td></tr></table></div>
+          <h3 class="cfh">內建斷面</h3>
+          <div class="tblwrap"><table class="ct cfref"><tr><th>規格</th><th>A<br><small>cm²</small></th><th>I<br><small>cm⁴</small></th><th>S<br><small>cm³</small></th></tr>
+            ${COL_PRESETS.filter(p => !p.bolt).map(p => { const q = colSect(p), w = p.kind === "ply" ? 100 : 1; return `<tr><th>${esc(p.n)}${p.kind === "ply" ? "<small>每 1 cm 寬</small>" : ""}</th><td>${fmt(q.A / w, 3)}</td><td>${fmt(q.I / w, 3)}</td><td>${fmt(q.S / w, 3)}</td></tr>`; }).join("")}</table></div>
+          <h3 class="cfh">螺桿斷面積（cm²）</h3>
+          <div class="tblwrap"><table class="ct cfref"><tr>${COL_PRESETS.filter(p => p.bolt).map(p => `<th>${esc(p.n.replace(" 螺桿", ""))}</th>`).join("")}</tr><tr>${COL_PRESETS.filter(p => p.bolt).map(p => `<td>${p.A}</td>`).join("")}</tr></table></div>
+          ${extra}
+          <p class="cnote">以上依使用者提供的參考表（非規範原文），使用前請與契約、規範核對。</p>`;
+}
+
 function tabColForm(box) {
   const st = colLoad();
   let lib = colLib();
   const inp = (path, val, ph = "", extra = "") => `<input data-p="${path}" inputmode="decimal" value="${esc(val)}" placeholder="${esc(ph)}" ${extra}>`;
   const matOpts = (kind, cur) => `<option value="">請選擇</option>${lib.filter(p => p.kind === kind).map(p => `<option value="${esc(p.id)}" ${p.id === cur ? "selected" : ""}>${esc(p.n || "（未命名）")}</option>`).join("")}`;
-  const libCard = p => {
-    const f = (k, l, ph = "") => `<div class="field"><label>${l}</label><input data-l="${esc(p.id)}" data-lk="${k}" ${k === "n" ? "" : 'inputmode="decimal"'} value="${esc(p[k])}" placeholder="${esc(ph)}"></div>`;
-    const sects = p.kind === "ply" ? [["t", "板厚 t"], ["custom", "自行輸入 I、S、A"]] : [["rect", "矩形 b × h"], ["custom", "自行輸入 I、S、A"]];
-    return `<div class="cflib" data-card="${esc(p.id)}">
-      <div class="cflibtop"><b>${COL_KINDS[p.kind]}</b><button type="button" class="danger" data-ldel="${esc(p.id)}" aria-label="刪除此材料">✕</button></div>
-      ${f("n", "名稱", p.kind === "ply" ? "例：膠合板 1.8 cm" : p.kind === "tie" ? "例：○分螺桿" : "例：角材 3.6×4.5")}
-      ${p.kind === "tie" ? `<div class="grid2">${f("ta", "容許拉力 Ta（kgf）", "依產品規格")}</div>` : `
-      <div class="field"><label>斷面</label><select data-l="${esc(p.id)}" data-lk="sect">${sects.map(([v, l]) => `<option value="${v}" ${p.sect === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
-      <div class="grid2">${p.sect === "t" ? f("t", "板厚 t（cm）") : p.sect === "rect" ? f("b", "寬 b（cm）") + f("h", "高 h（受力方向，cm）") : f("I", p.kind === "ply" ? "I（cm⁴／100 cm 寬）" : "I（cm⁴／每根）") + f("S", p.kind === "ply" ? "S（cm³／100 cm 寬）" : "S（cm³／每根）") + f("A", p.kind === "ply" ? "A（cm²／100 cm 寬）" : "A（cm²／每根）") + f("kv", "剪應力係數 k", "矩形 1.5")}
-        ${p.kind === "beam" ? f("cnt", "並排根數", "雙鋼管填 2") : ""}
-        ${f("fb", "容許彎曲應力 fb（kgf/cm²）")}${f("fv", p.kind === "ply" ? "容許（滾動）剪應力 fv" : "容許剪應力 fv（kgf/cm²）")}${f("E", "彈性模數 E（kgf/cm²）")}</div>`}</div>`;
-  };
   const draw = () => {
     const tn = st.tiers.length;
     box.innerHTML = `
@@ -198,28 +213,19 @@ function tabColForm(box) {
           <div class="field"><label>襯板撓度檢核標準</label><select id="cfDefP">${COL_DEFP.map(([v, l]) => `<option value="${v}" ${v === (st.defP.a === "3" && !st.defP.n ? "a3" : st.defP.n === "240" && !st.defP.a ? "n240" : "") ? "selected" : ""}>${l}</option>`).join("")}</select></div>
           ${COL_MEMBERS.map(x => `<div class="field"><label>${x.n}</label><select data-p="sel.${x.k}" data-kind="${x.kind}">${matOpts(x.kind, st.sel[x.k])}</select></div>`).join("")}
           <div class="field"><label>螺桿</label><select data-p="sel.tie" data-kind="tie">${matOpts("tie", st.sel.tie)}</select></div>
-          <div class="field"><label>螺桿容許拉應力 Ft（kgf/cm²）</label>${inp("tieFt", st.tieFt, "依螺桿規格填寫")}</div>
+          <div class="field"><label>螺桿容許拉應力 Ft（kgf/cm²）</label>${inp("tieFt", st.tieFt, "參考網站 1800")}</div>
           <div class="field"><label>構件計算方式</label><select data-p="cont"><option value="c" ${st.cont === "c" ? "selected" : ""}>三跨以上連續</option><option value="s" ${st.cont === "s" ? "selected" : ""}>簡支（保守）</option></select></div>
           <div class="field"><label>襯板撓度限制 L／?</label>${inp("defP.n", st.defP.n, "可空白")}</div>
           <div class="field"><label>襯板撓度上限（mm）</label>${inp("defP.a", st.defP.a, "可空白")}</div>
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
           <div class="field"><label>格柵撓度上限（mm）</label>${inp("defB.a", st.defB.a, "可空白")}</div>
         </div>
-        <p class="cnote">撓度兩個都填時取較嚴者。內建木料的容許應力與 E 值依所選樹種、鋼角材依鋼材；內建螺桿的容許拉力 = Ft × 斷面積（參考表沒有 Ft，請自行填寫）。</p>
+        <p class="cnote">撓度兩個都填時取較嚴者。內建木料的容許應力與 E 值依所選樹種、鋼角材依鋼材；內建螺桿的容許拉力 = Ft × 斷面積；Ft 預設 1800 kgf/cm² 是參考網站的螺桿資料（18 kgf/mm²），非規範原文，請依螺桿規格核對。</p>
         <details class="cflibbox"><summary>材料參數與斷面資料</summary>
-          <h3 class="cfh">木材容許應力（kgf/cm²）</h3>
-          <div class="tblwrap"><table class="ct cfref"><tr><th>樹種</th><th>F<sub>b</sub></th><th>F<sub>c</sub></th><th>F<sub>v</sub></th><th>E</th></tr>
-            ${COL_SPECIES.map(x => `<tr class="${x.id === st.species ? "sel" : ""}"><th>${x.n}<small>${x.note}</small></th><td>${x.fb}</td><td>${x.fc}</td><td>${x.fv}</td><td>${Number(x.E).toLocaleString("en")}</td></tr>`).join("")}
-            <tr><th>${COL_STEEL.n}<small>F<sub>y</sub> ${COL_STEEL.fy}</small></th><td>${COL_STEEL.fb}</td><td>${COL_STEEL.fc}</td><td>${COL_STEEL.fv}</td><td>${Number(COL_STEEL.E).toLocaleString("en")}</td></tr></table></div>
-          <h3 class="cfh">內建斷面</h3>
-          <div class="tblwrap"><table class="ct cfref"><tr><th>規格</th><th>A<br><small>cm²</small></th><th>I<br><small>cm⁴</small></th><th>S<br><small>cm³</small></th></tr>
-            ${COL_PRESETS.filter(p => !p.bolt).map(p => { const q = colSect(p), w = p.kind === "ply" ? 100 : 1; return `<tr><th>${esc(p.n)}${p.kind === "ply" ? "<small>每 1 cm 寬</small>" : ""}</th><td>${fmt(q.A / w, 3)}</td><td>${fmt(q.I / w, 3)}</td><td>${fmt(q.S / w, 3)}</td></tr>`; }).join("")}</table></div>
-          <h3 class="cfh">螺桿斷面積（cm²）</h3>
-          <div class="tblwrap"><table class="ct cfref"><tr>${COL_PRESETS.filter(p => p.bolt).map(p => `<th>${esc(p.n.replace(" 螺桿", ""))}</th>`).join("")}</tr><tr>${COL_PRESETS.filter(p => p.bolt).map(p => `<td>${p.A}</td>`).join("")}</tr></table></div>
-          <p class="cnote">以上依使用者提供的參考表（非規範原文），使用前請與契約、規範核對。</p>
+          ${colRefHtml(st.species)}
           <h3 class="cfh">自建材料</h3>
           <p class="cnote" style="margin-top:0">內建以外的材料（相當於「自訂」）可在這裡新增，容許值請依材料規格填寫；資料存在這支手機。</p>
-          <div id="cfLib">${lib.filter(p => !p.preset).map(libCard).join("")}</div>
+          <div id="cfLib">${lib.filter(p => !p.preset).map(colLibCard).join("")}</div>
           <div class="row">${Object.entries(COL_KINDS).map(([k, l]) => `<button type="button" class="sec" data-ladd="${k}">＋ ${{ ply: "襯板", beam: "格柵材", tie: "螺桿" }[k]}</button>`).join("")}</div></details></section>
       <section class="panel" id="cf3"><h2><span class="cfno">3</span>配置條件（cm）</h2>
         <div class="tblwrap"><table class="ct cftiers"><tr><th>項目</th>${st.tiers.map((_, i) => `<th>${COL_TIER_N[i]}</th>`).join("")}</tr>
@@ -309,7 +315,7 @@ function renderColSheet() {
         ${COL_MEMBERS.map(x => matRow(x.n, r.mat(x.k), allow)).join("")}
         ${matRow("螺桿", r.mat("tie"), m => `${m.bolt ? `；Ft ${esc(st.tieFt) || "—"} kgf/cm²` : ""}；容許拉力 ${esc(m.ta) || "—"} kgf`)}
         <tr><td>撓度限制</td><td colspan="3">襯板：${lim(st.defP)}；格柵：${lim(st.defB)}</td></tr>
-        <tr><td colspan="4" style="font-size:9pt">木材與鋼材容許應力、內建斷面及螺桿斷面積依使用者提供之參考表（非規範原文）。</td></tr>
+        <tr><td colspan="4" style="font-size:9pt">木材與鋼材容許應力、內建斷面、螺桿斷面積及 Ft 預設值依使用者提供之參考資料（非規範原文）。</td></tr>
       </table>
       <table class="pt">
         <tr><th>三、配置條件（cm）</th>${r.tiers.map(t => `<th>${COL_TIER_N[t.i]}</th>`).join("")}</tr>
