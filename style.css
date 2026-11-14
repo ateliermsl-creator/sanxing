@@ -366,3 +366,24 @@ section.panel{scroll-margin-top:64px}
 }
 .sacell .sax{background:var(--mut)}
 .sctie{stroke:var(--bad)}.cfpaper .sctie{stroke:#000}
+/* ===== 計算機結果摘要列（calcbar.js）與 OK／NG 標示（UX B1、B2） ===== */
+#calcBar{position:fixed;left:0;right:0;bottom:0;z-index:20;max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 14px calc(env(safe-area-inset-bottom) + 8px);background:var(--card);border-top:2px solid var(--line);box-shadow:0 -4px 14px rgba(55,51,43,.12);cursor:pointer}
+#calcBar[hidden]{display:none}
+#calcBar .cbtxt{flex:1;min-width:0}
+#calcBar b{display:block;font-size:17px}
+#calcBar span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:13px;line-height:1.35;color:var(--mut);overflow:hidden}
+#calcBar i{font-style:normal;flex:none;font-size:14px;font-weight:600;color:var(--g)}
+#calcBar.ok b{color:var(--ok)}
+#calcBar.bad{background:#ecdcd3;border-top-color:var(--bad)}#calcBar.bad b{color:var(--bad)}
+#calcBar.mut b{color:var(--tx);font-size:15px}
+body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
+@media print{#calcBar{display:none!important}}
+/* 檢核表：NG 加字樣與底色、OK 加勾，不只靠顏色分辨（色弱、陽光下也看得出） */
+.cfres td.bad{background:#ecdcd3!important;font-weight:700}
+.cfres td.bad small{font-weight:700}
+.cfres td.bad small::before{content:"✕ "}
+.cfres td.ok small::before{content:"✓ "}
+#view .cfj.bad:not(.paper *)::before{content:"✕ "}
+#view .cfj.ok:not(.paper *)::before{content:"✓ "}
+.cfres tr.cbflash>*{animation:cbflash 1.6s ease-out}
+@keyframes cbflash{0%,40%{box-shadow:inset 0 0 0 3px var(--bad)}100%{box-shadow:none}}
