@@ -187,6 +187,7 @@ function colLibCard(p) {
     <div class="field"><label>斷面</label><select data-l="${esc(p.id)}" data-lk="sect">${sects.map(([v, l]) => `<option value="${v}" ${p.sect === v ? "selected" : ""}>${l}</option>`).join("")}</select></div>
     <div class="grid2">${p.sect === "t" ? f("t", "板厚 t（cm）") : p.sect === "rect" ? f("b", "寬 b（cm）") + f("h", "高 h（受力方向，cm）") : f("I", p.kind === "ply" ? "I（cm⁴／100 cm 寬）" : "I（cm⁴／每根）") + f("S", p.kind === "ply" ? "S（cm³／100 cm 寬）" : "S（cm³／每根）") + f("A", p.kind === "ply" ? "A（cm²／100 cm 寬）" : "A（cm²／每根）") + f("kv", "剪應力係數 k", "矩形 1.5")}
       ${p.kind === "beam" ? f("cnt", "並排根數", "雙鋼管填 2") : ""}
+      ${p.kind === "beam" && p.sect === "custom" ? `<button type="button" class="sec" data-lsec="1" style="grid-column:1/-1">帶入「斷面性質」分頁算出的 A、I、S</button>` : ""}
       ${f("fb", "容許彎曲應力 fb（kgf/cm²）")}${f("fv", p.kind === "ply" ? "容許（滾動）剪應力 fv" : "容許剪應力 fv（kgf/cm²）")}${f("E", "彈性模數 E（kgf/cm²）")}</div>`}</div>`;
 }
 // 參考表（木材容許應力、內建斷面、螺桿斷面積）；牆模板也用

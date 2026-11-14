@@ -30,12 +30,13 @@
 | `bracket.js` | 計算機「三角架」分頁與 A4 計算書（`#/calc/brk/sheet`）。型式 1～5 幾何同參考網站 bracket.js；P = 1.2PD + 1.6PL、自重 ×1.2。`bkSolve` 是自寫的平面構架直接勁度法（梁＋桁架元素，靠牆兩點固定），測試有懸臂、固端梁與反力平衡驗證。檢核只做托架平面內：受壓（同 `scFcr`）、受拉、彎矩 φbFyS（彈性，保守）、剪力 0.6FyAw、H1 互制；φ 可改。輸入存在 localStorage `calcBrkForm` |
 | `rowframe.js` | 計算機「排架」分頁與 A4 計算書（`#/calc/row/sheet`）。沿用 `scaffold.js` 的自重表與 `scRound`、`scFcr`。D = 單跨自重×層數/2 + qd×面積/2，q = max(輸入, 最小活載 2.4 kPa, 4.8 kPa − qd)（參考網站引 ACI 347R-14，當可改預設、可清空）。地震只有不考慮／直接輸入。輸入存在 localStorage `calcRowForm` |
 | `anchor.js` | 計算機「錨栓」分頁與 A4 計算書（`#/calc/anc/sheet`）。依 ACI 318-19 第 17 章架構自寫，SI 係數換算 kgf-cm（`ANC_K`）；受力分配為剛性鋼承板、只計錨栓。檢核鋼材拉／剪、混凝土拉破（ψec、ψed、ψc、ψcp、三邊近邊 hef 修正）、拔出（後置式填產品 Np）、側面爆裂（預埋）、剪破（X、Y 各朝受剪邊）、撬破、互制。未做黏結式、地震額外要求。輸入存在 localStorage `calcAncForm`。連動：施工架結果「帶入三角架」寫 `calcBrkForm` 的 PD/PL；三角架「支承反力帶入錨栓」寫 `calcAncForm`（P = Rx、Vy = −Ry、Mx = −Mz，同參考網站） |
-| `calcbar.js` | 計算機底部「結果摘要列」：只讀畫面上的「總結」列與 `.cfres` 的 `td.ok／td.bad`，不碰計算；新計算機沿用同樣結構就自動套用。結果區在畫面上時自動隱藏 |
+| `secprop.js` | 計算機「斷面性質」分頁與 A4 計算書（`#/calc/sec/sheet`）。同參考網站：外輪廓＋孔洞頂點座標（多邊形格林定理），輸出 A、形心、Ix、Iy、Ixy、Jc、主慣性矩與主軸角、Sx±／Sy±，8 位有效數字；另加常用斷面產生器（圓以 72 邊形近似）、迴轉半徑。「存成格柵材自訂斷面」把 A、I、S（換算 cm，S 取兩側較小）寫進 `calcColLib`；`colLibCard` 的自訂格柵卡片有「帶入斷面性質」按鈕（`data-lsec`，在 secprop.js 用委派事件處理）。輸入存在 localStorage `calcSecForm`。未做 DXF 匯入 |
+| `calcbar.js` | 計算機底部「結果摘要列」：只讀畫面上的「總結」列與 `.cfres` 的 `td.ok／td.bad`，不碰計算；新計算機沿用同樣結構就自動套用。沒有 OK／NG 的計算機在 `.big` 加 `data-bar="摘要"` 只顯示文字。結果區在畫面上時自動隱藏 |
 | `sidenav.js` | 電腦版左側導覽列（≥ 1200px 才顯示，**首頁不顯示**，避免和首頁卡片重複，使用者要求）；新增首頁功能時這裡也加一筆 |
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
-1. **`sw.js` 的 `VERSION` 加 1**（`"v106"` → `"v107"`）。不加的話，已安裝的手機不會換新版。
+1. **`sw.js` 的 `VERSION` 加 1**（`"v122"` → `"v123"`）。不加的話，已安裝的手機不會換新版。
 2. 新增 `.js` 檔：同時加進 `index.html` 的 `<script>` 與 `sw.js` 的 `FILES`。
 3. **新增或改名資料欄位：同步改 `safe.js` 的 `CLEAN` 規則。** 沒改的話，匯入備份時該欄位會被丟掉（`tests/backup_roundtrip.js` 會抓到）。
 4. 新增資料表：`app.js` 的資料庫版本加 1、加進 `onupgradeneeded` 的名單、備份匯出／匯入、`sanitizeBackup`、刪除工地的 `stores`。

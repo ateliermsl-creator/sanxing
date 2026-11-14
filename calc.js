@@ -321,6 +321,7 @@ function renderCalc(tab, sub) {
   if (tab === "brk" && sub === "sheet") return renderBrkSheet();    // 三角架計算書（bracket.js）
   if (tab === "row" && sub === "sheet") return renderRowSheet();    // 排架計算書（rowframe.js）
   if (tab === "anc" && sub === "sheet") return renderAncSheet();    // 錨栓計算書（anchor.js）
+  if (tab === "sec" && sub === "sheet") return renderSecSheet();    // 斷面性質計算書（secprop.js）
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
     <div class="chips">${CALC_TABS.map(([k, l]) => `<a class="chip ${k === cur[0] ? "on" : ""}" href="#/calc/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${l}</a>`).join("")}</div>
