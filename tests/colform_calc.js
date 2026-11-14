@@ -24,6 +24,8 @@ console.log('示意圖:',await p.$$eval('#cfLay svg',s=>s.map(x=>({line:x.queryS
 await p.selectOption('[data-p="sel.ply"]','p_ply15');await p.selectOption('[data-p="sel.stud"]','p_b3645');await p.selectOption('#cfDefP','a3');
 console.log('內建（針葉樹III類、襯板1.5、角材3.6×4.5）第一階:',(await p.$$eval('#cfRes .cfres tr',r=>r.slice(1,7).map(x=>x.innerText.replace(/\s+/g,' ')))).join(' / '));
 await p.$eval('.cflibbox',d=>d.open=true);console.log('參考表:',await p.$$eval('.cfref tr',r=>r.map(x=>x.innerText.replace(/\s+/g,' ')).join(' | ')));
+await p.selectOption('[data-p="sel.stud"]','p_s7045_23');await p.selectOption('[data-p="sel.tie"]','p_t25');await f('tieFt','1000');
+console.log('鋼角材小格柵 fb 第一階:',await t('#cfRes .cfres tr:nth-child(5)'),'| 螺桿(2.5分,Ft1000):',await t('#cfRes .cfres tr:last-child'));
 await f('tiers.0.top','400');console.log('高度錯誤:',await t('#cfRes'));await f('tiers.0.top','100');
 await p.goto(U+'#/');await p.goto(U+'#/calc/col');await p.waitForSelector('[data-p="info.H"]');console.log('重開保留:',await p.inputValue('[data-p="tiers.1.top"]'),await p.inputValue('[data-p="sel.ply"]')==='p_ply15');
 await p.setViewportSize({width:390,height:844});await p.$$eval('details',d=>d.forEach(x=>x.open=true));await p.screenshot({path:S+'colform_tab.png',fullPage:true});
