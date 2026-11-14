@@ -10,7 +10,7 @@
      ref：P = 1.5Wo + 0.2Wo × (H − 1.5)（H 公尺、Wo 單位重），沿高度線性遞減到牆頂為 0
           —— 取自使用者指定的參考網站（2026-11-14 讀取），畫面註明「非規範原文」，可改用下一種；
      lin：P = γ × 深度，可填上限（與柱模板相同）。
-   ‧材料庫、樹種、內建斷面、構件公式（連續／簡支）與柱模板共用（colform.js）。
+   ‧材料庫、樹種、內建斷面、構件公式（COL_METHODS，預設依參考網站）與柱模板共用（colform.js）。
    ‧螺桿容許拉應力 Ft 預設 1800 kgf/cm²（參考網站螺桿資料 18 kgf/mm²，非規範原文），可修改。
    ‧單位：長度 cm、力 kgf、應力 kgf/cm²；γ 用 t/m³。 */
 
@@ -31,7 +31,7 @@ const wfGapName = (k, sup) => ({ H1: "小格柵垂直間距 H1", B2: "第一層�
 const wfTier = () => ({ top: "", H1: "", B2: "", H3: "", H4: "", B4: "", ang: "", Lu: "" });
 const wfBlank = () => ({
   type: "t4", info: { proj: "", loc: "", no: "", H: "", len: "", thk: "", who: "" },
-  pmode: "ref", gamma: "2.3", pmax: "", cont: "c", species: "c3", tieFt: WF_FT_DEF, manual: "",
+  pmode: "ref", gamma: "2.3", pmax: "", meth: "r", species: "c3", tieFt: WF_FT_DEF, manual: "",
   pipe: { D: "4.86", t: "0.24" }, defP: { n: "", a: "3" }, defB: { n: "", a: "" },
   sel: { ply: "p_ply15", stud: "p_b3645", w1: "p_b9045", w2: "p_b9045", tie: "p_t25" }, tiers: [wfTier()]
 });
@@ -75,7 +75,7 @@ function wfCalc(st, lib = colLib()) {
     if (m.steel) return { ...m, fb: COL_STEEL.fb, fv: COL_STEEL.fv, E: COL_STEEL.E, spn: "鋼材" };
     if (m.bolt) { const ft = colF(st.tieFt); return { ...m, ta: ft > 0 ? String(+(ft * colF(m.A)).toFixed(1)) : "" }; }
     return m; };
-  const c = COL_COEF[st.cont] || COL_COEF.c, tiers = [], err = [];
+  const meth = COL_METHODS[st.meth] || COL_METHODS.r, tiers = [], err = [];
   const pipe = T.sup === "pipe" ? wfPipeSect(st.pipe) : null, Fy = colF(COL_STEEL.fy), Es = colF(COL_STEEL.E);
   let lo = 0;
   st.tiers.forEach((t, i) => {
@@ -84,15 +84,7 @@ function wfCalc(st, lib = colLib()) {
     const P = pAt(H - lo), gap = {};
     for (const k of ["H1", "B2", "H3", "H4", "B4", "ang", "Lu"]) gap[k] = colF(t[k]);
     if (st.type !== "t3" && !(gap.H4 > 0)) gap.H4 = gap.H3;              // 四層模、單面模：H4 空白 = H3
-    const mems = T.mems.map(x => {
-      const m = mat(x.k), s = colSect(m), L = gap[x.span], trib = x.trib ? gap[x.trib] : 100, df = x.kind === "ply" ? st.defP : st.defB;
-      const w = P * trib, M = c.m * w * L * L, V = c.v * w * L, E = colF(m?.E), dl = s ? w * L ** 4 / (c.d * E * s.I) : NaN;
-      const lims = [colF(df.n) > 0 ? L / colF(df.n) : NaN, colF(df.a) > 0 ? colF(df.a) / 10 : NaN].filter(Number.isFinite);
-      return { x, m, s, L, trib, w, M, V, checks: [
-        { t: "彎曲 fb", v: s ? M / s.S : NaN, a: colF(m?.fb), u: "kgf/cm²", d: 1 },
-        { t: "剪力 fv", v: s ? s.kv * V / s.A : NaN, a: colF(m?.fv), u: "kgf/cm²", d: 2 },
-        { t: "撓度 δ", v: dl * 10, a: lims.length ? Math.min(...lims) * 10 : NaN, u: "mm", d: 2 }] };
-    });
+    const mems = T.mems.map(x => colMember(x, mat(x.k), gap[x.span], x.trib ? gap[x.trib] : 100, P, meth, colPlyT(mat("ply")), x.kind === "ply" ? st.defP : st.defB));
     tiers.push({ i, lo, hi, P, gap, mems });
     lo = hi;
   });
@@ -123,7 +115,7 @@ function wfCalc(st, lib = colLib()) {
     t.all = [...t.mems.flatMap(m => m.checks), t.sup];
   });
   const all = tiers.flatMap(t => t.all);
-  return { T, H, g, cap, pb, pAt, c, tiers, err, mat, sp, pipe, braces, lin,
+  return { T, H, g, cap, pb, pAt, meth, tiers, err, mat, sp, pipe, braces, lin,
     ng: all.filter(x => colJudge(x)[1] === "bad").length, miss: all.filter(x => colJudge(x)[1] === "").length };
 }
 
@@ -199,7 +191,7 @@ function tabWallForm(box) {
           <div class="field"><label>鋼管斜撐</label><select id="wfPipe">${WF_PIPES.map(p => `<option value="${p.id}" ${p.id === pipeSel ? "selected" : ""}>${p.n}</option>`).join("")}<option value="" ${pipeSel ? "" : "selected"}>自訂</option></select></div>
           <div class="field"><label>鋼管外徑 D（cm）</label>${inp("pipe.D", st.pipe.D)}</div>
           <div class="field"><label>鋼管厚度 t（cm）</label>${inp("pipe.t", st.pipe.t)}</div>`}
-          <div class="field"><label>構件計算方式</label>${sel("cont", [["c", "三跨以上連續"], ["s", "簡支（保守）"]], st.cont)}</div>
+          <div class="field"><label>構件計算方式</label>${sel("meth", Object.entries(COL_METHODS).map(([k, x]) => [k, x.n]), st.meth)}</div>
           <div class="field"><label>襯板撓度限制 L／?</label>${inp("defP.n", st.defP.n, "可空白")}</div>
           <div class="field"><label>襯板撓度上限（mm）</label>${inp("defP.a", st.defP.a, "可空白")}</div>
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
@@ -246,7 +238,7 @@ function tabWallForm(box) {
       <div class="tblwrap"><table class="ct cfres"><tr><th>構件（${T.n}）</th>${r.tiers.map(t => `<th>${COL_TIER_N[t.i]}<br><small>P ${fmt(t.P, 3)}</small></th>`).join("")}</tr>${rows.join("")}</table></div>
       <p class="cnote">表中數字為「計算值 ÷ 容許值」，≤ 1 為 OK；未填容許值時顯示計算值。P 單位 kgf/cm²。</p>
       ${r.tiers.map(t => `<details class="cfdet"><summary>${COL_TIER_N[t.i]}（${fmt(t.lo, 0)}～${fmt(t.hi, 0)} cm）計算明細</summary>
-        ${t.mems.map(m => `<p class="cfdh">${m.x.n}：L ${fmt(m.L, 1)} cm，受載寬 ${fmt(m.trib, 1)} cm，w ${fmt(m.w, 3)} kgf/cm，M ${fmt(m.M, 0)} kgf·cm，V ${fmt(m.V, 1)} kgf</p>
+        ${t.mems.map(m => `<p class="cfdh">${colMemText(m, fmt)}</p>
           ${m.checks.map(c => `<div class="big"><span>${c.t}</span><b>${fmt(c.v, c.d)}${c.a > 0 ? ` ／ ${fmt(c.a, c.d)}` : ""} ${c.u} <em class="cfj ${colJudge(c)[1]}">${colJudge(c)[0]}</em></b></div>`).join("")}`).join("")}
         ${supDet(t)}</details>`).join("")}`;
   };
@@ -312,7 +304,8 @@ function renderWallSheet() {
         <tr><td>側壓力</td><td colspan="3">${esc(wfPressNote(r))}${r.lin && colF(st.pmax) > 0 ? `；上限 ${esc(st.pmax)} t/m²` : ""}</td></tr>
       </table>
       <table class="pt">
-        <tr><th colspan="4">二、材料規格（${r.c.n}；M = ${r.c.mt}、V = ${r.c.v}wL、δ = ${r.c.dt}）</th></tr>
+        <tr><th colspan="4">二、材料規格</th></tr>
+        <tr><td>計算方式</td><td colspan="3">${colMethText(st.meth)}</td></tr>
         ${T.mems.map(x => matRow(x.n, r.mat(x.k), allow)).join("")}
         ${T.sup === "tie" ? matRow("螺桿", r.mat("tie"), m => `${m.bolt ? `；Ft ${esc(st.tieFt) || "—"} kgf/cm²` : ""}；容許拉力 ${esc(m.ta) || "—"} kgf`)
           : `<tr><td>鋼管斜撐</td><td colspan="3">圓管 D${esc(st.pipe.D)} × t${esc(st.pipe.t)} cm：A ${v(r.pipe?.A, 3)} cm²、I ${v(r.pipe?.I, 3)} cm⁴、r ${v(r.pipe?.r, 3)} cm；Fy ${COL_STEEL.fy}、E ${COL_STEEL.E} kgf/cm²</td></tr>`}
@@ -329,7 +322,7 @@ function renderWallSheet() {
       ${r.tiers.map(t => `<table class="pt">
         <tr><th colspan="6">${["四", "五", "六", "七"][t.i]}、${COL_TIER_N[t.i]}檢核（${v(t.lo, 0)}～${v(t.hi, 0)} cm，P = ${v(t.P, 3)} kgf/cm²）</th></tr>
         <tr><th>項目</th><th>計算值</th><th>容許值</th><th>單位</th><th>比值</th><th>判定</th></tr>
-        ${t.mems.map(m => `<tr><td colspan="6">${m.x.n}：L = ${v(m.L, 1)} cm，w = P × ${m.x.trib || "100"} = ${v(m.w, 3)} kgf/cm，M = ${v(m.M, 0)} kgf·cm，V = ${v(m.V, 1)} kgf</td></tr>${m.checks.map(crow).join("")}`).join("")}
+        ${t.mems.map(m => `<tr><td colspan="6">${colMemText(m, v)}</td></tr>${m.checks.map(crow).join("")}`).join("")}
         ${supRows(t)}
       </table>`).join("")}`}
       <table class="pt"><tr><th>檢核結果</th><td>${r.err.length ? "分階高度有誤" : r.ng ? `${r.ng} 項超過容許值` : r.miss ? `尚有 ${r.miss} 項未完成` : "全部在容許值以內"}</td></tr>
