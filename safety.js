@@ -6,6 +6,17 @@
 
 const SA_RISKS = ["墜落／高架作業（2 公尺以上、施工架、鋼構）", "吊掛／起重升降作業", "局限空間作業", "動火作業", "活線／感電作業", "營造危險作業（開挖、擋土、模板支撐、拆除）", "機械設備操作作業（被捲、被夾、被切割）", "特別危害健康作業（高溫、噪音、輻射、異常氣壓）"];
 const SA_HAZARDS = ["墜落、滾落", "感電", "物體飛落、倒塌、崩塌", "被夾、被捲、被撞", "火災、爆炸", "缺氧、中毒", "個人防護具正確使用（安全帽、安全帶、安全鞋…）", "機具設備與車輛動線", "天氣與環境（高溫、強風、下雨）"];
+// 勾高風險作業時自動勾的危害告知項目（工具預設，非法規原文；帶入後可自行取消或加勾）
+const SA_RISK_HAZ = {
+  [SA_RISKS[0]]: ["墜落、滾落", "物體飛落、倒塌、崩塌", "個人防護具正確使用（安全帽、安全帶、安全鞋…）", "天氣與環境（高溫、強風、下雨）"],
+  [SA_RISKS[1]]: ["物體飛落、倒塌、崩塌", "被夾、被捲、被撞", "機具設備與車輛動線", "個人防護具正確使用（安全帽、安全帶、安全鞋…）"],
+  [SA_RISKS[2]]: ["缺氧、中毒", "火災、爆炸", "個人防護具正確使用（安全帽、安全帶、安全鞋…）"],
+  [SA_RISKS[3]]: ["火災、爆炸", "個人防護具正確使用（安全帽、安全帶、安全鞋…）"],
+  [SA_RISKS[4]]: ["感電", "個人防護具正確使用（安全帽、安全帶、安全鞋…）"],
+  [SA_RISKS[5]]: ["物體飛落、倒塌、崩塌", "墜落、滾落", "被夾、被捲、被撞", "機具設備與車輛動線"],
+  [SA_RISKS[6]]: ["被夾、被捲、被撞", "機具設備與車輛動線", "個人防護具正確使用（安全帽、安全帶、安全鞋…）"],
+  [SA_RISKS[7]]: ["天氣與環境（高溫、強風、下雨）", "個人防護具正確使用（安全帽、安全帶、安全鞋…）"]
+};
 const SA_STATEMENT = "以上人員已於作業前接受本日工作內容、作業環境、危害因素及安全衛生注意事項之告知，並確實遵守。";
 const SA_PAGE = 9;
 
@@ -59,23 +70,34 @@ async function renderSafetyForm(id) {
     <h2 class="t" style="margin-bottom:0">勤前教育／危害告知</h2><div id="saSaved" class="saved">✓ 內容會自動暫存</div>
     <div class="panel"><div class="grid2">${f("date", "日期", "", "date")}${f("time", "時間", "", "time")}</div>
       ${f("place", "地點／作業區域", "例：3F 樓板、地下室開挖區")}${f("host", "主持人（工地負責人）", "姓名")}${f("content", "今日工作內容", "例：3F 柱鋼筋綁紮、模板組立")}</div>
-    <div class="panel"><b>今日高風險作業</b> <small style="color:var(--mut)">有就勾</small>
+    <div class="panel"><b>今日高風險作業</b> <small style="color:var(--mut)">有就勾，會自動勾下方相關的危害告知（工具預設，非法規原文，可自行增減）</small>
       <div class="chips" style="margin:8px 0 0" id="saRisks">${[...cfg.risks, ...r.risks.filter(x => !cfg.risks.includes(x))].map(x => `<button type="button" class="chip ${r.risks.includes(x) ? "on" : ""}" data-risk="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>
-    <div class="panel"><b>危害告知項目</b> <small style="color:var(--mut)">已告知的打勾</small>
+    <div class="panel"><b>危害告知項目</b> <small style="color:var(--mut)">已告知的打勾</small><small id="saAuto" role="status" style="display:block;color:var(--g);min-height:1em"></small>
       <div class="timing" style="flex-direction:column;gap:10px;margin-top:8px" id="saHaz">${[...cfg.hazards, ...r.hazards.filter(x => !cfg.hazards.includes(x))].map(x => `<label><input type="checkbox" data-haz="${esc(x)}" ${r.hazards.includes(x) ? "checked" : ""}> ${esc(x)}</label>`).join("")}</div>
       <div class="field" style="margin-top:10px"><label>其他告知事項（可空白）</label><input data-f="extra" placeholder="例：今日有吊車作業，下方禁止進入" value="${esc(r.extra)}"></div></div>
     <div class="panel"><b>全體合照</b><div class="phrow"><button type="button" class="phbtn" id="saCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="saFile"></label><div class="thumbs" id="saTh"></div></div></div>
     <h2 class="t" style="font-size:17px;margin-bottom:0">簽到（傳閱手機）</h2>
-    <p class="cnote" style="margin:0 12px 6px">${esc(cfg.statement)}<br>請每位人員填姓名，再點自己那格的「點此簽名」，在跳出的大簽名框裡用手指簽名、按「確認」。</p>
-    <div class="row" style="margin:0 12px 8px"><button class="sec" id="saPrev" ${all.length ? "" : "disabled"}>📋 帶入上次名單</button><button class="sec" id="saMore">＋ 再加 9 人</button></div>
+    <p class="cnote" style="margin:0 12px 6px">${esc(cfg.statement)}<br>最後一格有人填寫後，會自動在後面多一格。請每位人員填姓名，再點自己那格的「點此簽名」，在跳出的大簽名框裡用手指簽名、按「確認」。</p>
+    <div class="row" style="margin:0 12px 8px"><button class="sec" id="saPrev" ${all.length ? "" : "disabled"}>📋 帶入上次名單</button><button class="sec" id="saMore">＋ 加 1 人</button></div>
     <div id="saGrid"></div>
     <datalist id="saNames">${known("name").map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="saCos">${known("co").map(x => `<option value="${esc(x)}">`).join("")}</datalist>
-    <div class="panel"><b>主持人簽名</b><button type="button" class="sasig" id="saHostSig" style="margin-top:8px"></button></div>
+    <div class="panel"><b>主持人簽名</b><div class="field" style="margin-top:8px"><label>主持人姓名（與上方同步）</label><input id="saHostName" placeholder="姓名" value="${esc(r.host)}"></div><button type="button" class="sasig" id="saHostSig"></button></div>
     ${attBlock("附加檔案（危害告知單、教育訓練資料等）")}
     <div class="row"><button class="sec" id="saPrint">👁 預覽／列印（A4）</button></div>
     <div class="row"><button class="danger" id="saDel">刪除這筆紀錄</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = () => { r[el.dataset.f] = el.value; save(); });
-  $("#saRisks").onclick = e => { const b = e.target.closest("[data-risk]"); if (!b) return; const k = b.dataset.risk; r.risks = r.risks.includes(k) ? r.risks.filter(x => x !== k) : [...r.risks, k]; b.classList.toggle("on"); save(); };
+  $("#saRisks").onclick = e => {
+    const b = e.target.closest("[data-risk]"); if (!b) return; const k = b.dataset.risk, on = !r.risks.includes(k);
+    r.risks = on ? [...r.risks, k] : r.risks.filter(x => x !== k); b.classList.toggle("on");
+    // 勾起時自動勾對應的危害告知（只加不減，取消高風險作業不會取消已勾的項目）
+    let n = 0;
+    if (on) for (const h of SA_RISK_HAZ[k] || []) {
+      const box = [...view.querySelectorAll("[data-haz]")].find(x => x.dataset.haz === h);
+      if (box && !box.checked) { box.checked = true; r.hazards = [...r.hazards, h]; n++; }
+    }
+    $("#saAuto").textContent = n ? `已自動勾選 ${n} 項危害告知，可再自行增減。` : "";
+    save();
+  };
   $("#saHaz").onchange = e => { const k = e.target.dataset?.haz; if (k === undefined) return; r.hazards = e.target.checked ? [...r.hazards, k] : r.hazards.filter(x => x !== k); save(); };
   // 全體合照
   const drawTh = () => { $("#saTh").innerHTML = photos.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
@@ -96,32 +118,45 @@ async function renderSafetyForm(id) {
     if (cur && !confirm(`${title}已經簽過了，要重新簽名嗎？`)) return;
     saSigPad(title, cur, done);
   };
-  const drawGrid = () => {
-    const pages = []; for (let i = 0; i < r.people.length; i += SA_PAGE) pages.push(r.people.slice(i, i + SA_PAGE));
-    $("#saGrid").innerHTML = pages.map((pg, pi) => `${pages.length > 1 ? `<small class="cnote" style="margin:4px 12px;display:block">第 ${pi + 1} 頁</small>` : ""}<div class="sagrid">${pg.map(p => `<div class="sacell" data-a="${esc(p.id)}"><button type="button" class="sax" data-rm="${esc(p.id)}" aria-label="刪除這格">✕</button>
+  // 不分頁、一格一格加：最後一格有人填姓名或簽名，就自動在後面多開一格空白的
+  const cellHtml = p => `<div class="sacell" data-a="${esc(p.id)}"><button type="button" class="sax" data-rm="${esc(p.id)}" aria-label="刪除這格">✕</button>
       <div class="sarow"><input data-n="name" placeholder="姓名" list="saNames" value="${esc(p.name)}"><input data-n="co" placeholder="單位／工班" list="saCos" value="${esc(p.co)}"></div>
-      <button type="button" class="sasig" data-sg="${esc(p.id)}"></button><div class="sabar"><small>${pi * SA_PAGE + pg.indexOf(p) + 1}</small></div></div>`).join("")}</div>`).join("");
-    $("#saGrid").querySelectorAll(".sacell").forEach(cell => {
-      const p = r.people.find(x => x.id === cell.dataset.a);
-      cell.querySelectorAll("[data-n]").forEach(el => el.oninput = () => { p[el.dataset.n] = el.value; save(); });
-      const sb = $("[data-sg]", cell); sigBtn(sb, p.sig);
-      sb.onclick = () => {
-        const no = r.people.indexOf(p) + 1;
-        askSign(p.name ? `${p.name}` : `第 ${no} 格`, p.sig, sig => { p.sig = sig; sigBtn(sb, sig); save(); });
-      };
-      $("[data-rm]", cell).onclick = () => { if ((p.name || p.sig) && !confirm("刪除這一格（含姓名與簽名）？")) return; r.people = r.people.filter(x => x.id !== p.id); if (!r.people.length) r.people = saCells(); drawGrid(); save(); };
-    });
+      <button type="button" class="sasig" data-sg="${esc(p.id)}"></button><div class="sabar"><small data-no></small></div></div>`;
+  const renumber = () => $("#saGrid").querySelectorAll("[data-no]").forEach((x, i) => { x.textContent = i + 1; });
+  const addCell = () => {
+    const p = saCells(1)[0]; r.people.push(p);
+    $("#saGrid .sagrid").insertAdjacentHTML("beforeend", cellHtml(p));
+    bindCell($("#saGrid .sagrid").lastElementChild); renumber(); return p;
+  };
+  const autoMore = p => { if (r.people[r.people.length - 1] === p && (p.name.trim() || p.sig)) addCell(); };
+  const bindCell = cell => {
+    const p = r.people.find(x => x.id === cell.dataset.a);
+    cell.querySelectorAll("[data-n]").forEach(el => el.oninput = () => { p[el.dataset.n] = el.value; autoMore(p); save(); });
+    const sb = $("[data-sg]", cell); sigBtn(sb, p.sig);
+    sb.onclick = () => {
+      const no = r.people.indexOf(p) + 1;
+      askSign(p.name ? `${p.name}` : `第 ${no} 格`, p.sig, sig => { p.sig = sig; sigBtn(sb, sig); autoMore(p); save(); });
+    };
+    $("[data-rm]", cell).onclick = () => { if ((p.name || p.sig) && !confirm("刪除這一格（含姓名與簽名）？")) return; r.people = r.people.filter(x => x.id !== p.id); if (!r.people.length) r.people = saCells(); drawGrid(); save(); };
+  };
+  const drawGrid = () => {
+    $("#saGrid").innerHTML = `<div class="sagrid">${r.people.map(cellHtml).join("")}</div>`;
+    $("#saGrid").querySelectorAll(".sacell").forEach(bindCell); renumber();
   };
   drawGrid();
-  $("#saMore").onclick = () => { r.people = [...r.people, ...saCells()]; drawGrid(); save(); };
+  $("#saMore").onclick = () => { addCell(); const c = $("#saGrid .sagrid").lastElementChild; c.scrollIntoView({ block: "center" }); $("[data-n=name]", c).focus({ preventScroll: true }); save(); };
   $("#saPrev").onclick = () => {
     const prev = all[0]; if (!prev) return;
     const names = prev.people.filter(p => p.name).map(p => ({ id: uid(), name: p.name, co: p.co, sig: "" }));
     if (!names.length) { alert("上次紀錄沒有填姓名。"); return; }
     if (r.people.some(p => p.name || p.sig) && !confirm(`目前這張已經有人填寫，帶入上次的 ${names.length} 人（不含簽名）會取代目前名單，確定嗎？`)) return;
-    r.people = names; while (r.people.length % SA_PAGE) r.people.push(...saCells(1)); drawGrid(); save();
+    r.people = [...names, ...saCells(1)]; drawGrid(); save();
   };
   // 主持人簽名
+  // 主持人姓名：上方欄位與簽名旁欄位同步（同一個 r.host）
+  const hostTop = view.querySelector('[data-f="host"]'), hostBot = $("#saHostName");
+  hostTop.addEventListener("input", () => { hostBot.value = hostTop.value; });
+  hostBot.oninput = () => { hostTop.value = hostBot.value; r.host = hostBot.value; save(); };
   const hb = $("#saHostSig"); sigBtn(hb, r.hostSig);
   hb.onclick = () => askSign(r.host ? `主持人 ${r.host}` : "主持人", r.hostSig, sig => { r.hostSig = sig; sigBtn(hb, sig); save(); });
   attBind(view, id);
