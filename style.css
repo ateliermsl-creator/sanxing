@@ -423,4 +423,5 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
   #copyright{max-width:1080px}
   #view:has(> .hero){grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+@media screen and (min-width:1200px){body.snOff{padding-left:0}body.snOff #sideNav{display:none}}   /* 首頁不顯示側欄，避免和功能卡片重複 */
 @media print{#sideNav{display:none!important}body{padding-left:0!important}}

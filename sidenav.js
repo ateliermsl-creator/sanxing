@@ -1,6 +1,6 @@
 "use strict";
 /* 電腦版左側導覽列（易用性 C）
-   只有螢幕寬度 ≥ 1200px 時由 CSS 顯示（style.css 最下方「電腦版自動排版」），手機與平板看不到、版面不變。
+   只有螢幕寬度 ≥ 1200px、而且不在首頁時由 CSS 顯示（style.css 最下方「電腦版自動排版」），手機與平板看不到、版面不變。
    新增首頁功能時，這裡也加一筆。 */
 (() => {
   const ITEMS = [
@@ -25,6 +25,7 @@
   document.body.prepend(nav);
   const mark = () => {
     const page = "#/" + (location.hash.split("/")[1] || "");
+    document.body.classList.toggle("snOff", page === "#/");   // 首頁本身就是功能卡片，不再重複顯示左側選單（使用者要求，參考 realizcalc.com 首頁）
     nav.querySelectorAll("a[data-h]").forEach(a => {
       const on = a.dataset.h === page || (page === "#/template" && a.dataset.h === "#/checklist");
       a.classList.toggle("on", on);
