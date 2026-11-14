@@ -278,7 +278,7 @@ const STRUCT_CATS = [
   { k: "form", icon: "🧱", t: "模板結構計算", d: "側壓力・襯板・格柵・螺桿・支撐挫曲", tabs: ["col", "wall", "slab", "beam"] },
   { k: "scaf", icon: "🏗️", t: "施工架結構計算", d: "主柱・壁連座・托架・樓板支撐", tabs: ["scaf", "brk", "row"] },
   { k: "conc", icon: "🔩", t: "混凝土構造", d: "ACI 318 第 17 章架構・拉剪互制", tabs: ["anc"] },
-  { k: "other", icon: "📐", t: "其他工具", d: "多邊形斷面・慣性矩・斷面模數", tabs: ["sec"] }
+  { k: "other", icon: "📏", t: "其他工具", d: "多邊形斷面・慣性矩・斷面模數", tabs: ["sec"] }
 ];
 const STRUCT_SHEETS = { col: () => renderColSheet(), wall: () => renderWallSheet(), slab: () => renderSlabSheet(), beam: () => renderBeamSheet(), scaf: () => renderScafSheet(), brk: () => renderBrkSheet(), row: () => renderRowSheet(), anc: () => renderAncSheet(), sec: () => renderSecSheet() };
 const structCatOf = tab => STRUCT_CATS.find(c => c.tabs.includes(tab));
