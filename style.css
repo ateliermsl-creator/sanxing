@@ -406,7 +406,7 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
   #calcBox:has(> .cfsteps){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
   #calcBox:has(> .cfsteps) > *{grid-column:1}
   #calcBox:has(> .cfsteps) > section.panel:last-of-type{grid-column:2;grid-row:1 / span 30;position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;overscroll-behavior:contain}
-  #calcBox:has(> .cfsteps) .cfsteps a[href$="4"]:last-child,#calcBox:has(> .cfsteps) .cfsteps a[href$="5"]:last-child{display:none}
+  #calcBox:has(> .cfsteps) .cfsteps a:last-child{display:none}   /* 最後一步是「檢核結果」，已固定在右欄 */
 }
 @media screen and (min-width:1200px){
   body{padding-left:232px}

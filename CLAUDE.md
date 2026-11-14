@@ -21,12 +21,14 @@
 | `shot.js` | 施工照片（電子黑板相機）、照片冊 |
 | `safety.js` | 職安衛勤前教育／危害告知簽到 |
 | `log.js` | 施工日誌（B14-4 格式） |
-| `calc.js` | 工程計算機（十三個分頁） |
+| `calc.js` | 工程計算機（十五個分頁） |
 | `colform.js` | 計算機「柱模板」分頁與 A4 計算書（`#/calc/col/sheet`）；三步驟＋分階（最多 4 階）＋側壓力分布圖＋配置示意圖。輸入存在 localStorage `calcColForm2`，材料庫 `calcColLib`。使用者同意內建「他提供的」材料表（2026-11-14 參考表截圖）：`COL_SPECIES` 木材樹種容許應力、`COL_PRESETS` 襯板與木角材斷面、`COL_DEFP` 襯板撓度標準，畫面註明非規範原文。鋼材 Fb/Fv/E、鋼角材斷面、螺桿斷面積也照參考表內建；螺桿容許拉應力 Ft 預設 1800 kgf/cm²（參考網站螺桿資料 18 kgf/mm²，2026-11-14 使用者用決策卡同意帶入，可改） |
 | `wallform.js` | 計算機「牆模板」分頁與 A4 計算書（`#/calc/wall/sheet`）；三層模／四層模（螺桿）／單面模（鋼管斜撐挫曲）。材料庫、樹種、斷面與 `colform.js` 共用（`colLib`、`colLibCard`、`colRefHtml`、`colPressureSvg`）。輸入存在 localStorage `calcWallForm`。側壓力預設 1.5Wo + 0.2Wo(H−1.5)（參考網站公式，註明非規範原文，可切換成 γ×深度） |
 | `slabform.js` | 計算機「板模板」分頁與 A4 計算書（`#/calc/slab/sheet`）；載重 N = Wo×板厚 + 衝擊 0.5N1 + 作業 150 + 模板自重 15 kgf/m²（參考網站值，註明非規範原文，可改）→ 襯板 → 第一層大格柵（跨 L2）→ 第二層大格柵（跨 L3）→ 鋼管支撐挫曲（P = N×L2×L3）。支撐長 L 預設「樓高 − 板厚」（2026-11-14 使用者用決策卡選定），可改扣模板格柵高或手動。材料庫與柱模共用、鋼管與挫曲公式與牆模單面模共用（`wfPipeSect`、`wfFa`）。輸入存在 localStorage `calcSlabForm` |
 | `beamform.js` | 計算機「梁模板」分頁與 A4 計算書（`#/calc/beam/sheet`）；側模（襯板、第一層大格柵最多 5 階、第二層大格柵以螺桿分段，兩端段懸臂、螺桿最多 5 階，B4 = L2）＋底模（梁底襯板、貫材 1～3 支，L3 = Bb／支數）＋鋼管支撐（梁寬方向 1～3 支，L = 樓高 − 梁深或手動）。載重同板模板（N 用梁深 Hb），側壓力 p(z) = N(Hb − z)/Hb（參考網站 beam-view.js，非規範原文）。梁底襯板除參考網站的邊距外，貫材 2 支以上另檢核貫材間跨距。輸入存在 localStorage `calcBeamForm` |
 | `scaffold.js` | 計算機「施工架」分頁（外牆框型施工架）與 A4 計算書（`#/calc/scaf/sheet`）。單件自重取參考網站自重表（使用者試算表）；每支主柱 D = 單跨自重×層數/2、L = q×跨距×立架寬×作業層數/2、Ev = Cv×D；每支壁連座 A = 水平×垂直間距，W = η×風壓×A，Eh = Ch×分擔自重。六組載重組合同參考網站。參考網站的強度檢核在伺服器端看不到，主柱與壁連座用極限設計法柱公式（λc、0.658^λc²、0.877/λc²），φc 0.85／φt 0.9／φv 0.9、剪力 0.6FyA，皆可改。**風壓、地震係數、活載重、壁連座間距上限一律由使用者填**（不內建各地風速、工址參數與法規間距）。輸入存在 localStorage `calcScafForm` |
+| `bracket.js` | 計算機「三角架」分頁與 A4 計算書（`#/calc/brk/sheet`）。型式 1～5 幾何同參考網站 bracket.js；P = 1.2PD + 1.6PL、自重 ×1.2。`bkSolve` 是自寫的平面構架直接勁度法（梁＋桁架元素，靠牆兩點固定），測試有懸臂、固端梁與反力平衡驗證。檢核只做托架平面內：受壓（同 `scFcr`）、受拉、彎矩 φbFyS（彈性，保守）、剪力 0.6FyAw、H1 互制；φ 可改。輸入存在 localStorage `calcBrkForm` |
+| `rowframe.js` | 計算機「排架」分頁與 A4 計算書（`#/calc/row/sheet`）。沿用 `scaffold.js` 的自重表與 `scRound`、`scFcr`。D = 單跨自重×層數/2 + qd×面積/2，q = max(輸入, 最小活載 2.4 kPa, 4.8 kPa − qd)（參考網站引 ACI 347R-14，當可改預設、可清空）。地震只有不考慮／直接輸入。輸入存在 localStorage `calcRowForm` |
 | `calcbar.js` | 計算機底部「結果摘要列」：只讀畫面上的「總結」列與 `.cfres` 的 `td.ok／td.bad`，不碰計算；新計算機沿用同樣結構就自動套用。結果區在畫面上時自動隱藏 |
 | `sidenav.js` | 電腦版左側導覽列（≥ 1200px 才顯示）；新增首頁功能時這裡也加一筆 |
 | `sw.js` | Service Worker（網路優先、離線備援） |
