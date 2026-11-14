@@ -349,4 +349,78 @@ section.panel{scroll-margin-top:64px}
 .cfpaper .pt .c{font-size:inherit}.cfpaper .pt th[colspan]{text-align:left}.cfpaper .pt{margin-bottom:3mm}
 .sfpost{fill:var(--card)}.cfpaper .sfpost{fill:#fff}
 .cfpaper .cffig{margin:0 0 3mm}.cfpaper .cfsvg{color:#000;max-width:100%}.cfpaper .cffig .cnote{color:#000;font-size:8.5pt}
+/* ===== 易用性：戶外可讀性與觸控（2026-11-14 UX 檢視 A1～A3） =====
+   次要文字對比提高到 ≥ 4.5:1（仍維持侘寂低彩度，只深一階）；按鈕至少 44px；螢幕上表格字至少 13px（A4 單據不受影響） */
+:root{--mut:#665f50;--ok:#56633f}
+.st-未填{color:var(--mut)}.st-填寫中{color:#7a5418}
+.hero p{color:#5d5948}
+@media screen{
+  #view button:not(.th button):not(.sax),#view .btnlink,#view label.phbtn{min-height:44px!important}
+  .cfsteps a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px}
+  .hint a{display:inline-flex;align-items:center;min-height:44px;padding:0 6px}
+  .th button::after,.sacell .sax::after{content:"";position:absolute;inset:-9px 0 -9px -18px}
+  .cftiers th,.cfres th,.cfref th{font-size:13px}
+  .cfres td small,.cfres th small,.cfref th small{font-size:12px}
+  .panel .kpi span{font-size:13px;color:var(--mut)}
+  .tag{font-size:13px}
+}
+.sacell .sax{background:var(--mut)}
 .sctie{stroke:var(--bad)}.cfpaper .sctie{stroke:#000}
+/* ===== 計算機結果摘要列（calcbar.js）與 OK／NG 標示（UX B1、B2） ===== */
+#calcBar{position:fixed;left:0;right:0;bottom:0;z-index:20;max-width:720px;margin:0 auto;display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 14px calc(env(safe-area-inset-bottom) + 8px);background:var(--card);border-top:2px solid var(--line);box-shadow:0 -4px 14px rgba(55,51,43,.12);cursor:pointer}
+#calcBar[hidden]{display:none}
+#calcBar .cbtxt{flex:1;min-width:0}
+#calcBar b{display:block;font-size:17px}
+#calcBar span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;font-size:13px;line-height:1.35;color:var(--mut);overflow:hidden}
+#calcBar i{font-style:normal;flex:none;font-size:14px;font-weight:600;color:var(--g)}
+#calcBar.ok b{color:var(--ok)}
+#calcBar.bad{background:#ecdcd3;border-top-color:var(--bad)}#calcBar.bad b{color:var(--bad)}
+#calcBar.mut b{color:var(--tx);font-size:15px}
+body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
+@media print{#calcBar{display:none!important}}
+/* 檢核表：NG 加字樣與底色、OK 加勾，不只靠顏色分辨（色弱、陽光下也看得出） */
+.cfres td.bad{background:#ecdcd3!important;font-weight:700}
+.cfres td.bad small{font-weight:700}
+.cfres td.bad small::before{content:"✕ "}
+.cfres td.ok small::before{content:"✓ "}
+#view .cfj.bad:not(.paper *)::before{content:"✕ "}
+#view .cfj.ok:not(.paper *)::before{content:"✓ "}
+.cfres tr.cbflash>*{animation:cbflash 1.6s ease-out}
+@keyframes cbflash{0%,40%{box-shadow:inset 0 0 0 3px var(--bad)}100%{box-shadow:none}}
+/* ===== 電腦版自動排版（UX C）：依螢幕寬度自動切換，手機（< 768px）完全不變 ===== */
+#sideNav{display:none}
+@media screen and (min-width:768px){
+  main{max-width:900px}
+  #copyright{max-width:900px}
+  /* 首頁功能卡片改格狀 */
+  #view:has(> .hero){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;padding:0 12px 40px}
+  #view:has(> .hero) > :not(.card){grid-column:1 / -1}
+  #view:has(> .hero) > .card{margin:6px 0}
+  #view:has(> .hero) > .panel,#view:has(> .hero) > .hint{margin-left:0;margin-right:0}
+  #topbar select{flex:0 1 420px}
+  #topbar #addSiteBtn{margin-left:auto}
+}
+@media screen and (min-width:1024px){
+  /* 模板與施工架計算機：左邊輸入、右邊固定顯示檢核結果，改數字立刻看到 */
+  main:has(#calcBox > .cfsteps){max-width:1240px}
+  #calcBox:has(> .cfsteps){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
+  #calcBox:has(> .cfsteps) > *{grid-column:1}
+  #calcBox:has(> .cfsteps) > section.panel:last-of-type{grid-column:2;grid-row:1 / span 30;position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;overscroll-behavior:contain}
+  #calcBox:has(> .cfsteps) .cfsteps a:last-child{display:none}   /* 最後一步是「檢核結果」，已固定在右欄 */
+}
+@media screen and (min-width:1200px){
+  body{padding-left:232px}
+  #sideNav{display:flex;flex-direction:column;gap:2px;position:fixed;top:0;bottom:0;left:0;width:232px;z-index:6;overflow-y:auto;padding:14px 10px 20px;background:var(--card);border-right:1px solid var(--line)}
+  #sideNav a{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;border-radius:6px;color:var(--tx);text-decoration:none;font-size:15px}
+  #sideNav a span{width:24px;text-align:center;flex:none}
+  #sideNav a:hover{background:#e9e3d6}
+  #sideNav a.on{background:var(--g);color:#f5f1e8;font-weight:600}
+  #sideNav .snBrand{gap:10px;margin-bottom:10px;padding:4px 8px 12px;border-bottom:1px solid var(--line);border-radius:0;font-family:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;font-weight:600;letter-spacing:.12em;color:#3d3a2e}
+  #sideNav .snBrand span{width:auto;font-size:17px}
+  #sideNav .snBrand img{width:40px;height:40px;border-radius:8px;filter:saturate(.7) sepia(.15)}
+  #sideNav .snBrand:hover{background:transparent}
+  main{max-width:1080px}
+  #copyright{max-width:1080px}
+  #view:has(> .hero){grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media print{#sideNav{display:none!important}body{padding-left:0!important}}

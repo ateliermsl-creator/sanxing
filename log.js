@@ -117,7 +117,7 @@ async function renderLogForm(id) {
     const defs = key === "techRows" ? [["kind", "技術士種類", "text"], ["count", "人數", "decimal"], ["name", "姓名", "text"], ["cert", "證書字號", "text"], ["note", "備註", "text"]] : lgSecs[key];
     const wrap = $("#lg_" + key), rows = r[key];
     wrap.innerHTML = rows.map((row, i) => `<div class="lgrow" data-i="${i}">
-      <div class="lghead"><b>${key === "specials" ? String.fromCharCode(65 + i) + "." : i + 1}</b>${key === "techRows" ? "" : `<span class="lgcum"></span>`}<button type="button" class="danger" data-rm="${i}" aria-label="刪除" style="min-height:32px;width:36px;padding:0">✕</button></div>
+      <div class="lghead"><b>${key === "specials" ? String.fromCharCode(65 + i) + "." : i + 1}</b>${key === "techRows" ? "" : `<span class="lgcum"></span>`}<button type="button" class="danger" data-rm="${i}" aria-label="刪除" style="min-height:44px;width:44px;padding:0">✕</button></div>
       <div class="lggrid">${defs.map(([k, l, m]) => `<div class="field" style="margin:0;${k === "name" || k === "note" || k === "cert" ? "grid-column:1/-1" : ""}"><label>${l}</label><input data-k="${k}" ${m === "decimal" ? 'inputmode="decimal"' : ""} value="${esc(row[k])}"></div>`).join("")}</div>
       ${key === "techRows" ? `<canvas data-sig="${esc(row.id)}" class="lgsig"></canvas><button class="sec" data-clr="${esc(row.id)}" style="min-height:32px;font-size:13px">清除簽名</button>` : ""}</div>`).join("");
     const cumOf = row => lgSum(row.prev, row.today);

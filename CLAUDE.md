@@ -30,6 +30,8 @@
 | `bracket.js` | 計算機「三角架」分頁與 A4 計算書（`#/calc/brk/sheet`）。型式 1～5 幾何同參考網站 bracket.js；P = 1.2PD + 1.6PL、自重 ×1.2。`bkSolve` 是自寫的平面構架直接勁度法（梁＋桁架元素，靠牆兩點固定），測試有懸臂、固端梁與反力平衡驗證。檢核只做托架平面內：受壓（同 `scFcr`）、受拉、彎矩 φbFyS（彈性，保守）、剪力 0.6FyAw、H1 互制；φ 可改。輸入存在 localStorage `calcBrkForm` |
 | `rowframe.js` | 計算機「排架」分頁與 A4 計算書（`#/calc/row/sheet`）。沿用 `scaffold.js` 的自重表與 `scRound`、`scFcr`。D = 單跨自重×層數/2 + qd×面積/2，q = max(輸入, 最小活載 2.4 kPa, 4.8 kPa − qd)（參考網站引 ACI 347R-14，當可改預設、可清空）。地震只有不考慮／直接輸入。輸入存在 localStorage `calcRowForm` |
 | `anchor.js` | 計算機「錨栓」分頁與 A4 計算書（`#/calc/anc/sheet`）。依 ACI 318-19 第 17 章架構自寫，SI 係數換算 kgf-cm（`ANC_K`）；受力分配為剛性鋼承板、只計錨栓。檢核鋼材拉／剪、混凝土拉破（ψec、ψed、ψc、ψcp、三邊近邊 hef 修正）、拔出（後置式填產品 Np）、側面爆裂（預埋）、剪破（X、Y 各朝受剪邊）、撬破、互制。未做黏結式、地震額外要求。輸入存在 localStorage `calcAncForm`。連動：施工架結果「帶入三角架」寫 `calcBrkForm` 的 PD/PL；三角架「支承反力帶入錨栓」寫 `calcAncForm`（P = Rx、Vy = −Ry、Mx = −Mz，同參考網站） |
+| `calcbar.js` | 計算機底部「結果摘要列」：只讀畫面上的「總結」列與 `.cfres` 的 `td.ok／td.bad`，不碰計算；新計算機沿用同樣結構就自動套用。結果區在畫面上時自動隱藏 |
+| `sidenav.js` | 電腦版左側導覽列（≥ 1200px 才顯示）；新增首頁功能時這裡也加一筆 |
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
@@ -53,6 +55,7 @@
 - 配色是「侘寂風」，變數與覆寫在 `style.css` 最下方（`:root` 重新定義）。新增元件請用 `var(--g) var(--bad) var(--ok) var(--mut) var(--line) var(--card)`，不要寫死鮮豔的顏色。
 - 單據 PDF 的分頁邏輯在 `pdf.js`：在 `tr, figure, .psigs, .kpis, .pbar` 的下緣換頁，表格列不要做超高的列。
 - 窄螢幕（320 px）不得出現橫向捲動；輸入框不要加固定寬度。
+- **電腦版自動排版**（`style.css` 最下方，依寬度自動切換，使用者要求不需手動選）：≥ 768px 首頁卡片 2 欄、≥ 1024px 模板／施工架計算機左輸入右結果（結果區要是 `#calcBox` 裡最後一個 `section.panel`，前面要有 `.cfsteps`）、≥ 1200px 左側導覽列與首頁 3 欄。手機（< 768px）不受影響。
 
 ## 測試
 `tests/` 是 Playwright 模擬測試，說明與預期結果見 `tests/README.md`。常用：
