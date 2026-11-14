@@ -1,6 +1,6 @@
 "use strict";
 /* 工地隨身工程計算機（純前端，離線可用）
-   十五個分頁：鋼筋稱號、鋼筋重量、混凝土方數、坡度與高程、面積換算、倍數換算、泥作材料、穿樑套管、柱模板（colform.js）、牆模板（wallform.js）、板模板（slabform.js）、梁模板（beamform.js）、施工架（scaffold.js）、三角架（bracket.js）、排架（rowframe.js） */
+   十六個分頁：鋼筋稱號、鋼筋重量、混凝土方數、坡度與高程、面積換算、倍數換算、泥作材料、穿樑套管、柱模板（colform.js）、牆模板（wallform.js）、板模板（slabform.js）、梁模板（beamform.js）、施工架（scaffold.js）、三角架（bracket.js）、排架（rowframe.js）、錨栓（anchor.js） */
 
 const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
@@ -316,6 +316,7 @@ function renderCalc(tab, sub) {
   if (tab === "scaf" && sub === "sheet") return renderScafSheet();  // 施工架計算書（scaffold.js）
   if (tab === "brk" && sub === "sheet") return renderBrkSheet();    // 三角架計算書（bracket.js）
   if (tab === "row" && sub === "sheet") return renderRowSheet();    // 排架計算書（rowframe.js）
+  if (tab === "anc" && sub === "sheet") return renderAncSheet();    // 錨栓計算書（anchor.js）
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
     <div class="chips">${CALC_TABS.map(([k, l]) => `<a class="chip ${k === cur[0] ? "on" : ""}" href="#/calc/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${l}</a>`).join("")}</div>

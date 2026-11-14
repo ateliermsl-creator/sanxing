@@ -21,7 +21,7 @@ const BK_PHI_DEF = { phic: "0.85", phit: "0.9", phib: "0.9", phiv: "0.9" };
 const bkSec = (kind, b, h, t, d) => ({ kind, b, h, t, d });
 const bkBlank = () => ({
   info: { proj: "", loc: "", who: "" }, type: "1", X: "150", Y: "48", y1: "8", y2: "24", x1: "40", x2: "50", q1: "50", q2: "50", s1: "20", s2: "76.2",
-  PD1: "", PD2: "", PL1: "", PL2: "", self: "1", mat: "SS400", fy: "245", wmat: "SS400", wfy: "245", E: "200000", K: "1", ...BK_PHI_DEF,
+  PD1: "", PD2: "", PL1: "", PL2: "", src: "", self: "1", mat: "SS400", fy: "245", wmat: "SS400", wfy: "245", E: "200000", K: "1", ...BK_PHI_DEF,
   sec: { top: bkSec("rhs", "40", "60", "3", "42.7"), bottom: bkSec("rhs", "40", "60", "3", "42.7"), wall: bkSec("rhs", "40", "60", "3", "42.7"), web: bkSec("angle", "40", "40", "3", "42.7") }
 });
 function bkLoad() {
@@ -263,7 +263,7 @@ function tabBracket(box) {
           ${fld("活載重 PL₂（kgf）", inp("PL2", st.PL2, "無載重填 0"))}
           ${fld("托架自重", sel("self", [["1", "計入（× 1.2）"], ["0", "不計"]], st.self))}
         </div>
-        <p class="cnote">P₁、P₂ 為施工架兩支腳柱落在上弦的載重，設計值 P = 1.2PD + 1.6PL。PD、PL 可用「施工架」分頁每支主柱的 D、L。s₁ 預設 20 cm 是參考網站的模型假設，不是法定尺寸；距牆開口的防墜措施請另依規定確認。</p>
+        ${st.src ? `<p class="cnote">${esc(st.src)}</p>` : ""}<p class="cnote">P₁、P₂ 為施工架兩支腳柱落在上弦的載重，設計值 P = 1.2PD + 1.6PL。PD、PL 可用「施工架」分頁每支主柱的 D、L。s₁ 預設 20 cm 是參考網站的模型假設，不是法定尺寸；距牆開口的防墜措施請另依規定確認。</p>
         <div id="bkFig"></div></section>
       <section class="panel" id="bk2"><h2><span class="cfno">2</span>斷面與材料</h2>
         <div class="grid2">
@@ -299,14 +299,24 @@ function tabBracket(box) {
         ${r.checks.map(c => `<tr><th>${c.t}</th><td>${fmt(c.v, c.d)}<small>${c.u}</small></td><td>${fmt(c.a, c.d)}</td>${cell(c)}</tr>`).join("")}</table></div>
       <p class="cnote">各桿件取比值最大的一段。比值 ≤ 1 為 OK。</p>
       <details class="cfdet"><summary>計算明細與支承反力</summary>${bkResultText(r, fmt).map(x => `<p class="cfdh">${x}</p>`).join("")}</details>`;
+    if (r.sol) {
+      $("#bkRes").insertAdjacentHTML("beforeend", `<div class="row">${r.sol.reac.map((_, i) => `<button type="button" class="sec" data-toanc="${i}">支承 ${i + 1} 反力帶入錨栓</button>`).join("")}</div><p class="cnote" style="margin-top:0">代入規則同參考網站：P = Rx、Vy = −Ry、Mx = −Mz，Vx、My、Mz 為 0。</p>`);
+      box.querySelectorAll("[data-toanc]").forEach(b => b.onclick = () => {
+        const i = +b.dataset.toanc, [Rx, Ry, Mz] = r.sol.reac[i], a = ancLoad(), z = x => Math.abs(x) < 0.005 ? "0" : fmt(x, 2);
+        Object.assign(a, { P: z(Rx), Vx: "0", Vy: z(-Ry), Mx: z(-Mz), My: "0", Mz: "0", src: `由三角架支承 ${i + 1}（距上弦 ${fmt(-r.g.supports[i][1], 1)} cm）反力帶入` });
+        ancSave(a); location.hash = "#/calc/anc";
+      });
+    }
   };
   const setv = (p, v) => { const ks = p.split("."), last = ks.pop(); let o = st; for (const k of ks) o = o[k]; o[last] = v; const el = box.querySelector(`[data-p="${p}"]`); if (el) el.value = v; };
   const thick = g => colF(st.sec[g].t);
   const autoFy = () => { if (st.mat) setv("fy", bkFyOf(st.mat, Math.max(thick("top"), thick("bottom"), thick("wall")))); if (st.wmat) setv("wfy", bkFyOf(st.wmat, thick("web"))); };
   const bind = () => {
-    box.querySelectorAll("[data-p]").forEach(el => el.oninput = el.onchange = () => {
+    box.querySelectorAll("[data-p]").forEach(el => el.oninput = el.onchange = ev => {
       const p = el.dataset.p, ks = p.split("."), last = ks.pop(); let o = st; for (const k of ks) o = o[k];
+      if (ev && ev.type === "change" && el.tagName === "INPUT" && o[last] === el.value) return;   // 輸入後失焦不重算，避免按鈕被重畫而按不到
       o[last] = el.value;
+      if (/^P[DL]/.test(p)) st.src = "";
       if (p === "type" || p.endsWith(".kind")) return draw();
       if (p === "fy") { st.mat = ""; const s = $("#bkMat"); if (s) s.value = ""; }
       if (p === "wfy") { st.wmat = ""; const s = $("#bkWmat"); if (s) s.value = ""; }
