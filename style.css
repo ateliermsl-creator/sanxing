@@ -349,3 +349,19 @@ section.panel{scroll-margin-top:64px}
 .cfpaper .pt .c{font-size:inherit}.cfpaper .pt th[colspan]{text-align:left}.cfpaper .pt{margin-bottom:3mm}
 .sfpost{fill:var(--card)}.cfpaper .sfpost{fill:#fff}
 .cfpaper .cffig{margin:0 0 3mm}.cfpaper .cfsvg{color:#000;max-width:100%}.cfpaper .cffig .cnote{color:#000;font-size:8.5pt}
+/* ===== 易用性：戶外可讀性與觸控（2026-11-14 UX 檢視 A1～A3） =====
+   次要文字對比提高到 ≥ 4.5:1（仍維持侘寂低彩度，只深一階）；按鈕至少 44px；螢幕上表格字至少 13px（A4 單據不受影響） */
+:root{--mut:#665f50;--ok:#56633f}
+.st-未填{color:var(--mut)}.st-填寫中{color:#7a5418}
+.hero p{color:#5d5948}
+@media screen{
+  #view button:not(.th button):not(.sax),#view .btnlink,#view label.phbtn{min-height:44px!important}
+  .cfsteps a{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;font-size:14px}
+  .hint a{display:inline-flex;align-items:center;min-height:44px;padding:0 6px}
+  .th button::after,.sacell .sax::after{content:"";position:absolute;inset:-9px 0 -9px -18px}
+  .cftiers th,.cfres th,.cfref th{font-size:13px}
+  .cfres td small,.cfres th small,.cfref th small{font-size:12px}
+  .panel .kpi span{font-size:13px;color:var(--mut)}
+  .tag{font-size:13px}
+}
+.sacell .sax{background:var(--mut)}
