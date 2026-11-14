@@ -22,7 +22,7 @@
 | `safety.js` | 職安衛勤前教育／危害告知簽到 |
 | `log.js` | 施工日誌（B14-4 格式） |
 | `calc.js` | 工程計算機（九個分頁） |
-| `colform.js` | 計算機「柱模板」分頁與 A4 計算書（`#/calc/col/sheet`）；輸入存在 localStorage `calcColForm`，常用材料 `calcColMat`。容許應力、E 值、撓度限制、螺桿容許拉力、側壓力上限一律由使用者填，不內建 |
+| `colform.js` | 計算機「柱模板」分頁與 A4 計算書（`#/calc/col/sheet`）；三步驟＋分階（最多 4 階）＋側壓力分布圖＋配置示意圖。輸入存在 localStorage `calcColForm2`，材料庫 `calcColLib`。使用者同意內建「他提供的」材料表當可修改預設值（加在 `COL_PRESETS`，註明非規範原文與來源）；在收到他的表之前不要自己填數值 |
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事

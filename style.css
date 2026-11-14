@@ -329,9 +329,20 @@ input[type=time]{padding-left:8px;padding-right:4px}
 .psigs div{min-width:0}
 .psigs img{max-width:100%;max-height:22mm;object-fit:contain}
 /* 柱模板（colform.js） */
-.cf-rect[hidden],.cf-cust[hidden]{display:none}
-.cfh{font-size:15px;margin:12px 0 4px;color:var(--g)}
-.cfm summary small{font-weight:500}
+.cfsteps{display:flex;gap:6px;flex-wrap:wrap;margin:0 12px 4px}
+.cfsteps a{padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--g);font-size:13px;text-decoration:none}
+.cfno{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;margin-right:6px;border-radius:6px;background:var(--g);color:#f5f1e8;font-size:13px;vertical-align:2px}
+section.panel{scroll-margin-top:64px}
+.cfh{font-size:15px;margin:14px 0 4px;color:var(--g)}
 .cfj{font-style:normal;font-weight:700;margin-left:4px}.cfj.ok{color:var(--ok)}.cfj.bad{color:var(--bad)}
-.cfsvg{display:block;width:100%;max-width:420px;height:auto;margin:0 auto 4px;color:var(--g)}
+.cfsvg{display:block;width:100%;max-width:520px;height:auto;margin:0 auto 4px;color:var(--g)}
+.cflibbox{margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:0 10px 8px}
+.cflib{border-top:1px dashed var(--line);padding:8px 0}.cflib:first-child{border-top:0}
+.cflibtop{display:flex;justify-content:space-between;align-items:center}.cflibtop button{min-height:36px;padding:0 12px}
+.cftiers th{text-align:left;font-size:12px;min-width:84px}.cftiers td{padding:3px}.cftiers input{padding:7px 6px;text-align:center}
+.cftiers .cfro{color:var(--mut)}
+.cfres th{font-size:12px;text-align:left}.cfres td small,.cfres th small{display:block;font-size:11px;font-weight:500;color:var(--mut)}
+.cfres td.ok{color:var(--ok)}.cfres td.bad{color:var(--bad)}.cfres td.bad small{color:var(--bad)}
+.cfdet{margin-top:8px}.cfdh{margin:10px 0 0;font-size:13px;color:var(--mut)}
 .cfpaper .pt .c{font-size:inherit}.cfpaper .pt th[colspan]{text-align:left}.cfpaper .pt{margin-bottom:3mm}
+.cfpaper .cffig{margin:0 0 3mm}.cfpaper .cfsvg{color:#000;max-width:100%}.cfpaper .cffig .cnote{color:#000;font-size:8.5pt}
