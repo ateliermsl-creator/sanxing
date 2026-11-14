@@ -1,5 +1,5 @@
 "use strict";
-/* 外牆框型施工架（工程計算機的「施工架」分頁，另有 A4 計算書 #/calc/scaf/sheet）
+/* 外牆框型施工架（結構計算的「施工架」分頁，另有 A4 計算書 #/struct/scaf/sheet）
    參考網站 realizcalc.com「外牆框型施工架」（2026-11-14 讀取）。強度檢核在該網站伺服器端，看不到，
    這裡的主柱與壁連座檢核是工具箱自己依極限設計法柱公式寫的簡化模型，皆註明非規範原文、係數可改。
    ‧自重（單跨單層）：立架 1 片 ＋ 交叉拉桿 × 支數 ＋ 水平拉桿 × 支數 ＋ 踏板 × 片數 ＋ 另件 ＋ 額外靜載。
@@ -254,7 +254,7 @@ function tabScaffold(box) {
         <p class="cnote">風壓與地震係數請依建築物耐風、耐震設計規範自行計算後填入（工具不內建各地風速與工址參數）。β 有填時，風力乘保留倍率 η = 1 − β（向上取至 0.1，參考網站的簡化假設）。Cv = 0.5Ch 是參考網站「直接輸入」模式的預設；φ 預設 0.85／0.9／0.9。以上皆非規範原文，可修改。</p>
         <div class="row"><button type="button" class="sec" id="scPhiDef">係數恢復預設值</button></div></section>
       <section class="panel" id="sc4"><h2><span class="cfno">4</span>檢核結果</h2><div id="scRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/scaf/sheet" id="scSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="scClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/scaf/sheet" id="scSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="scClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本頁為簡化模型：主柱只承擔垂直的 D、L、Ev，壁連座只承擔水平的風力與地震力；未計水平力造成的主柱附加軸力、彎矩與二階效應，也未檢核壁連座拉剪互制、偏心、接頭與錨定、托架與地盤承載。結果僅供施工規劃參考，施工架安全仍應依法規、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -278,7 +278,7 @@ function tabScaffold(box) {
         ${scCapText(st, r, fmt).map(x => `<p class="cfdh">${x}</p>`).join("")}</details>`;
     if (Number.isFinite(r.D) && Number.isFinite(r.Lv)) {
       $("#scRes").insertAdjacentHTML("beforeend", `<div class="row"><button type="button" class="sec" id="scToBk">帶入三角架（PD ${fmt(r.D, 2)}、PL ${fmt(r.Lv, 2)} kgf）</button></div><p class="cnote" style="margin-top:0">把每支主柱的 D、L 帶入三角架分頁的 PD₁、PD₂、PL₁、PL₂（兩腳相同）。托架以上的層數與本頁不同時，請先調整層數再帶入。</p>`);
-      $("#scToBk").onclick = () => { const b = bkLoad(); b.PD1 = b.PD2 = fmt(r.D, 2); b.PL1 = b.PL2 = fmt(r.Lv, 2); b.src = `由施工架分頁帶入（${r.levels} 層、作業 ${r.work} 層）`; bkSave(b); location.hash = "#/calc/brk"; };
+      $("#scToBk").onclick = () => { const b = bkLoad(); b.PD1 = b.PD2 = fmt(r.D, 2); b.PL1 = b.PL2 = fmt(r.Lv, 2); b.src = `由施工架分頁帶入（${r.levels} 層、作業 ${r.work} 層）`; bkSave(b); location.hash = "#/struct/brk"; };
     }
   };
   const setv = (p, v) => { const ks = p.split("."), last = ks.pop(); let o = st; for (const k of ks) o = o[k]; o[last] = v; const el = box.querySelector(`[data-p="${p}"]`); if (el) el.value = v; };
@@ -298,7 +298,7 @@ function tabScaffold(box) {
     $("#scPhiDef").onclick = () => { for (const k in SC_PHI_DEF) setv(k, SC_PHI_DEF[k]); setv("cvr", "0.5"); calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#scClear").onclick = () => { if (!confirm("清除施工架的輸入？")) return; Object.assign(st, scBlank()); draw(); };
-    $("#scSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/scaf/sheet"; };
+    $("#scSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/scaf/sheet"; };
   };
   draw();
 }
@@ -351,8 +351,8 @@ function renderScafSheet() {
         <tr><td colspan="2" style="font-size:9pt">註：簡化模型，主柱承擔垂直 D、L、Ev，壁連座承擔水平風力與地震力；未計水平力引致之主柱附加軸力、彎矩與二階效應，未檢核壁連座拉剪互制、偏心、接頭與錨定、托架與地盤承載。風壓、地震係數、活載重與間距上限由計算人員依規範與契約填寫，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#scBack").onclick = () => goBack("#/calc/scaf");
+  $("#scBack").onclick = () => goBack("#/struct/scaf");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["scaf", "施工架", tabScaffold]);
+STRUCT_TABS.push(["scaf", "施工架", tabScaffold]);

@@ -1,5 +1,5 @@
 "use strict";
-/* 梁模板組立及支撐檢核（工程計算機的「梁模板」分頁，另有 A4 計算書 #/calc/beam/sheet）
+/* 梁模板組立及支撐檢核（結構計算的「梁模板」分頁，另有 A4 計算書 #/struct/beam/sheet）
    斷面：梁寬 Bb、梁深 Hb（梁底到樓板頂，含樓板厚）、樓層高度 H。
    ‧載重（同板模板，預設值取自使用者指定的參考網站，2026-11-14 讀取，非規範原文，皆可修改）：
      N1 = Wo × Hb、N2 = 0.5 × N1、N3 作業 150 kgf/m²、N4 模板自重 15 kgf/m²，N = N1 + N2 + N3 + N4。
@@ -236,7 +236,7 @@ function tabBeamForm(box) {
         <p class="cnote">梁底貫材沿梁長方向放置、以鋼管支撐（間距 L4）為支點。梁底襯板依參考網站以邊距計算（外側邊緣須有可靠支承及固定）；貫材 2 支以上時，本工具另檢核貫材之間的跨距。支撐長的取法與挫曲長度係數（K = 1）請依實際構造確認。</p>
         <h3 class="cfh">梁模板組立及支撐配置示意圖</h3><div id="bfLay"></div></section>
       <section class="panel" id="bf5"><h2><span class="cfno">5</span>檢核結果</h2><div id="bfRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/beam/sheet" id="bfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="bfClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/beam/sheet" id="bfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="bfClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本頁只做數值計算：各構件視為均布載重的梁，螺桿檢核拉力，鋼管支撐以軸壓檢核挫曲。載重、側壓力分布、容許值由你輸入或取自參考資料，結果僅供施工規劃參考；模板支撐的安全仍應依施工規範、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -292,7 +292,7 @@ function tabBeamForm(box) {
     $("#bfLoadDef").onclick = () => { Object.assign(st, SF_LOAD_DEF); for (const k in SF_LOAD_DEF) box.querySelector(`[data-p="${k}"]`).value = SF_LOAD_DEF[k]; calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#bfClear").onclick = () => { if (!confirm("清除梁模板的輸入？（材料庫會保留）")) return; Object.assign(st, bfBlank()); draw(); };
-    $("#bfSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/beam/sheet"; };
+    $("#bfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/beam/sheet"; };
   };
   draw();
 }
@@ -347,8 +347,8 @@ function renderBeamSheet() {
         <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算（第二層大格柵兩端段以懸臂計算），螺桿檢核拉力，鋼管支撐以軸壓檢核挫曲。載重、側壓力、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#bfBack").onclick = () => goBack("#/calc/beam");
+  $("#bfBack").onclick = () => goBack("#/struct/beam");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["beam", "梁模板", tabBeamForm]);
+STRUCT_TABS.push(["beam", "梁模板", tabBeamForm]);

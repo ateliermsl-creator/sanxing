@@ -434,3 +434,17 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 }
 @media screen and (min-width:1200px){body.snOff{padding-left:0}body.snOff #sideNav{display:none}}   /* 首頁不顯示側欄，避免和功能卡片重複 */
 @media print{#sideNav{display:none!important}body{padding-left:0!important}}
+/* ===== 結構計算（#/struct）：首頁分區標題、總覽、分類導覽 ===== */
+.hsec{margin:22px 16px 2px;font-size:17px;font-weight:600;letter-spacing:.06em;color:var(--g);border-bottom:1px solid var(--line);padding-bottom:6px}
+.hsec small{font-size:13px;font-weight:400;letter-spacing:0;color:var(--mut);margin-left:6px}
+.stlist{display:flex;flex-wrap:wrap;gap:8px}
+.stlist a{flex:1 1 120px;min-height:44px}
+.stcrumb{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0 12px 6px;font-size:14px}
+#view .stcrumb a{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--g);text-decoration:none}
+#view .stcrumb a:first-child{border:0;background:none;padding:0 2px;color:var(--mut)}
+#view .stcrumb a.on{background:var(--g);color:#f5f1e8;border-color:var(--g);font-weight:600}
+.stcrumb span{color:var(--mut)}
+#sideNav .snGrp{margin:10px 12px 2px;font-size:12px;letter-spacing:.1em;color:var(--mut)}
+#sideNav a.snSub{min-height:36px;padding-left:46px;font-size:14px}
+#sideNav a[hidden]{display:none}
+#sideNav a.open{color:var(--g);font-weight:600}

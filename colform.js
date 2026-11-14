@@ -1,5 +1,5 @@
 "use strict";
-/* 柱模板檢核（工程計算機的「柱模板」分頁，另有 A4 計算書 #/calc/col/sheet）
+/* 柱模板檢核（結構計算的「柱模板」分頁，另有 A4 計算書 #/struct/col/sheet）
    畫面分三步：1 基本資料 → 2 材料規格（從自建材料庫下拉選擇）→ 3 配置條件（依高度分階），下方即時顯示檢核結果。
    傳力路徑：側壓力 → 襯板 → 小格柵 → 第一層大格柵 → 第二層大格柵 → 螺桿。
    ‧側壓力：深度 d 處 P = γ × d，可填「側壓力上限」（依採用的公式自行計算）取較小值；每一階以該階底部（最深處）的側壓力檢核。
@@ -255,7 +255,7 @@ function tabColForm(box) {
         <h3 class="cfh">側壓力分布圖</h3><div id="cfPsvg"></div>
         <h3 class="cfh">柱模板配置示意圖</h3><div id="cfLay"></div></section>
       <section class="panel" id="cf4"><h2><span class="cfno">4</span>檢核結果</h2><div id="cfRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/col/sheet" id="cfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="cfClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/col/sheet" id="cfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="cfClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本頁只做數值計算：各構件視為均布載重的梁，每一階以該階最深處的側壓力檢核。容許值由你輸入，結果僅供施工規劃參考；模板支撐的安全仍應依施工規範、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -304,7 +304,7 @@ function tabColForm(box) {
     $("#cfTierDel") && ($("#cfTierDel").onclick = () => { st.tiers.pop(); st.tiers[st.tiers.length - 1].top = ""; draw(); });
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#cfClear").onclick = () => { if (!confirm("清除柱模板的輸入？（材料庫會保留）")) return; Object.assign(st, colBlank()); draw(); };
-    $("#cfSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/col/sheet"; };
+    $("#cfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/col/sheet"; };
   };
   draw();
 }
@@ -354,8 +354,8 @@ function renderColSheet() {
         <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算，各階以該階最深處之側壓力檢核。材料容許值、撓度限制與側壓力上限由計算人員依材料規格、施工規範與契約填入，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#cfBack").onclick = () => goBack("#/calc/col");
+  $("#cfBack").onclick = () => goBack("#/struct/col");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["col", "柱模板", tabColForm]);
+STRUCT_TABS.push(["col", "柱模板", tabColForm]);

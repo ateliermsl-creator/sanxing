@@ -1,5 +1,5 @@
 "use strict";
-/* 排架（以框式施工架當樓板支撐）結構計算（工程計算機的「排架」分頁，另有 A4 計算書 #/calc/row/sheet）
+/* 排架（以框式施工架當樓板支撐）結構計算（結構計算的「排架」分頁，另有 A4 計算書 #/struct/row/sheet）
    參考網站 realizcalc.com「排架結構計算」（2026-11-14 讀取 row-assets/load-plan.js）：
    ‧單跨單排代表單元：每片立架兩腳均分。單跨自重同施工架（scaffold.js 的自重表），排架不另加額外靜載。
    ‧每支主柱 D = 單跨自重 × 層數 ÷ 2 ＋ 支撐靜載 qd × 跨距 × 立架寬 ÷ 2（qd = 板厚 × 混凝土單位重 ＋ 額外靜載，或直接輸入）。
@@ -141,7 +141,7 @@ function tabRowFrame(box) {
         </div>
         <p class="cnote">支撐靜載與活載於架頂作用一次，由每片立架兩腳均分。預設值（板厚 20 cm、2400 kgf/m³、活載 250 kgf/m²、最小活載 2.4 kPa、最小 D＋L 4.8 kPa、Cv = 0.5Ch、φc 0.85）取自參考網站，參考網站註明最小值引 ACI 347R-14，這裡非規範原文，請依契約與規範修改。</p></section>
       <section class="panel" id="rf4"><h2><span class="cfno">4</span>檢核結果</h2><div id="rfRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/row/sheet" id="rfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="rfClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/row/sheet" id="rfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="rfClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本頁只以單跨單排代表單元檢核主柱軸壓；未計水平力、偏心載重、千斤頂與頂座、底座與地盤（下層樓板）承載、架頂格柵與模板。結果僅供施工規劃參考，支撐安全仍應依法規、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -176,7 +176,7 @@ function tabRowFrame(box) {
     $("#rfCmat").onchange = e => { const f = SC_COLMAT.find(x => x.id === e.target.value); if (f) setv("col.fy", f.fy); calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#rfClear").onclick = () => { if (!confirm("清除排架的輸入？")) return; Object.assign(st, rfBlank()); draw(); };
-    $("#rfSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/row/sheet"; };
+    $("#rfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/row/sheet"; };
   };
   draw();
 }
@@ -215,8 +215,8 @@ function renderRowSheet() {
       </table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#rfBack").onclick = () => goBack("#/calc/row");
+  $("#rfBack").onclick = () => goBack("#/struct/row");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["row", "排架", tabRowFrame]);
+STRUCT_TABS.push(["row", "排架", tabRowFrame]);

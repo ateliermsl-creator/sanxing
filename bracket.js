@@ -1,5 +1,5 @@
 "use strict";
-/* 三角架（施工架托架）結構計算（工程計算機的「三角架」分頁，另有 A4 計算書 #/calc/brk/sheet）
+/* 三角架（施工架托架）結構計算（結構計算的「三角架」分頁，另有 A4 計算書 #/struct/brk/sheet）
    參考網站 realizcalc.com「三角架結構計算」（2026-11-14 讀取 bracket.js）：型式 1～5、幾何參數、
    斷面（矩形管／槽鋼／圓管／等邊角鋼）、P = 1.2PD + 1.6PL、自重 × 1.2、上弦／下斜桿／靠牆立材為梁元素、
    加勁桿為桁架元素、靠牆兩處為固定支承。參考網站的構架分析與強度檢核在伺服器端看不到，
@@ -282,7 +282,7 @@ function tabBracket(box) {
         <div class="grid2">${fld("受壓 φc", inp("phic", st.phic))}${fld("受拉 φt", inp("phit", st.phit))}${fld("彎矩 φb", inp("phib", st.phib))}${fld("剪力 φv", inp("phiv", st.phiv))}</div>
         <p class="cnote">非規範原文，依採用的設計規範修改。</p></section>
       <section class="panel" id="bk3"><h2><span class="cfno">3</span>檢核結果</h2><div id="bkRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/brk/sheet" id="bkSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="bkClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/brk/sheet" id="bkSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="bkClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本頁以平面構架（線彈性、一階）分析托架平面內的軸力、剪力與彎矩，靠牆兩處假設為固定支承。平面外挫屈、扭轉、局部挫屈、銲接與螺栓接合、錨栓與牆體承載都未檢核。結果僅供施工規劃參考，托架安全仍應依法規、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -303,7 +303,7 @@ function tabBracket(box) {
       box.querySelectorAll("[data-toanc]").forEach(b => b.onclick = () => {
         const i = +b.dataset.toanc, [Rx, Ry, Mz] = r.sol.reac[i], a = ancLoad(), z = x => Math.abs(x) < 0.005 ? "0" : fmt(x, 2);
         Object.assign(a, { P: z(Rx), Vx: "0", Vy: z(-Ry), Mx: z(-Mz), My: "0", Mz: "0", src: `由三角架支承 ${i + 1}（距上弦 ${fmt(-r.g.supports[i][1], 1)} cm）反力帶入` });
-        ancSave(a); location.hash = "#/calc/anc";
+        ancSave(a); location.hash = "#/struct/anc";
       });
     }
   };
@@ -326,7 +326,7 @@ function tabBracket(box) {
     const w = $("#bkWmat"); if (w) w.onchange = e => { st.wmat = e.target.value; autoFy(); calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#bkClear").onclick = () => { if (!confirm("清除三角架的輸入？")) return; Object.assign(st, bkBlank()); draw(); };
-    $("#bkSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/brk/sheet"; };
+    $("#bkSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/brk/sheet"; };
   };
   draw();
 }
@@ -368,8 +368,8 @@ function renderBrkSheet() {
         <tr><td colspan="2" style="font-size:9pt">註：平面構架線彈性一階分析，上弦、下斜桿、靠牆立材為梁元素，加勁桿為桁架元素，靠牆兩處為固定支承。只檢核托架平面內之軸力、彎矩、剪力與互制；平面外挫屈、扭轉、局部挫屈、接合、錨栓與牆體承載未檢核。本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#bkBack").onclick = () => goBack("#/calc/brk");
+  $("#bkBack").onclick = () => goBack("#/struct/brk");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["brk", "三角架", tabBracket]);
+STRUCT_TABS.push(["brk", "三角架", tabBracket]);

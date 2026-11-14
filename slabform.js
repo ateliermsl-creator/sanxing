@@ -1,5 +1,5 @@
 "use strict";
-/* 板模板支撐檢核（工程計算機的「板模板」分頁，另有 A4 計算書 #/calc/slab/sheet）
+/* 板模板支撐檢核（結構計算的「板模板」分頁，另有 A4 計算書 #/struct/slab/sheet）
    傳力路徑：單位面積載重 N → 襯板 → 第一層大格柵 → 第二層大格柵 → 鋼管支撐。
    ‧載重（預設值取自使用者指定的參考網站，2026-11-14 讀取，非規範原文，皆可修改）：
      N1 固定載重 = Wo × 板厚（Wo 2.3 t/m³）、N2 衝擊載重 = 0.5 × N1、N3 作業載重 150 kgf/m²、N4 模板自重 15 kgf/m²，N = N1 + N2 + N3 + N4。
@@ -160,7 +160,7 @@ function tabSlabForm(box) {
         <p class="cnote">鋼管支撐在兩個方向的間距為 L3（沿第二層大格柵）× L2（第二層大格柵間距）。${st.lmode === "stack" ? "扣除的高度：襯板取板厚，格柵取所選斷面的高 h；自建材料若沒有 h 會無法計算，請改用其他方式。" : st.lmode === "man" ? "有水平繫材時，可填繫材之間的最大未支撐長度。" : ""}支撐長的取法與挫曲長度係數（K = 1）請依實際構造確認。</p>
         <h3 class="cfh">板模板支撐配置示意圖</h3><div id="sfLay"></div></section>
       <section class="panel" id="sf4"><h2><span class="cfno">4</span>檢核結果</h2><div id="sfRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/slab/sheet" id="sfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="sfClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/slab/sheet" id="sfSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="sfClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>本頁只做數值計算：各構件視為均布載重的梁，鋼管支撐以軸壓檢核挫曲。載重、容許值由你輸入或取自參考資料，結果僅供施工規劃參考；模板支撐的安全仍應依施工規範、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -212,7 +212,7 @@ function tabSlabForm(box) {
     $("#sfLoadDef").onclick = () => { Object.assign(st, SF_LOAD_DEF); for (const k in SF_LOAD_DEF) box.querySelector(`[data-p="${k}"]`).value = SF_LOAD_DEF[k]; calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#sfClear").onclick = () => { if (!confirm("清除板模板的輸入？（材料庫會保留）")) return; Object.assign(st, sfBlank()); draw(); };
-    $("#sfSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/slab/sheet"; };
+    $("#sfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/slab/sheet"; };
   };
   draw();
 }
@@ -260,8 +260,8 @@ function renderSlabSheet() {
         <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算，鋼管支撐以軸壓檢核挫曲。載重、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#sfBack").onclick = () => goBack("#/calc/slab");
+  $("#sfBack").onclick = () => goBack("#/struct/slab");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["slab", "板模板", tabSlabForm]);
+STRUCT_TABS.push(["slab", "板模板", tabSlabForm]);

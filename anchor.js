@@ -1,5 +1,5 @@
 "use strict";
-/* 混凝土錨栓（工程計算機的「錨栓」分頁，另有 A4 計算書 #/calc/anc/sheet）
+/* 混凝土錨栓（結構計算的「錨栓」分頁，另有 A4 計算書 #/struct/anc/sheet）
    參考網站 realizcalc.com「混凝土錨栓計算」（2026-11-15 讀取）：錨栓型式、f′c、設計條件、矩形配置、混凝土邊距、
    hef／ha、鋼材 da／Fy／Fu／螺距、產品分類與拔出強度、載重 P（壓正）／Vx／Vy／Mx／My／Mz；三角架支承反力
    代入規則 P = Rx、Vy = −Ry、Mx = −Mz（bracket-anchor-transfer.js）。參考網站的檢核在伺服器端看不到，
@@ -213,7 +213,7 @@ function tabAnchor(box) {
         </div>
         <p class="cnote">正 Mx 使 +Y 側受壓、正 My 使 +X 側受壓，以錨栓群中心為準。三角架分頁可一鍵帶入支承反力。</p></section>
       <section class="panel" id="an5"><h2><span class="cfno">5</span>檢核結果</h2><div id="anRes"></div>
-        <div class="row"><a class="btnlink" href="#/calc/anc/sheet" id="anSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="anClear">清除輸入</button></div></section>
+        <div class="row"><a class="btnlink" href="#/struct/anc/sheet" id="anSheet">📄 產生計算書（A4）</a><button type="button" class="sec" id="anClear">清除輸入</button></div></section>
       <p class="cnote" style="margin:0 12px 12px"><b>提醒：</b>公式依 ACI 318-19 第 17 章架構，由 SI 單位換算為 kgf、cm（非規範原文）；受力分配只計錨栓、不計混凝土承壓。黏結式錨栓、地震設計額外要求、產品最小間距與邊距、鋼承板與構材本身未檢核。後置式錨栓應依產品評估報告，結果僅供施工規劃參考，請依規範、契約與專業技師的計算為準。</p>`;
     bind(); calc();
   };
@@ -249,7 +249,7 @@ function tabAnchor(box) {
     $("#anBolt").onchange = e => { const b = ANC_BOLTS.find(([n]) => n === e.target.value); if (b) { setv("da", b[1]); setv("pitch", b[2]); } calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#anClear").onclick = () => { if (!confirm("清除錨栓的輸入？")) return; Object.assign(st, ancBlank()); draw(); };
-    $("#anSheet").onclick = e => { e.preventDefault(); location.hash = "#/calc/anc/sheet"; };
+    $("#anSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/anc/sheet"; };
   };
   draw();
 }
@@ -286,8 +286,8 @@ function renderAncSheet() {
         <tr><td colspan="2" style="font-size:9pt">註：依 ACI 318-19 第 17 章架構，SI 公式係數換算為 kgf、cm（非規範原文）。受力分配假設剛性鋼承板且只計錨栓。黏結式錨栓、地震設計額外要求、產品最小間距與邊距、鋼承板與構材未檢核；後置式錨栓應依產品評估報告。本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
-  $("#anBack").onclick = () => goBack("#/calc/anc");
+  $("#anBack").onclick = () => goBack("#/struct/anc");
   $("#pvPrint").onclick = doPrint;
 }
 
-CALC_TABS.push(["anc", "錨栓", tabAnchor]);
+STRUCT_TABS.push(["anc", "錨栓", tabAnchor]);

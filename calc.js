@@ -1,6 +1,7 @@
 "use strict";
-/* 工地隨身工程計算機（純前端，離線可用）
-   十六個分頁：鋼筋稱號、鋼筋重量、混凝土方數（volume.js）、坡度與高程、面積換算、倍數換算、泥作材料、穿樑套管、柱模板（colform.js）、牆模板（wallform.js）、板模板（slabform.js）、梁模板（beamform.js）、施工架（scaffold.js）、三角架（bracket.js）、排架（rowframe.js）、錨栓（anchor.js） */
+/* 工地隨身工程計算機（純前端，離線可用）；結構計算（#/struct）的路由也在本檔最下方
+   工程計算機八個分頁：鋼筋稱號、鋼筋重量、混凝土方數（volume.js）、坡度與高程、面積換算、倍數換算、泥作材料、穿樑套管。
+   結構計算（#/struct）：模板（colform.js wallform.js slabform.js beamform.js）、施工架（scaffold.js bracket.js rowframe.js）、混凝土構造（anchor.js）、其他工具（secprop.js） */
 
 const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
@@ -267,23 +268,47 @@ function tabSleeve(box) {
    沒有選工地時，才沿用舊版存在計算機裡的工程名稱。 */
 const calcProjName = st => { try { const s = sites.find(x => x.id === siteId); if (s) return s.name; } catch {} return st?.info?.proj || ""; };
 
-/* ---------- 分頁 ---------- */
+/* ---------- 分頁 ----------
+   工程計算機（#/calc）只放現場日常計算；要出計算書的假設工程結構檢核放在「結構計算」（#/struct，2026-11-15 使用者同意拆出）。
+   結構計算的各分頁由 colform.js 等檔案 STRUCT_TABS.push 進來；分類在 STRUCT_CATS。
+   舊網址 #/calc/col、#/calc/col/sheet 等自動轉到 #/struct/…（書籤、桌面捷徑、舊版連結都還能用）。 */
 const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea], ["lap", "倍數換算", tabLap], ["mas", "泥作材料", tabMasonry], ["sleeve", "穿樑套管", tabSleeve]];
+const STRUCT_TABS = [];
+const STRUCT_CATS = [
+  { k: "form", icon: "🧱", t: "模板結構計算", d: "側壓力・襯板・格柵・螺桿・支撐挫曲", tabs: ["col", "wall", "slab", "beam"] },
+  { k: "scaf", icon: "🏗️", t: "施工架結構計算", d: "主柱・壁連座・托架・樓板支撐", tabs: ["scaf", "brk", "row"] },
+  { k: "conc", icon: "🔩", t: "混凝土構造", d: "ACI 318 第 17 章架構・拉剪互制", tabs: ["anc"] },
+  { k: "other", icon: "📏", t: "其他工具", d: "多邊形斷面・慣性矩・斷面模數", tabs: ["sec"] }
+];
+const STRUCT_SHEETS = { col: () => renderColSheet(), wall: () => renderWallSheet(), slab: () => renderSlabSheet(), beam: () => renderBeamSheet(), scaf: () => renderScafSheet(), brk: () => renderBrkSheet(), row: () => renderRowSheet(), anc: () => renderAncSheet(), sec: () => renderSecSheet() };
+const structCatOf = tab => STRUCT_CATS.find(c => c.tabs.includes(tab));
+const structName = k => STRUCT_TABS.find(t => t[0] === k)?.[1] || k;
 function renderCalc(tab, sub) {
-  if (tab === "col" && sub === "sheet") return renderColSheet();   // 柱模板計算書（colform.js）
-  if (tab === "wall" && sub === "sheet") return renderWallSheet();  // 牆模板計算書（wallform.js）
-  if (tab === "slab" && sub === "sheet") return renderSlabSheet();  // 板模板計算書（slabform.js）
-  if (tab === "beam" && sub === "sheet") return renderBeamSheet();  // 梁模板計算書（beamform.js）
-  if (tab === "scaf" && sub === "sheet") return renderScafSheet();  // 施工架計算書（scaffold.js）
-  if (tab === "brk" && sub === "sheet") return renderBrkSheet();    // 三角架計算書（bracket.js）
-  if (tab === "row" && sub === "sheet") return renderRowSheet();    // 排架計算書（rowframe.js）
-  if (tab === "anc" && sub === "sheet") return renderAncSheet();    // 錨栓計算書（anchor.js）
-  if (tab === "sec" && sub === "sheet") return renderSecSheet();    // 斷面性質計算書（secprop.js）
+  if (tab && STRUCT_SHEETS[tab]) return goReplace("#/struct/" + tab + (sub ? "/" + sub : ""));   // 舊網址轉到結構計算
   if (tab === "vol" && sub === "sheet") return renderVolSheet();    // 混凝土數量計算書（volume.js）
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
     <div class="chips">${CALC_TABS.map(([k, l]) => `<a class="chip ${k === cur[0] ? "on" : ""}" href="#/calc/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${l}</a>`).join("")}</div>
-    <div id="calcBox"></div>`;
+    <div id="calcBox"></div>
+    <p class="cnote" style="margin:4px 12px 12px">模板、施工架、錨栓、斷面性質等要出計算書的檢核，在 <a href="#/struct">📐 結構計算</a>。</p>`;
   view.querySelectorAll(".chips a.chip").forEach(a => a.onclick = e => { e.preventDefault(); goReplace(a.getAttribute("href")); });   // 切換分頁不累積瀏覽紀錄
+  cur[2]($("#calcBox"));
+}
+function renderStruct(tab, sub) {
+  if (tab && sub === "sheet" && STRUCT_SHEETS[tab]) return STRUCT_SHEETS[tab]();
+  const cat = structCatOf(tab);
+  const cur = cat && STRUCT_TABS.find(t => t[0] === tab);
+  if (!cur) {   // 結構計算總覽：四類，每類列出它的計算
+    view.innerHTML = `<h2 class="t">📐 結構計算</h2>
+      <p class="cnote" style="margin:0 12px 8px">假設工程結構檢核，可產生 A4 計算書。材料與公式預設值多取自參考資料，非規範原文，請依契約與規範確認。</p>
+      ${STRUCT_CATS.map(c => `<section class="panel stcat"><h2>${c.icon} ${c.t}</h2><div class="stlist">${c.tabs.map(k => `<a class="btnlink sec" href="#/struct/${k}">${esc(structName(k))}</a>`).join("")}</div></section>`).join("")}`;
+    return;
+  }
+  view.innerHTML = `<h2 class="t">${cat.icon} ${cat.t}</h2>
+    <nav class="stcrumb" aria-label="結構計算分類"><a href="#/struct">📐 結構計算</a><span aria-hidden="true">›</span>${STRUCT_CATS.map(c => `<a class="${c === cat ? "on" : ""}" href="#/struct/${c.tabs[0]}">${c.t.replace(/結構計算$/, "")}</a>`).join("")}</nav>
+    ${cat.tabs.length > 1 ? `<div class="chips">${cat.tabs.map(k => `<a class="chip ${k === tab ? "on" : ""}" href="#/struct/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${esc(structName(k))}</a>`).join("")}</div>` : ""}
+    <div id="calcBox"></div>`;
+  view.querySelectorAll(".chips a.chip, .stcrumb a.on").forEach(a => a.onclick = e => { e.preventDefault(); goReplace(a.getAttribute("href")); });
+  view.querySelectorAll(".stcrumb a:not(.on):not(:first-child)").forEach(a => a.onclick = e => { e.preventDefault(); goReplace(a.getAttribute("href")); });   // 換分類也不累積瀏覽紀錄
   cur[2]($("#calcBox"));
 }
