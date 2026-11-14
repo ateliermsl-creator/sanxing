@@ -277,13 +277,18 @@ function tabScaffold(box) {
       <details class="cfdet"><summary>計算明細</summary>
         ${scLoadText(st, r, fmt).map(x => `<p class="cfdh">${x}</p>`).join("")}
         ${scCapText(st, r, fmt).map(x => `<p class="cfdh">${x}</p>`).join("")}</details>`;
+    if (Number.isFinite(r.D) && Number.isFinite(r.Lv)) {
+      $("#scRes").insertAdjacentHTML("beforeend", `<div class="row"><button type="button" class="sec" id="scToBk">帶入三角架（PD ${fmt(r.D, 2)}、PL ${fmt(r.Lv, 2)} kgf）</button></div><p class="cnote" style="margin-top:0">把每支主柱的 D、L 帶入三角架分頁的 PD₁、PD₂、PL₁、PL₂（兩腳相同）。托架以上的層數與本頁不同時，請先調整層數再帶入。</p>`);
+      $("#scToBk").onclick = () => { const b = bkLoad(); b.PD1 = b.PD2 = fmt(r.D, 2); b.PL1 = b.PL2 = fmt(r.Lv, 2); b.src = `由施工架分頁帶入（${r.levels} 層、作業 ${r.work} 層）`; bkSave(b); location.hash = "#/calc/brk"; };
+    }
   };
   const setv = (p, v) => { const ks = p.split("."), last = ks.pop(); let o = st; for (const k of ks) o = o[k]; o[last] = v; const el = box.querySelector(`[data-p="${p}"]`); if (el) el.value = v; };
   const sync = () => { $("#scFrame").value = fid(); $("#scSpan").value = sid(); $("#scDeck").value = did();
     $("#scCmat").value = SC_COLMAT.find(x => x.fy === st.col.fy)?.id || ""; $("#scTmat").value = SC_TIEMAT.find(x => x.fy === st.tie.fy)?.id || ""; };
   const bind = () => {
-    box.querySelectorAll("[data-p]").forEach(el => el.oninput = el.onchange = () => {
+    box.querySelectorAll("[data-p]").forEach(el => el.oninput = el.onchange = ev => {
       const ks = el.dataset.p.split("."), last = ks.pop(); let o = st; for (const k of ks) o = o[k];
+      if (ev && ev.type === "change" && el.tagName === "INPUT" && o[last] === el.value) return;   // 輸入後失焦不重算，避免按鈕被重畫而按不到
       o[last] = el.value; sync(); calc();
     });
     $("#scFrame").onchange = e => { const f = SC_FRAMES.find(x => x.id === e.target.value); if (f) { setv("frame.w", f.w); setv("frame.h", f.h); setv("frame.kg", f.kg); } calc(); };

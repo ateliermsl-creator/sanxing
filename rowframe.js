@@ -164,8 +164,9 @@ function tabRowFrame(box) {
   const setv = (p, v) => { const ks = p.split("."), last = ks.pop(); let o = st; for (const k of ks) o = o[k]; o[last] = v; const el = box.querySelector(`[data-p="${p}"]`); if (el) el.value = v; };
   const sync = () => { $("#rfFrame").value = fid(); $("#rfSpan").value = sid(); $("#rfDeck").value = did(); $("#rfCmat").value = SC_COLMAT.find(x => x.fy === st.col.fy)?.id || ""; };
   const bind = () => {
-    box.querySelectorAll("[data-p]").forEach(el => el.oninput = el.onchange = () => {
+    box.querySelectorAll("[data-p]").forEach(el => el.oninput = el.onchange = ev => {
       const ks = el.dataset.p.split("."), last = ks.pop(); let o = st; for (const k of ks) o = o[k];
+      if (ev && ev.type === "change" && el.tagName === "INPUT" && o[last] === el.value) return;   // 輸入後失焦不重算，避免按鈕被重畫而按不到
       o[last] = el.value;
       if (el.dataset.p === "dmode" || el.dataset.p === "eq") return draw();
       sync(); calc();
