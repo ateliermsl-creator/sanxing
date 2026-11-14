@@ -4,7 +4,8 @@
    傳力路徑：側壓力 → 襯板 → 小格柵 → 第一層大格柵 → 第二層大格柵 → 螺桿。
    ‧側壓力：深度 d 處 P = γ × d，可填「側壓力上限」（依採用的公式自行計算）取較小值；每一階以該階底部（最深處）的側壓力檢核。
    ‧材料容許應力、E 值、撓度限制、螺桿容許拉力：本工具「不內建任何數值」，由使用者建立材料庫（localStorage calcColLib）。
-     若之後要內建使用者提供的材料表，加在 COL_PRESETS（會以「可修改的預設值、非規範原文」呈現）。
+     例外：使用者提供的參考材料表（2026-11-14 截圖）內建為 COL_SPECIES（木材樹種容許應力）與 COL_PRESETS（襯板、木角材斷面），
+     畫面註明「依使用者提供的參考表，非規範原文」；木料的 fb、fv、E 依所選樹種。鋼角材、螺桿的數值使用者尚未提供，未內建。
    ‧構件依均布載重的梁：簡支 M = wL²/8、V = wL/2、δ = 5wL⁴/384EI；三跨以上連續（近似）M = wL²/10、V = 0.6wL、δ = wL⁴/145EI。
    ‧單位：長度 cm、力 kgf、應力 kgf/cm²；γ 用 t/m³、側壓力上限用 t/m²。 */
 
@@ -18,22 +19,40 @@ const COL_MEMBERS = [
 const COL_GAPS = [["H1", "小格柵垂直間距 H1"], ["B2", "第一層大格柵水平間距 B2"], ["H3", "第二層大格柵垂直間距 H3"], ["H4", "螺桿垂直間距 H4"], ["B4", "螺桿水平間距 B4"]];
 const COL_KINDS = { ply: "襯板", beam: "角材／鋼管（格柵）", tie: "螺桿" };
 const COL_COEF = { s: { m: 1 / 8, v: 0.5, d: 384 / 5, n: "簡支", mt: "wL²/8", dt: "5wL⁴/384EI" }, c: { m: 1 / 10, v: 0.6, d: 145, n: "三跨以上連續（近似）", mt: "wL²/10", dt: "wL⁴/145EI" } };
-const COL_PRESETS = [];   // 內建材料（目前不內建，見檔頭說明）
+// 木材樹種（使用者提供的參考表；fc 只供參考，柱模板檢核未用到）
+const COL_SPECIES = [
+  { id: "c3", n: "針葉樹III類", note: "赤松、黑松、落葉松、鐵杉、北美鐵杉、南方松", fb: "170", fc: "130", fv: "14", E: "70000" },
+  { id: "c4", n: "針葉樹IV類", note: "冷杉、樅松、朝鮮松、柳杉、西部側柏、雲杉、杉木、台灣杉、放射松", fb: "150", fc: "120", fv: "12", E: "70000" },
+  { id: "h3", n: "闊葉樹III類", note: "柳桉", fb: "180", fc: "140", fv: "12", E: "70000" }
+];
+// 內建斷面（名稱 a × b：b 為受力方向的深度；與參考表核對：3.6×4.5 → I 27.338、S 12.15；9×4.5 躺置 → I 68.344、S 30.375）
+const COL_PRESETS = [
+  { id: "p_ply15", kind: "ply", n: "襯板 1.5 cm", sect: "t", t: "1.5" },
+  { id: "p_ply18", kind: "ply", n: "襯板 1.8 cm", sect: "t", t: "1.8" },
+  { id: "p_b3645", kind: "beam", n: "木角材 3.6 × 4.5 cm", sect: "rect", b: "3.6", h: "4.5", cnt: "1" },
+  { id: "p_b7245", kind: "beam", n: "木角材 7.2 × 4.5 cm（3.6 × 4.5 兩支並排）", sect: "rect", b: "3.6", h: "4.5", cnt: "2" },
+  { id: "p_b6060", kind: "beam", n: "木角材 6 × 6 cm", sect: "rect", b: "6", h: "6", cnt: "1" },
+  { id: "p_b6075", kind: "beam", n: "木角材 6 × 7.5 cm", sect: "rect", b: "6", h: "7.5", cnt: "1" },
+  { id: "p_b9045", kind: "beam", n: "木角材 9 × 4.5 cm（躺置－弱軸）", sect: "rect", b: "9", h: "4.5", cnt: "1" },
+  { id: "p_b4590", kind: "beam", n: "木角材 4.5 × 9 cm（立置－強軸）", sect: "rect", b: "4.5", h: "9", cnt: "1" }
+].map(p => ({ kv: "1.5", ...p, wood: true }));
+// 襯板撓度檢核標準（使用者提供：工程慣例 0.3 cm，或依結構混凝土施工規範 4.3.4 取 L/240）
+const COL_DEFP = [["", "自行填寫"], ["a3", "0.3 cm（工程慣例）"], ["n240", "L/240（結構混凝土施工規範 4.3.4）"]];
 const COL_MAX_TIERS = 4, COL_TIER_N = ["第一階", "第二階", "第三階", "第四階"];
 
 const colStr = v => (typeof v === "string" || typeof v === "number") ? String(v).slice(0, 60) : "";
 const colTier = () => ({ top: "", H1: "", B2: "", H3: "", H4: "", B4: "" });
 const colBlank = () => ({
   info: { proj: "", loc: "", no: "", bx: "", by: "", H: "", who: "" },
-  gamma: "2.4", pmax: "", cont: "c", defP: { n: "", a: "" }, defB: { n: "", a: "" },
-  sel: { ply: "", stud: "", w1: "", w2: "", tie: "" }, tiers: [colTier()]
+  gamma: "2.4", pmax: "", cont: "c", species: "c3", defP: { n: "", a: "3" }, defB: { n: "", a: "" },
+  sel: { ply: "p_ply15", stud: "p_b3645", w1: "p_b9045", w2: "p_b9045", tie: "" }, tiers: [colTier()]
 });
 // 讀回存檔時只留下已知欄位、都轉成字串，避免舊資料或改壞的資料影響畫面
 function colLoad() {
   const d = colBlank();
   let s; try { s = JSON.parse(ls.get("calcColForm2", "null")); } catch { s = null; }
   if (!s || typeof s !== "object") return d;
-  const pick = (dst, src) => { if (!src || typeof src !== "object") return; for (const k of Object.keys(dst)) if (typeof dst[k] === "string") dst[k] = colStr(src[k]) || dst[k]; };
+  const pick = (dst, src) => { if (!src || typeof src !== "object") return; for (const k of Object.keys(dst)) if (typeof dst[k] === "string" && k in src) dst[k] = colStr(src[k]); };
   pick(d.info, s.info); pick(d, s); pick(d.defP, s.defP); pick(d.defB, s.defB); pick(d.sel, s.sel);
   if (Array.isArray(s.tiers) && s.tiers.length) d.tiers = s.tiers.slice(0, COL_MAX_TIERS).map(t => { const o = colTier(); pick(o, t); return o; });
   return d;
@@ -65,7 +84,8 @@ const colSectText = mat => !mat ? "未選擇" : mat.kind === "tie" ? "" : mat.se
 function colCalc(st, lib = colLib()) {
   const H = colF(st.info.H), g = colF(st.gamma), pmax = colF(st.pmax), cap = pmax > 0 ? pmax / 10 : Infinity;   // 1 t/m² = 0.1 kgf/cm²
   const pAt = depth => Math.min(g * depth / 1000, cap);       // kgf/cm²（γ t/m³ × 深度 cm）
-  const mat = k => lib.find(p => p.id === st.sel[k]);
+  const sp = COL_SPECIES.find(x => x.id === st.species);
+  const mat = k => { const m = lib.find(p => p.id === st.sel[k]); return m && m.wood ? { ...m, fb: sp?.fb || "", fv: sp?.fv || "", E: sp?.E || "", spn: sp?.n || "未選樹種" } : m; };
   const c = COL_COEF[st.cont] || COL_COEF.c, tiers = [], err = [];
   let lo = 0;
   st.tiers.forEach((t, i) => {
@@ -87,7 +107,7 @@ function colCalc(st, lib = colLib()) {
     lo = hi;
   });
   const all = tiers.flatMap(t => t.all);
-  return { H, g, cap, pAt, c, tiers, err, mat,
+  return { H, g, cap, pAt, c, tiers, err, mat, sp,
     ng: all.filter(x => colJudge(x)[1] === "bad").length, miss: all.filter(x => colJudge(x)[1] === "").length };
 }
 const colJudge = c => !Number.isFinite(c.v) ? ["—", ""] : !(c.a > 0) ? ["未填容許值", ""] : c.v <= c.a ? ["OK", "ok"] : ["NG", "bad"];
@@ -133,7 +153,7 @@ function tabColForm(box) {
   const st = colLoad();
   let lib = colLib();
   const inp = (path, val, ph = "", extra = "") => `<input data-p="${path}" inputmode="decimal" value="${esc(val)}" placeholder="${esc(ph)}" ${extra}>`;
-  const matOpts = (kind, cur) => `<option value="">請選擇</option>${lib.filter(p => p.kind === kind).map(p => `<option value="${esc(p.id)}" ${p.id === cur ? "selected" : ""}>${esc(p.n || "（未命名）")}${p.preset ? "（預設）" : ""}</option>`).join("")}`;
+  const matOpts = (kind, cur) => `<option value="">請選擇</option>${lib.filter(p => p.kind === kind).map(p => `<option value="${esc(p.id)}" ${p.id === cur ? "selected" : ""}>${esc(p.n || "（未命名）")}</option>`).join("")}`;
   const libCard = p => {
     const f = (k, l, ph = "") => `<div class="field"><label>${l}</label><input data-l="${esc(p.id)}" data-lk="${k}" ${k === "n" ? "" : 'inputmode="decimal"'} value="${esc(p[k])}" placeholder="${esc(ph)}"></div>`;
     const sects = p.kind === "ply" ? [["t", "板厚 t"], ["custom", "自行輸入 I、S、A"]] : [["rect", "矩形 b × h"], ["custom", "自行輸入 I、S、A"]];
@@ -165,6 +185,8 @@ function tabColForm(box) {
         <p class="cnote">側壓力 P = γ × 深度；填了上限就取較小值。採用哪一條側壓力公式請依施工規範與契約。</p></section>
       <section class="panel" id="cf2"><h2><span class="cfno">2</span>材料規格</h2>
         <div class="grid2">
+          <div class="field"><label>木材樹種（襯板及木角材）</label><select data-p="species"><option value="">請選擇</option>${COL_SPECIES.map(x => `<option value="${x.id}" ${st.species === x.id ? "selected" : ""}>${x.n}</option>`).join("")}</select></div>
+          <div class="field"><label>襯板撓度檢核標準</label><select id="cfDefP">${COL_DEFP.map(([v, l]) => `<option value="${v}" ${v === (st.defP.a === "3" && !st.defP.n ? "a3" : st.defP.n === "240" && !st.defP.a ? "n240" : "") ? "selected" : ""}>${l}</option>`).join("")}</select></div>
           ${COL_MEMBERS.map(x => `<div class="field"><label>${x.n}</label><select data-p="sel.${x.k}" data-kind="${x.kind}">${matOpts(x.kind, st.sel[x.k])}</select></div>`).join("")}
           <div class="field"><label>螺桿</label><select data-p="sel.tie" data-kind="tie">${matOpts("tie", st.sel.tie)}</select></div>
           <div class="field"><label>構件計算方式</label><select data-p="cont"><option value="c" ${st.cont === "c" ? "selected" : ""}>三跨以上連續</option><option value="s" ${st.cont === "s" ? "selected" : ""}>簡支（保守）</option></select></div>
@@ -173,10 +195,18 @@ function tabColForm(box) {
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
           <div class="field"><label>格柵撓度上限（mm）</label>${inp("defB.a", st.defB.a, "可空白")}</div>
         </div>
-        <p class="cnote">撓度兩個都填時取較嚴者；限制值請依契約或規範填寫。</p>
-        <details class="cflibbox" ${lib.length ? "" : "open"}><summary>材料參數與斷面資料（${lib.length} 筆）</summary>
-          <p class="cnote" style="margin-top:0">${lib.length ? "" : "還沒有材料。"}在這裡建立你們常用的材料，填一次之後上面直接選。容許應力與 E 值<b>本工具不內建</b>，請依材料規格填寫；資料存在這支手機。</p>
-          <div id="cfLib">${lib.map(libCard).join("")}</div>
+        <p class="cnote">撓度兩個都填時取較嚴者。內建選項的木料容許應力與 E 值依所選樹種。</p>
+        <details class="cflibbox"><summary>材料參數與斷面資料</summary>
+          <h3 class="cfh">木材容許應力（kgf/cm²）</h3>
+          <div class="tblwrap"><table class="ct cfref"><tr><th>樹種</th><th>F<sub>b</sub></th><th>F<sub>c</sub></th><th>F<sub>v</sub></th><th>E</th></tr>
+            ${COL_SPECIES.map(x => `<tr class="${x.id === st.species ? "sel" : ""}"><th>${x.n}<small>${x.note}</small></th><td>${x.fb}</td><td>${x.fc}</td><td>${x.fv}</td><td>${Number(x.E).toLocaleString("en")}</td></tr>`).join("")}</table></div>
+          <h3 class="cfh">內建斷面</h3>
+          <div class="tblwrap"><table class="ct cfref"><tr><th>規格</th><th>A<br><small>cm²</small></th><th>I<br><small>cm⁴</small></th><th>S<br><small>cm³</small></th></tr>
+            ${COL_PRESETS.map(p => { const q = colSect(p), w = p.kind === "ply" ? 100 : 1; return `<tr><th>${esc(p.n)}${p.kind === "ply" ? "<small>每 1 cm 寬</small>" : ""}</th><td>${fmt(q.A / w, 3)}</td><td>${fmt(q.I / w, 3)}</td><td>${fmt(q.S / w, 3)}</td></tr>`; }).join("")}</table></div>
+          <p class="cnote">以上依使用者提供的參考表（非規範原文），使用前請與契約、規範核對。鋼角材與螺桿目前沒有內建數值，請在下面「自建材料」新增。</p>
+          <h3 class="cfh">自建材料</h3>
+          <p class="cnote" style="margin-top:0">鋼角材、螺桿或其他材料可在這裡新增，容許值請依材料規格填寫；資料存在這支手機。</p>
+          <div id="cfLib">${lib.filter(p => !p.preset).map(libCard).join("")}</div>
           <div class="row">${Object.entries(COL_KINDS).map(([k, l]) => `<button type="button" class="sec" data-ladd="${k}">＋ ${{ ply: "襯板", beam: "格柵材", tie: "螺桿" }[k]}</button>`).join("")}</div></details></section>
       <section class="panel" id="cf3"><h2><span class="cfno">3</span>配置條件（cm）</h2>
         <div class="tblwrap"><table class="ct cftiers"><tr><th>項目</th>${st.tiers.map((_, i) => `<th>${COL_TIER_N[i]}</th>`).join("")}</tr>
@@ -231,6 +261,7 @@ function tabColForm(box) {
       const p = lib.find(x => x.id === b.dataset.ldel); if (!p || !confirm(`刪除材料「${p.n || "未命名"}」？`)) return;
       lib = lib.filter(x => x !== p); colLibSave(lib); for (const k in st.sel) if (st.sel[k] === p.id) st.sel[k] = ""; draw(); box.querySelector(".cflibbox").open = true;
     });
+    $("#cfDefP").onchange = e => { const v = e.target.value; if (!v) return; st.defP = v === "a3" ? { n: "", a: "3" } : { n: "240", a: "" }; box.querySelector('[data-p="defP.n"]').value = st.defP.n; box.querySelector('[data-p="defP.a"]').value = st.defP.a; calc(); };
     $("#cfTierAdd") && ($("#cfTierAdd").onclick = () => { const last = st.tiers[st.tiers.length - 1]; st.tiers.push({ ...last, top: "" }); draw(); });
     $("#cfTierDel") && ($("#cfTierDel").onclick = () => { st.tiers.pop(); st.tiers[st.tiers.length - 1].top = ""; draw(); });
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
@@ -246,7 +277,7 @@ function renderColSheet() {
   const v = (x, d) => Number.isFinite(x) ? fmt(x, d) : "—";
   const crow = c => { const [j] = colJudge(c); return `<tr><td>${c.t}</td><td class="c">${v(c.v, c.d)}</td><td class="c">${c.a > 0 ? v(c.a, c.d) : "—"}</td><td class="c">${c.u}</td><td class="c">${c.a > 0 && Number.isFinite(c.v) ? v(c.v / c.a, 2) : "—"}</td><td class="c">${j}</td></tr>`; };
   const matRow = (label, m, extra) => `<tr><td>${label}</td><td colspan="3">${m ? esc(m.n || "未命名") + (colSectText(m) ? "：" + esc(colSectText(m)) : "") + extra(m) : "未選擇"}</td></tr>`;
-  const allow = m => `；fb ${esc(m.fb) || "—"}、fv ${esc(m.fv) || "—"}、E ${esc(m.E) || "—"} kgf/cm²`;
+  const allow = m => `${m.wood ? `；${esc(m.spn)}` : ""}；fb ${esc(m.fb) || "—"}、fv ${esc(m.fv) || "—"}、E ${esc(m.E) || "—"} kgf/cm²`;
   const lim = d => [d.n ? "L/" + esc(d.n) : "", d.a ? esc(d.a) + " mm" : ""].filter(Boolean).join("、") || "未填";
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="cfBack">← 返回修改</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
@@ -265,6 +296,7 @@ function renderColSheet() {
         ${COL_MEMBERS.map(x => matRow(x.n, r.mat(x.k), allow)).join("")}
         ${matRow("螺桿", r.mat("tie"), m => `；容許拉力 ${esc(m.ta) || "—"} kgf`)}
         <tr><td>撓度限制</td><td colspan="3">襯板：${lim(st.defP)}；格柵：${lim(st.defB)}</td></tr>
+        <tr><td colspan="4" style="font-size:9pt">木材容許應力與斷面依使用者提供之參考表（非規範原文）。</td></tr>
       </table>
       <table class="pt">
         <tr><th>三、配置條件（cm）</th>${r.tiers.map(t => `<th>${COL_TIER_N[t.i]}</th>`).join("")}</tr>
