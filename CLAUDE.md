@@ -21,10 +21,11 @@
 | `shot.js` | 施工照片（電子黑板相機）、照片冊 |
 | `safety.js` | 職安衛勤前教育／危害告知簽到 |
 | `log.js` | 施工日誌（B14-4 格式） |
-| `calc.js` | 工程計算機（十一個分頁） |
+| `calc.js` | 工程計算機（十二個分頁） |
 | `colform.js` | 計算機「柱模板」分頁與 A4 計算書（`#/calc/col/sheet`）；三步驟＋分階（最多 4 階）＋側壓力分布圖＋配置示意圖。輸入存在 localStorage `calcColForm2`，材料庫 `calcColLib`。使用者同意內建「他提供的」材料表（2026-11-14 參考表截圖）：`COL_SPECIES` 木材樹種容許應力、`COL_PRESETS` 襯板與木角材斷面、`COL_DEFP` 襯板撓度標準，畫面註明非規範原文。鋼材 Fb/Fv/E、鋼角材斷面、螺桿斷面積也照參考表內建；螺桿容許拉應力 Ft 預設 1800 kgf/cm²（參考網站螺桿資料 18 kgf/mm²，2026-11-14 使用者用決策卡同意帶入，可改） |
 | `wallform.js` | 計算機「牆模板」分頁與 A4 計算書（`#/calc/wall/sheet`）；三層模／四層模（螺桿）／單面模（鋼管斜撐挫曲）。材料庫、樹種、斷面與 `colform.js` 共用（`colLib`、`colLibCard`、`colRefHtml`、`colPressureSvg`）。輸入存在 localStorage `calcWallForm`。側壓力預設 1.5Wo + 0.2Wo(H−1.5)（參考網站公式，註明非規範原文，可切換成 γ×深度） |
 | `slabform.js` | 計算機「板模板」分頁與 A4 計算書（`#/calc/slab/sheet`）；載重 N = Wo×板厚 + 衝擊 0.5N1 + 作業 150 + 模板自重 15 kgf/m²（參考網站值，註明非規範原文，可改）→ 襯板 → 第一層大格柵（跨 L2）→ 第二層大格柵（跨 L3）→ 鋼管支撐挫曲（P = N×L2×L3）。支撐長 L 預設「樓高 − 板厚」（2026-11-14 使用者用決策卡選定），可改扣模板格柵高或手動。材料庫與柱模共用、鋼管與挫曲公式與牆模單面模共用（`wfPipeSect`、`wfFa`）。輸入存在 localStorage `calcSlabForm` |
+| `beamform.js` | 計算機「梁模板」分頁與 A4 計算書（`#/calc/beam/sheet`）；側模（襯板、第一層大格柵最多 5 階、第二層大格柵以螺桿分段，兩端段懸臂、螺桿最多 5 階，B4 = L2）＋底模（梁底襯板、貫材 1～3 支，L3 = Bb／支數）＋鋼管支撐（梁寬方向 1～3 支，L = 樓高 − 梁深或手動）。載重同板模板（N 用梁深 Hb），側壓力 p(z) = N(Hb − z)/Hb（參考網站 beam-view.js，非規範原文）。梁底襯板除參考網站的邊距外，貫材 2 支以上另檢核貫材間跨距。輸入存在 localStorage `calcBeamForm` |
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
