@@ -1,6 +1,6 @@
 "use strict";
 /* 工地隨身工程計算機（純前端，離線可用）
-   十六個分頁：鋼筋稱號、鋼筋重量、混凝土方數、坡度與高程、面積換算、倍數換算、泥作材料、穿樑套管、柱模板（colform.js）、牆模板（wallform.js）、板模板（slabform.js）、梁模板（beamform.js）、施工架（scaffold.js）、三角架（bracket.js）、排架（rowframe.js）、錨栓（anchor.js） */
+   十六個分頁：鋼筋稱號、鋼筋重量、混凝土方數（volume.js）、坡度與高程、面積換算、倍數換算、泥作材料、穿樑套管、柱模板（colform.js）、牆模板（wallform.js）、板模板（slabform.js）、梁模板（beamform.js）、施工架（scaffold.js）、三角架（bracket.js）、排架（rowframe.js）、錨栓（anchor.js） */
 
 const fmt = (v, d = 2) => Number.isFinite(v) ? String(+v.toFixed(d)) : "—";
 const num = (el, d = NaN) => { const v = parseFloat(el?.value); return Number.isFinite(v) ? v : d; };
@@ -91,50 +91,7 @@ function tabRebarWt(box) {
   draw();
 }
 
-/* ---------- 混凝土方數 ---------- */
-function tabVolume(box) {
-  let rows;
-  try { rows = JSON.parse(localStorage.getItem("calcRows") || "null"); } catch { rows = null; }
-  if (!Array.isArray(rows) || !rows.length) rows = [{ name: "", type: "rect", a: "", b: "", c: "", n: 1 }];
-  const cfg = (() => { try { return JSON.parse(localStorage.getItem("calcCfg") || "{}"); } catch { return {}; } })();
-  const loss = cfg.loss ?? 5, cap = cfg.cap ?? 6;
-  box.innerHTML = `
-    <div id="vRows"></div>
-    <div class="row"><button class="sec" id="vAdd">＋ 新增一列</button><button class="sec" id="vClear">全部清除</button></div>
-    <div class="panel"><div class="calc-ctl2">
-      <div class="field"><label>損耗率（%）</label><input id="vLoss" inputmode="decimal" value="${loss}"></div>
-      <div class="field"><label>預拌車容量（m³／車）</label><input id="vCap" inputmode="decimal" value="${cap}"></div></div>
-      <div id="vOut"></div></div>
-    <p class="cnote" style="margin:0 12px 12px">尺寸一律輸入<b>公尺</b>。矩形＝長×寬×高（厚）；圓柱＝直徑 與 高。損耗率與車容量依你們的習慣填寫，會記在這支手機。</p>`;
-  const vol = r => { const a = +r.a, b = +r.b, c = +r.c, n = +r.n || 0; return (r.type === "cyl" ? Math.PI * a * a / 4 * c : a * b * c) * n; };
-  const save = () => { try { localStorage.setItem("calcRows", JSON.stringify(rows)); localStorage.setItem("calcCfg", JSON.stringify({ loss: $("#vLoss").value, cap: $("#vCap").value })); } catch {} };
-  const sum = () => {
-    const sub = rows.reduce((s, r) => s + (Number.isFinite(vol(r)) ? vol(r) : 0), 0);
-    const l = num($("#vLoss"), 0), cp = num($("#vCap"), 0), order = sub * (1 + l / 100);
-    box.querySelectorAll("[data-vr]").forEach(el => { const v = vol(rows[+el.dataset.vr]); el.textContent = v > 0 ? fmt(v, 3) + " m³" : "—"; });
-    $("#vOut").innerHTML = `<div class="big"><span>淨方數</span><b>${fmt(sub, 3)} m³</b></div>
-      <div class="big"><span>含損耗 ${fmt(l, 1)}%</span><b>${fmt(order, 3)} m³</b></div>
-      <div class="big"><span>建議叫料（進位 0.5）</span><b>${order > 0 ? fmt(Math.ceil(order * 2 - 1e-9) / 2, 1) : "—"} m³</b></div>
-      ${cp > 0 && order > 0 ? `<div class="big"><span>約需車數</span><b>${fmt(order / cp, 1)} 車（${Math.ceil(order / cp - 1e-9)} 車）</b></div>` : ""}`;
-    save();
-  };
-  const draw = () => {
-    $("#vRows").innerHTML = rows.map((r, i) => `<div class="panel vrow" data-i="${i}">
-      <div class="vtop"><input data-k="name" placeholder="名稱（例：2F 柱）" value="${esc(r.name)}"><select data-k="type"><option value="rect" ${r.type === "rect" ? "selected" : ""}>矩形</option><option value="cyl" ${r.type === "cyl" ? "selected" : ""}>圓柱</option></select><button class="danger" data-del="${i}" aria-label="刪除此列">✕</button></div>
-      <div class="vdims">${r.type === "cyl"
-        ? `<label>直徑<input data-k="a" inputmode="decimal" value="${esc(r.a)}"></label><label>高<input data-k="c" inputmode="decimal" value="${esc(r.c)}"></label>`
-        : `<label>長<input data-k="a" inputmode="decimal" value="${esc(r.a)}"></label><label>寬<input data-k="b" inputmode="decimal" value="${esc(r.b)}"></label><label>高／厚<input data-k="c" inputmode="decimal" value="${esc(r.c)}"></label>`}
-        <label>數量<input data-k="n" inputmode="decimal" value="${esc(r.n)}"></label></div>
-      <div class="vres">小計：<b data-vr="${i}">—</b></div></div>`).join("");
-    sum();
-  };
-  $("#vRows").oninput = e => { const k = e.target.dataset.k, i = e.target.closest(".vrow")?.dataset.i; if (!k) return; rows[+i][k] = e.target.value; if (k === "type") draw(); else sum(); };
-  $("#vRows").onclick = e => { const d = e.target.dataset.del; if (d === undefined) return; rows.splice(+d, 1); if (!rows.length) rows.push({ name: "", type: "rect", a: "", b: "", c: "", n: 1 }); draw(); };
-  $("#vAdd").onclick = () => { rows.push({ name: "", type: "rect", a: "", b: "", c: "", n: 1 }); draw(); };
-  $("#vClear").onclick = () => { if (!confirm("清除全部列？")) return; rows = [{ name: "", type: "rect", a: "", b: "", c: "", n: 1 }]; draw(); };
-  $("#vLoss").oninput = $("#vCap").oninput = sum;
-  draw();
-}
+/* ---------- 混凝土方數：見 volume.js ---------- */
 
 /* ---------- 坡度與高程 ---------- */
 function tabSlope(box) {
@@ -311,7 +268,7 @@ function tabSleeve(box) {
 const calcProjName = st => { try { const s = sites.find(x => x.id === siteId); if (s) return s.name; } catch {} return st?.info?.proj || ""; };
 
 /* ---------- 分頁 ---------- */
-const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea], ["lap", "倍數換算", tabLap], ["mas", "泥作材料", tabMasonry], ["sleeve", "穿樑套管", tabSleeve]];
+const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea], ["lap", "倍數換算", tabLap], ["mas", "泥作材料", tabMasonry], ["sleeve", "穿樑套管", tabSleeve]];
 function renderCalc(tab, sub) {
   if (tab === "col" && sub === "sheet") return renderColSheet();   // 柱模板計算書（colform.js）
   if (tab === "wall" && sub === "sheet") return renderWallSheet();  // 牆模板計算書（wallform.js）
@@ -322,6 +279,7 @@ function renderCalc(tab, sub) {
   if (tab === "row" && sub === "sheet") return renderRowSheet();    // 排架計算書（rowframe.js）
   if (tab === "anc" && sub === "sheet") return renderAncSheet();    // 錨栓計算書（anchor.js）
   if (tab === "sec" && sub === "sheet") return renderSecSheet();    // 斷面性質計算書（secprop.js）
+  if (tab === "vol" && sub === "sheet") return renderVolSheet();    // 混凝土數量計算書（volume.js）
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
   view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
     <div class="chips">${CALC_TABS.map(([k, l]) => `<a class="chip ${k === cur[0] ? "on" : ""}" href="#/calc/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${l}</a>`).join("")}</div>
