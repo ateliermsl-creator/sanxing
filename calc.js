@@ -306,6 +306,10 @@ function tabSleeve(box) {
   box.querySelectorAll("input").forEach(el => el.oninput = go); go();
 }
 
+/* 計算書的「工程名稱」自動帶入目前選的工地（使用者要求：計算機不另外輸入，避免和工地名稱重複）。
+   沒有選工地時，才沿用舊版存在計算機裡的工程名稱。 */
+const calcProjName = st => { try { const s = sites.find(x => x.id === siteId); if (s) return s.name; } catch {} return st?.info?.proj || ""; };
+
 /* ---------- 分頁 ---------- */
 const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["vol", "混凝土方數", tabVolume], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea], ["lap", "倍數換算", tabLap], ["mas", "泥作材料", tabMasonry], ["sleeve", "穿樑套管", tabSleeve]];
 function renderCalc(tab, sub) {

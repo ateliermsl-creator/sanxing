@@ -173,7 +173,6 @@ function tabBeamForm(box) {
       <div class="cfsteps"><a href="#bf1">1 基本資料</a><a href="#bf2">2 材料規格</a><a href="#bf3">3 側模配置</a><a href="#bf4">4 底模及支撐</a><a href="#bf5">5 檢核結果</a></div>
       <section class="panel" id="bf1"><h2><span class="cfno">1</span>基本資料</h2>
         <div class="grid2">
-          <div class="field"><label>工程名稱</label><input data-p="info.proj" value="${esc(st.info.proj)}" placeholder="例：○○新建工程"></div>
           <div class="field"><label>位置／樓層</label><input data-p="info.loc" value="${esc(st.info.loc)}" placeholder="例：二樓頂版"></div>
           <div class="field"><label>構件編號</label><input data-p="info.no" value="${esc(st.info.no)}" placeholder="例：B1"></div>
           <div class="field"><label>梁寬 Bb（cm）</label>${inp("info.Bb", st.info.Bb, "例：45")}</div>
@@ -314,7 +313,7 @@ function renderBeamSheet() {
       <div class="ptitle">梁模板組立及支撐計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置／樓層</td><td>${esc(st.info.loc)}</td><td>構件編號</td><td>${esc(st.info.no)}</td></tr>
         <tr><td>梁寬 Bb</td><td>${esc(st.info.Bb)} cm</td><td>梁深 Hb（含樓板）</td><td>${esc(st.info.Hb)} cm</td></tr>
         <tr><td>樓層高度</td><td colspan="3">${esc(st.info.H)} cm</td></tr>

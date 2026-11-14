@@ -115,7 +115,6 @@ function tabSlabForm(box) {
       <div class="cfsteps"><a href="#sf1">1 基本資料</a><a href="#sf2">2 材料規格</a><a href="#sf3">3 配置條件</a><a href="#sf4">4 檢核結果</a></div>
       <section class="panel" id="sf1"><h2><span class="cfno">1</span>基本資料</h2>
         <div class="grid2">
-          <div class="field"><label>工程名稱</label><input data-p="info.proj" value="${esc(st.info.proj)}" placeholder="例：○○新建工程"></div>
           <div class="field"><label>位置／樓層</label><input data-p="info.loc" value="${esc(st.info.loc)}" placeholder="例：二樓頂版"></div>
           <div class="field"><label>構件編號</label><input data-p="info.no" value="${esc(st.info.no)}" placeholder="例：S1"></div>
           <div class="field"><label>樓層高度（cm）</label>${inp("info.H", st.info.H, "例：350")}</div>
@@ -232,7 +231,7 @@ function renderSlabSheet() {
       <div class="ptitle">板模板支撐計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置／樓層</td><td>${esc(st.info.loc)}</td><td>構件編號</td><td>${esc(st.info.no)}</td></tr>
         <tr><td>樓層高度</td><td>${esc(st.info.H)} cm</td><td>板厚</td><td>${esc(st.info.t)} cm</td></tr>
         <tr><td>單位面積載重</td><td colspan="3">${sfLoadText(st, r, v)}</td></tr>
