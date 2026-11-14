@@ -21,8 +21,9 @@
 | `shot.js` | 施工照片（電子黑板相機）、照片冊 |
 | `safety.js` | 職安衛勤前教育／危害告知簽到 |
 | `log.js` | 施工日誌（B14-4 格式） |
-| `calc.js` | 工程計算機（九個分頁） |
-| `colform.js` | 計算機「柱模板」分頁與 A4 計算書（`#/calc/col/sheet`）；三步驟＋分階（最多 4 階）＋側壓力分布圖＋配置示意圖。輸入存在 localStorage `calcColForm2`，材料庫 `calcColLib`。使用者同意內建「他提供的」材料表（2026-11-14 參考表截圖）：`COL_SPECIES` 木材樹種容許應力、`COL_PRESETS` 襯板與木角材斷面、`COL_DEFP` 襯板撓度標準，畫面註明非規範原文。鋼材 Fb/Fv/E、鋼角材斷面、螺桿斷面積也照參考表內建；螺桿容許拉應力 Ft 參考表沒有，由使用者填（`tieFt`），**不要自己填** |
+| `calc.js` | 工程計算機（十個分頁） |
+| `colform.js` | 計算機「柱模板」分頁與 A4 計算書（`#/calc/col/sheet`）；三步驟＋分階（最多 4 階）＋側壓力分布圖＋配置示意圖。輸入存在 localStorage `calcColForm2`，材料庫 `calcColLib`。使用者同意內建「他提供的」材料表（2026-11-14 參考表截圖）：`COL_SPECIES` 木材樹種容許應力、`COL_PRESETS` 襯板與木角材斷面、`COL_DEFP` 襯板撓度標準，畫面註明非規範原文。鋼材 Fb/Fv/E、鋼角材斷面、螺桿斷面積也照參考表內建；螺桿容許拉應力 Ft 預設 1800 kgf/cm²（參考網站螺桿資料 18 kgf/mm²，2026-11-14 使用者用決策卡同意帶入，可改） |
+| `wallform.js` | 計算機「牆模板」分頁與 A4 計算書（`#/calc/wall/sheet`）；三層模／四層模（螺桿）／單面模（鋼管斜撐挫曲）。材料庫、樹種、斷面與 `colform.js` 共用（`colLib`、`colLibCard`、`colRefHtml`、`colPressureSvg`）。輸入存在 localStorage `calcWallForm`。側壓力預設 1.5Wo + 0.2Wo(H−1.5)（參考網站公式，註明非規範原文，可切換成 γ×深度） |
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
