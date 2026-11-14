@@ -21,7 +21,8 @@
 | `shot.js` | 施工照片（電子黑板相機）、照片冊 |
 | `safety.js` | 職安衛勤前教育／危害告知簽到 |
 | `log.js` | 施工日誌（B14-4 格式） |
-| `calc.js` | 工程計算機（八個分頁） |
+| `calc.js` | 工程計算機（九個分頁） |
+| `colform.js` | 計算機「柱模板」分頁與 A4 計算書（`#/calc/col/sheet`）；輸入存在 localStorage `calcColForm`，常用材料 `calcColMat`。容許應力、E 值、撓度限制、螺桿容許拉力、側壓力上限一律由使用者填，不內建 |
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
