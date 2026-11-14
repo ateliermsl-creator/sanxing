@@ -169,7 +169,6 @@ function tabWallForm(box) {
       <section class="panel" id="wf1"><h2><span class="cfno">1</span>基本資料</h2>
         <div class="field"><label>模板型式</label>${sel("type", Object.entries(WF_TYPES).map(([k, t]) => [k, t.n + (t.sup === "pipe" ? "（鋼管斜撐）" : "（螺桿對拉）")]), st.type)}</div>
         <div class="grid2">
-          <div class="field"><label>工程名稱</label><input data-p="info.proj" value="${esc(st.info.proj)}" placeholder="例：○○新建工程"></div>
           <div class="field"><label>位置／樓層</label><input data-p="info.loc" value="${esc(st.info.loc)}" placeholder="例：地下一層外牆"></div>
           <div class="field"><label>構件編號</label><input data-p="info.no" value="${esc(st.info.no)}" placeholder="例：W1"></div>
           <div class="field"><label>牆高（一次澆置高度，cm）</label>${inp("info.H", st.info.H, "例：300")}</div>
@@ -297,7 +296,7 @@ function renderWallSheet() {
       <div class="ptitle">牆身模板計算書（${T.n}）</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置／樓層</td><td>${esc(st.info.loc)}</td><td>構件編號</td><td>${esc(st.info.no)}</td></tr>
         <tr><td>牆高</td><td>${esc(st.info.H)} cm</td><td>牆厚／牆長</td><td>${esc(st.info.thk) || "—"} ／ ${esc(st.info.len) || "—"} cm</td></tr>
         <tr><td>單位重 Wo</td><td>${esc(st.gamma)} t/m³</td><td>牆底側壓力</td><td>${v(r.pb, 3)} kgf/cm²</td></tr>

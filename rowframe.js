@@ -98,7 +98,6 @@ function tabRowFrame(box) {
       <div class="cfsteps"><a href="#rf1">1 搭設配置</a><a href="#rf2">2 構件規格</a><a href="#rf3">3 載重</a><a href="#rf4">4 檢核結果</a></div>
       <section class="panel" id="rf1"><h2><span class="cfno">1</span>基本資料與搭設配置</h2>
         <div class="grid2">
-          ${fld("工程名稱", txt("info.proj", st.info.proj, "例：○○新建工程"))}
           ${fld("位置", txt("info.loc", st.info.loc, "例：挑高大廳 2F 版"))}
           ${fld("搭設層數（層）", inp("levels", st.levels))}
           ${fld("計算人員", txt("info.who", st.info.who))}
@@ -192,7 +191,7 @@ function renderRowSheet() {
       <div class="ptitle">排架結構計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料與搭設配置</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置</td><td colspan="3">${esc(st.info.loc)}</td></tr>
         <tr><td>搭設層數</td><td>${v(r.levels, 0)} 層</td><td>架體高度</td><td>${v(r.Hs / 100, 3)} m</td></tr>
         <tr><td>立架</td><td colspan="3">寬 ${esc(st.frame.w)} × 高 ${esc(st.frame.h)} cm、跨距 ${esc(st.span)} cm；主柱圓管 D${esc(st.col.D)} × t${esc(st.col.t)} cm，Fy ${esc(st.col.fy)} MPa、E ${esc(st.col.E)} MPa</td></tr>

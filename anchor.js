@@ -178,7 +178,6 @@ function tabAnchor(box) {
       <div class="cfsteps"><a href="#an1">1 基本資料</a><a href="#an2">2 配置</a><a href="#an3">3 材料</a><a href="#an4">4 載重</a><a href="#an5">5 檢核</a></div>
       <section class="panel" id="an1"><h2><span class="cfno">1</span>基本資料</h2>
         <div class="grid2">
-          ${fld("工程名稱", txt("info.proj", st.info.proj, "例：○○新建工程"))}
           ${fld("位置", txt("info.loc", st.info.loc, "例：托架錨栓 3F 北向"))}
           ${fld("錨栓型式", sel("type", ANC_TYPES, st.type))}
           ${fld("混凝土強度 f′c（kgf/cm²）", inp("fc", st.fc))}
@@ -267,7 +266,7 @@ function renderAncSheet() {
       <div class="ptitle">混凝土錨栓計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置</td><td colspan="3">${esc(st.info.loc)}</td></tr>
         <tr><td>錨栓型式</td><td>${esc(ANC_TYPES.find(([k]) => k === st.type)[1])}</td><td>f′c</td><td>${esc(st.fc)} kgf/cm²</td></tr>
         <tr><td>設計條件</td><td colspan="3">${conds.length ? conds.join("、") : "開裂、無補強筋"}${st.type !== "cast" ? `；產品分類 ${esc(st.cat)}` : ""}</td></tr>

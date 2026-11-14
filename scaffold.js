@@ -182,7 +182,6 @@ function tabScaffold(box) {
       <div class="cfsteps"><a href="#sc1">1 搭設配置</a><a href="#sc2">2 構件規格</a><a href="#sc3">3 載重</a><a href="#sc4">4 檢核結果</a></div>
       <section class="panel" id="sc1"><h2><span class="cfno">1</span>基本資料與搭設配置</h2>
         <div class="grid2">
-          ${fld("工程名稱", txt("info.proj", st.info.proj, "例：○○新建工程"))}
           ${fld("位置", txt("info.loc", st.info.loc, "例：北向外牆"))}
           ${fld("搭設層數（層）", inp("levels", st.levels))}
           ${fld("縱向排數（排，立架片數）", inp("rows", st.rows))}
@@ -316,7 +315,7 @@ function renderScafSheet() {
       <div class="ptitle">外牆框型施工架結構計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料與搭設配置</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置</td><td colspan="3">${esc(st.info.loc)}</td></tr>
         <tr><td>搭設層數</td><td>${v(r.levels, 0)} 層</td><td>縱向排數</td><td>${v(r.rows, 0)} 排</td></tr>
         <tr><td>架體高度</td><td>${v(r.Hs / 100, 3)} m</td><td>縱向長度</td><td>${v(r.Ls / 100, 2)} m</td></tr>
