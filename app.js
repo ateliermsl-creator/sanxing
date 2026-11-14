@@ -194,6 +194,7 @@ function parentHash() {
   if (page === "cure") return a ? "#/cure" : "#/";
   if (page === "log") return !a ? "#/" : b === "print" ? "#/log/" + a : "#/log";
   if (page === "safety") return !a ? "#/" : b === "print" ? "#/safety/" + a : "#/safety";
+  if (page === "calc") return b ? "#/calc/" + a : "#/";
   if (page === "template") return "#/checklist";
   return "#/";
 }
@@ -229,7 +230,7 @@ async function route() {
   if (page === "install") return renderInstall();
   if (page === "punch") return renderPunch(a);
   if (page === "workorder") return renderWorkorder(a, location.hash.endsWith("/preview"));
-  if (page === "calc") return renderCalc(a);
+  if (page === "calc") return renderCalc(a, b2);
   if (page === "template") return renderTemplateEditor(a);
   if (page === "backup") return renderBackup();
   return renderHome();
@@ -252,7 +253,7 @@ async function renderHome() {
     <a class="card" href="#/cure"><div class="ph">🧪</div><div><b>試體養護與拆模追蹤</b><small>${cuN ? `⚠️ ${cuN} 項待處理・` : ""}7／28 天試壓提醒・拆模齡期・強度台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・面積・泥作材料・穿樑套管</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・面積・泥作材料・穿樑套管・柱模板</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/shot"><div class="ph">📷</div><div><b>施工照片（電子黑板）</b><small>黑板合成在照片上・照片冊・分享 PDF</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/backup"><div class="ph">💾</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/install"><div class="ph">📲</div><div><b>加到手機桌面</b><small>像 App 一樣使用・教學</small></div><span class="arrow">›</span></a>
