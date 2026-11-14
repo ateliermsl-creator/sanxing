@@ -70,6 +70,21 @@ function renderInstall() {
   $("#instNow")?.addEventListener("click", async () => { try { deferredInstall.prompt(); await deferredInstall.userChoice; } catch {} deferredInstall = null; renderInstall(); });
 }
 
+/* ---------- 欄位標籤綁定輸入框（易用性）----------
+   各頁的 <label> 多半沒有 for：點標籤不會跳到輸入框、讀屏軟體也念不出欄位名。
+   畫面更新後自動把 .field 內的 label 綁到同一格的第一個輸入框 */
+let lblSeq = 0;
+function bindLabels(root = view) {
+  root.querySelectorAll(".field > label:not([for])").forEach(lb => {
+    if (lb.querySelector("input,select,textarea")) return;
+    const c = lb.parentElement.querySelector("input:not([type=hidden]),select,textarea");
+    if (!c) return;
+    if (!c.id) c.id = "fld" + (++lblSeq);
+    lb.htmlFor = c.id;
+  });
+}
+new MutationObserver(() => bindLabels()).observe(view, { childList: true, subtree: true });
+
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
   const r = indexedDB.open("avocado-toolbox", 11);
@@ -253,7 +268,7 @@ async function renderHome() {
     <a class="card" href="#/cure"><div class="ph">🧪</div><div><b>試體養護與拆模追蹤</b><small>${cuN ? `⚠️ ${cuN} 項待處理・` : ""}7／28 天試壓提醒・拆模齡期・強度台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・面積・泥作材料・穿樑套管・柱模板・牆模板</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋・混凝土・坡度高程・面積・泥作材料・穿樑套管・柱模板・牆模板・板模板・梁模板・施工架・三角架・排架</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/shot"><div class="ph">📷</div><div><b>施工照片（電子黑板）</b><small>黑板合成在照片上・照片冊・分享 PDF</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/backup"><div class="ph">💾</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/install"><div class="ph">📲</div><div><b>加到手機桌面</b><small>像 App 一樣使用・教學</small></div><span class="arrow">›</span></a>
@@ -409,7 +424,7 @@ async function renderForm(id) {
   const inp = (k, lab, ph) => `<div class="field"><label>${lab}</label><input data-f="${k}" value="${esc(rec[k])}" placeholder="${ph || ""}"></div>`;
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">${esc(tpl.name)}</h2>
-    <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#a8782e;font-weight:700">${prog()}</span></div>
+    <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#7a5418;font-weight:700">${prog()}</span></div>
     <div class="panel">
       ${inp("contractor", "承攬廠商", "廠商名稱")}${inp("subcontractor", "協力廠商", "協力廠商（如有）")}
       ${inp("location", "檢查位置", "例如：2F、B1 東側")}
