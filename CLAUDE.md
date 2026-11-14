@@ -36,7 +36,7 @@
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
-1. **`sw.js` 的 `VERSION` 加 1**（`"v120"` → `"v121"`）。不加的話，已安裝的手機不會換新版。
+1. **`sw.js` 的 `VERSION` 加 1**（`"v122"` → `"v123"`）。不加的話，已安裝的手機不會換新版。
 2. 新增 `.js` 檔：同時加進 `index.html` 的 `<script>` 與 `sw.js` 的 `FILES`。
 3. **新增或改名資料欄位：同步改 `safe.js` 的 `CLEAN` 規則。** 沒改的話，匯入備份時該欄位會被丟掉（`tests/backup_roundtrip.js` 會抓到）。
 4. 新增資料表：`app.js` 的資料庫版本加 1、加進 `onupgradeneeded` 的名單、備份匯出／匯入、`sanitizeBackup`、刪除工地的 `stores`。

@@ -243,7 +243,6 @@ function tabBracket(box) {
       <div class="cfsteps"><a href="#bk1">1 型式與尺寸</a><a href="#bk2">2 斷面與材料</a><a href="#bk3">3 檢核結果</a></div>
       <section class="panel" id="bk1"><h2><span class="cfno">1</span>型式、尺寸與載重</h2>
         <div class="grid2">
-          ${fld("工程名稱", txt("info.proj", st.info.proj, "例：○○新建工程"))}
           ${fld("位置", txt("info.loc", st.info.loc, "例：北向外牆 3F"))}
           ${fld("托架型式", sel("type", BK_TYPES, ty))}
           ${fld("計算人員", txt("info.who", st.info.who))}
@@ -346,7 +345,7 @@ function renderBrkSheet() {
       <div class="ptitle">三角架（施工架托架）結構計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置</td><td>${esc(st.info.loc)}</td><td>托架型式</td><td>${esc(BK_TYPES.find(([k]) => k === ty)[1])}</td></tr>
         <tr><td>尺寸（cm）</td><td colspan="3">${dims.map(([k, x]) => `${k} ${esc(x)}`).join("、")}</td></tr>
         <tr><td>載重</td><td colspan="3">PD₁ ${esc(st.PD1)}、PD₂ ${esc(st.PD2)}、PL₁ ${esc(st.PL1)}、PL₂ ${esc(st.PL2)} kgf；P = 1.2PD + 1.6PL；托架自重${st.self === "1" ? " × 1.2 計入" : "未計入"}</td></tr>

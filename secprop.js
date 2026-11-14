@@ -229,7 +229,6 @@ function tabSection(box) {
       <div class="cfsteps"><a href="#sp1">1 基本資料</a><a href="#sp2">2 定義斷面</a><a href="#sp3">3 斷面性質</a></div>
       <section class="panel" id="sp1"><h2><span class="cfno">1</span>基本資料</h2>
         <div class="grid2">
-          ${fld("工程名稱", txt("info.proj", st.info.proj, "例：○○新建工程"))}
           ${fld("位置／用途", txt("info.loc", st.info.loc, "例：模板第二層大格柵"))}
           ${fld("斷面名稱", txt("info.no", st.info.no, "例：鋼管 □50×50×2.3"))}
           ${fld("計算人員", txt("info.who", st.info.who))}
@@ -331,7 +330,7 @@ function renderSecSheet() {
       <div class="ptitle">斷面性質計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置／用途</td><td colspan="3">${esc(st.info.loc)}</td></tr>
         <tr><td>斷面名稱</td><td>${esc(st.info.no)}</td><td>座標單位</td><td>${u}</td></tr>
         <tr><td>外輪廓</td><td colspan="3" style="font-size:8.5pt">${r.outer.length} 點：${esc(pts(r.outer))}</td></tr>

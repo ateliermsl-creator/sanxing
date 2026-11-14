@@ -216,7 +216,6 @@ function tabColForm(box) {
       <div class="cfsteps"><a href="#cf1">1 基本資料</a><a href="#cf2">2 材料規格</a><a href="#cf3">3 配置條件</a><a href="#cf4">4 檢核結果</a></div>
       <section class="panel" id="cf1"><h2><span class="cfno">1</span>基本資料</h2>
         <div class="grid2">
-          <div class="field"><label>工程名稱</label><input data-p="info.proj" value="${esc(st.info.proj)}" placeholder="例：○○新建工程"></div>
           <div class="field"><label>位置／樓層</label><input data-p="info.loc" value="${esc(st.info.loc)}" placeholder="例：基礎～一層"></div>
           <div class="field"><label>構件編號</label><input data-p="info.no" value="${esc(st.info.no)}" placeholder="例：C1"></div>
           <div class="field"><label>柱高（一次澆置高度，cm）</label>${inp("info.H", st.info.H, "例：300")}</div>
@@ -325,7 +324,7 @@ function renderColSheet() {
       <div class="ptitle">柱模板計算書</div>
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
-        <tr><td>工程名稱</td><td colspan="3">${esc(st.info.proj)}</td></tr>
+        <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(st))}</td></tr>
         <tr><td>位置／樓層</td><td>${esc(st.info.loc)}</td><td>構件編號</td><td>${esc(st.info.no)}</td></tr>
         <tr><td>柱斷面</td><td>${esc(st.info.bx)} × ${esc(st.info.by)} cm</td><td>柱高</td><td>${esc(st.info.H)} cm</td></tr>
         <tr><td>單位重 γ</td><td>${esc(st.gamma)} t/m³</td><td>側壓力上限</td><td>${colF(st.pmax) > 0 ? esc(st.pmax) + " t/m²" : "未填（取 γ × 深度）"}</td></tr>
