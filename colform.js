@@ -6,7 +6,8 @@
    ‧材料容許應力、E 值、撓度限制、螺桿容許拉力：本工具「不內建任何數值」，由使用者建立材料庫（localStorage calcColLib）。
      例外：使用者提供的參考材料表（2026-11-14 截圖）內建為 COL_SPECIES（木材樹種容許應力）與 COL_PRESETS（襯板、木角材斷面），
      畫面註明「依使用者提供的參考表，非規範原文」；木料的 fb、fv、E 依所選樹種。鋼材（Fb、Fv、E）、鋼角材斷面、螺桿斷面積也取自同一參考表；螺桿容許拉應力 Ft 預設 1800（參考網站螺桿資料 18 kgf/mm²，2026-11-14 使用者同意帶入，非規範原文，可改）。
-   ‧構件依均布載重的梁：簡支 M = wL²/8、V = wL/2、δ = 5wL⁴/384EI；三跨以上連續（近似）M = wL²/10、V = 0.6wL、δ = wL⁴/145EI。
+   ‧構件依均布載重的梁，計算方式見 COL_METHODS：預設「參考網站算法」＝襯板簡支（wL²/8、0.5wL、5wL⁴/384EI），格柵 wL²/10、0.6wL、wL⁴/128EI，
+     剪應力 fv = k·V/A（矩形 k 1.5、鋼角材 k 1、A = 2ht），小格柵的剪力面積計入襯板厚度 b(h + t襯板)；另可選三跨以上連續（wL⁴/145EI）或簡支。
    ‧單位：長度 cm、力 kgf、應力 kgf/cm²；γ 用 t/m³、側壓力上限用 t/m²。 */
 
 const COL_MEMBERS = [
@@ -19,6 +20,14 @@ const COL_MEMBERS = [
 const COL_GAPS = [["H1", "小格柵垂直間距 H1"], ["B2", "第一層大格柵水平間距 B2"], ["H3", "第二層大格柵垂直間距 H3"], ["H4", "螺桿垂直間距 H4"], ["B4", "螺桿水平間距 B4"]];
 const COL_KINDS = { ply: "襯板", beam: "角材／鋼管（格柵）", tie: "螺桿" };
 const COL_COEF = { s: { m: 1 / 8, v: 0.5, d: 384 / 5, n: "簡支", mt: "wL²/8", dt: "5wL⁴/384EI" }, c: { m: 1 / 10, v: 0.6, d: 145, n: "三跨以上連續（近似）", mt: "wL²/10", dt: "wL⁴/145EI" } };
+// 構件計算方式：r 依參考網站（2026-11-14 使用者要求「跟網站一樣」）：襯板簡支、格柵 M = wL²/10、δ = wL⁴/128EI，小格柵剪力面積計入襯板厚度
+const COL_METHODS = {
+  r: { n: "參考網站算法", ply: COL_COEF.s, beam: { m: 1 / 10, v: 0.6, d: 128, mt: "wL²/10", dt: "wL⁴/128EI" }, tp: true },
+  c: { n: "三跨以上連續（近似）", ply: COL_COEF.c, beam: COL_COEF.c },
+  s: { n: "簡支（保守）", ply: COL_COEF.s, beam: COL_COEF.s }
+};
+const colMethText = k => { const m = COL_METHODS[k] || COL_METHODS.r, p = m.ply, b = m.beam;
+  return `${m.n}：襯板 M = ${p.mt}、V = ${p.v}wL、δ = ${p.dt}；格柵 M = ${b.mt}、V = ${b.v}wL、δ = ${b.dt}${m.tp ? "；小格柵剪力面積計入襯板厚度" : ""}`; };
 // 木材樹種（使用者提供的參考表；fc 只供參考，柱模板檢核未用到）
 const COL_SPECIES = [
   { id: "c3", n: "針葉樹III類", note: "赤松、黑松、落葉松、鐵杉、北美鐵杉、南方松", fb: "170", fc: "130", fv: "14", E: "70000" },
@@ -36,9 +45,9 @@ const COL_PRESETS = [
   { id: "p_b9045", kind: "beam", n: "木角材 9 × 4.5 cm（躺置－弱軸）", sect: "rect", b: "9", h: "4.5", cnt: "1" },
   { id: "p_b4590", kind: "beam", n: "木角材 4.5 × 9 cm（立置－強軸）", sect: "rect", b: "4.5", h: "9", cnt: "1" }
 ].map(p => ({ kv: "1.5", ...p, wood: true })).concat([
-  // 鋼角材：A、I、S 照參考表（I、S 為受力方向）
-  { id: "p_s7045_23", kind: "beam", n: "鋼角材 7 × 4.5 × 0.23 cm", sect: "custom", A: "2.07", I: "8.824", S: "3.922", kv: "1.5", cnt: "1", steel: true },
-  { id: "p_s7045_25", kind: "beam", n: "鋼角材 7 × 4.5 × 0.25 cm", sect: "custom", A: "2.25", I: "9.448", S: "4.199", kv: "1.5", cnt: "1", steel: true }
+  // 鋼角材：A、I、S 照參考表（I、S 為受力方向）；剪力面積 A = 2ht（h 4.5、t 管厚），fv = 0.6wL／A（k = 1）
+  { id: "p_s7045_23", kind: "beam", n: "鋼角材 7 × 4.5 × 0.23 cm", sect: "custom", A: "2.07", I: "8.824", S: "3.922", h: "4.5", tw: "0.23", kv: "1", cnt: "1", steel: true },
+  { id: "p_s7045_25", kind: "beam", n: "鋼角材 7 × 4.5 × 0.25 cm", sect: "custom", A: "2.25", I: "9.448", S: "4.199", h: "4.5", tw: "0.25", kv: "1", cnt: "1", steel: true }
 ], [["2", "0.236"], ["2.5", "0.369"], ["3", "0.531"], ["3.5", "0.756"], ["4", "0.945"], ["4.5", "1.238"], ["5", "1.571"]].map(([d, a]) => ({ id: "p_t" + d.replace(".", ""), kind: "tie", n: `${d} 分螺桿`, A: a, bolt: true })));
 const COL_STEEL = { n: "鋼材", fy: "2400", fb: "1800", fc: "1800", fv: "1200", E: "2100000" };   // 參考表
 // 襯板撓度檢核標準（使用者提供：工程慣例 0.3 cm，或依結構混凝土施工規範 4.3.4 取 L/240）
@@ -49,7 +58,7 @@ const colStr = v => (typeof v === "string" || typeof v === "number") ? String(v)
 const colTier = () => ({ top: "", H1: "", B2: "", H3: "", H4: "", B4: "" });
 const colBlank = () => ({
   info: { proj: "", loc: "", no: "", bx: "", by: "", H: "", who: "" },
-  gamma: "2.4", pmax: "", cont: "c", species: "c3", tieFt: "1800", defP: { n: "", a: "3" }, defB: { n: "", a: "" },
+  gamma: "2.4", pmax: "", meth: "r", species: "c3", tieFt: "1800", defP: { n: "", a: "3" }, defB: { n: "", a: "" },
   sel: { ply: "p_ply15", stud: "p_b3645", w1: "p_b9045", w2: "p_b9045", tie: "p_t25" }, tiers: [colTier()]
 });
 // 讀回存檔時只留下已知欄位、都轉成字串，避免舊資料或改壞的資料影響畫面
@@ -86,6 +95,24 @@ function colSect(mat) {
 }
 const colSectText = mat => !mat ? "未選擇" : mat.kind === "tie" ? (mat.A ? `斷面積 ${mat.A} cm²` : "") : mat.sect === "t" ? `板厚 ${mat.t} cm（100 cm 寬板帶）` : mat.sect === "rect" ? `${mat.b} × ${mat.h} cm${+mat.cnt > 1 ? ` × ${mat.cnt} 根` : ""}` : `I ${mat.I} cm⁴、S ${mat.S} cm³、A ${mat.A} cm²${mat.kind === "ply" ? "（每 100 cm 寬）" : +mat.cnt > 1 ? ` × ${mat.cnt} 根` : ""}`;
 
+// 單一構件（均布載重的梁）：彎曲、剪力、撓度；tp 為襯板厚度（小格柵剪力面積用）
+function colMember(x, m, L, trib, P, meth, tp, df) {
+  const c = x.kind === "ply" ? meth.ply : meth.beam, s = colSect(m);
+  const w = P * trib, M = c.m * w * L * L, V = c.v * w * L, E = colF(m?.E), dl = s ? w * L ** 4 / (c.d * E * s.I) : NaN;
+  let Av = s ? s.A : NaN, avt = "";
+  if (s && meth.tp && x.k === "stud" && tp > 0) {
+    if (m.sect === "rect") { Av = s.n * colF(m.b) * (colF(m.h) + tp); avt = `${s.n > 1 ? s.n + " × " : ""}${m.b} × (${m.h} + ${tp})`; }
+    else if (m.steel && m.h && m.tw) { Av = s.n * 2 * (colF(m.h) + tp) * colF(m.tw); avt = `2 × (${m.h} + ${tp}) × ${m.tw}`; }
+  }
+  const lims = [colF(df.n) > 0 ? L / colF(df.n) : NaN, colF(df.a) > 0 ? colF(df.a) / 10 : NaN].filter(Number.isFinite);
+  return { x, m, s, L, trib, w, M, V, Av, avt, c, checks: [
+    { t: "彎曲 fb", v: s ? M / s.S : NaN, a: colF(m?.fb), u: "kgf/cm²", d: 1 },
+    { t: "剪力 fv", v: s ? s.kv * V / Av : NaN, a: colF(m?.fv), u: "kgf/cm²", d: 2 },
+    { t: "撓度 δ", v: dl * 10, a: lims.length ? Math.min(...lims) * 10 : NaN, u: "mm", d: 2 }] };
+}
+// 明細文字
+const colMemText = (m, f) => `${m.x.n}：L = ${f(m.L, 1)} cm，w = P × ${m.x.trib || "100"} = ${f(m.w, 3)} kgf/cm，M = ${m.c.mt} = ${f(m.M, 0)} kgf·cm，V = ${m.c.v}wL = ${f(m.V, 1)} kgf，δ = ${m.c.dt}${m.avt ? `，剪力面積 ${m.avt} = ${f(m.Av, 2)} cm²` : ""}`;
+const colPlyT = mat => mat && mat.sect === "t" ? colF(mat.t) : NaN;
 function colCalc(st, lib = colLib()) {
   const H = colF(st.info.H), g = colF(st.gamma), pmax = colF(st.pmax), cap = pmax > 0 ? pmax / 10 : Infinity;   // 1 t/m² = 0.1 kgf/cm²
   const pAt = depth => Math.min(g * depth / 1000, cap);       // kgf/cm²（γ t/m³ × 深度 cm）
@@ -95,28 +122,20 @@ function colCalc(st, lib = colLib()) {
     if (m.steel) return { ...m, fb: COL_STEEL.fb, fv: COL_STEEL.fv, E: COL_STEEL.E, spn: "鋼材" };
     if (m.bolt) { const ft = colF(st.tieFt); return { ...m, ta: ft > 0 ? String(+(ft * colF(m.A)).toFixed(1)) : "" }; }
     return m; };
-  const c = COL_COEF[st.cont] || COL_COEF.c, tiers = [], err = [];
+  const meth = COL_METHODS[st.meth] || COL_METHODS.r, tiers = [], err = [];
   let lo = 0;
   st.tiers.forEach((t, i) => {
     const last = i === st.tiers.length - 1, hi = last ? H : colF(t.top);
     if (!last && !err.length && !(hi > lo && hi < H)) err.push(`${COL_TIER_N[i]}的最高高度須介於 ${fmt(lo, 0)} 與柱高 ${fmt(H, 0)} cm 之間`);
     const P = pAt(H - lo), gap = { H1: colF(t.H1), B2: colF(t.B2), H3: colF(t.H3), B4: colF(t.B4) };
     gap.H4 = colF(t.H4) > 0 ? colF(t.H4) : gap.H3;
-    const mems = COL_MEMBERS.map(x => {
-      const m = mat(x.k), s = colSect(m), L = gap[x.span], trib = x.trib ? gap[x.trib] : 100, df = x.kind === "ply" ? st.defP : st.defB;
-      const w = P * trib, M = c.m * w * L * L, V = c.v * w * L, E = colF(m?.E), dl = s ? w * L ** 4 / (c.d * E * s.I) : NaN;
-      const lims = [colF(df.n) > 0 ? L / colF(df.n) : NaN, colF(df.a) > 0 ? colF(df.a) / 10 : NaN].filter(Number.isFinite);
-      return { x, m, s, L, trib, w, M, V, checks: [
-        { t: "彎曲 fb", v: s ? M / s.S : NaN, a: colF(m?.fb), u: "kgf/cm²", d: 1 },
-        { t: "剪力 fv", v: s ? s.kv * V / s.A : NaN, a: colF(m?.fv), u: "kgf/cm²", d: 2 },
-        { t: "撓度 δ", v: dl * 10, a: lims.length ? Math.min(...lims) * 10 : NaN, u: "mm", d: 2 }] };
-    });
+    const mems = COL_MEMBERS.map(x => colMember(x, mat(x.k), gap[x.span], x.trib ? gap[x.trib] : 100, P, meth, colPlyT(mat("ply")), x.kind === "ply" ? st.defP : st.defB));
     const tie = { t: "拉力 T", v: P * gap.B4 * gap.H4, a: colF(mat("tie")?.ta), u: "kgf", d: 0 };
     tiers.push({ i, lo, hi, P, gap, mems, tie, all: [...mems.flatMap(m => m.checks), tie] });
     lo = hi;
   });
   const all = tiers.flatMap(t => t.all);
-  return { H, g, cap, pAt, c, tiers, err, mat, sp,
+  return { H, g, cap, pAt, meth, tiers, err, mat, sp,
     ng: all.filter(x => colJudge(x)[1] === "bad").length, miss: all.filter(x => colJudge(x)[1] === "").length };
 }
 const colJudge = c => !Number.isFinite(c.v) ? ["—", ""] : !(c.a > 0) ? ["未填容許值", ""] : c.v <= c.a ? ["OK", "ok"] : ["NG", "bad"];
@@ -214,7 +233,7 @@ function tabColForm(box) {
           ${COL_MEMBERS.map(x => `<div class="field"><label>${x.n}</label><select data-p="sel.${x.k}" data-kind="${x.kind}">${matOpts(x.kind, st.sel[x.k])}</select></div>`).join("")}
           <div class="field"><label>螺桿</label><select data-p="sel.tie" data-kind="tie">${matOpts("tie", st.sel.tie)}</select></div>
           <div class="field"><label>螺桿容許拉應力 Ft（kgf/cm²）</label>${inp("tieFt", st.tieFt, "參考網站 1800")}</div>
-          <div class="field"><label>構件計算方式</label><select data-p="cont"><option value="c" ${st.cont === "c" ? "selected" : ""}>三跨以上連續</option><option value="s" ${st.cont === "s" ? "selected" : ""}>簡支（保守）</option></select></div>
+          <div class="field"><label>構件計算方式</label><select data-p="meth">${Object.entries(COL_METHODS).map(([k, x]) => `<option value="${k}" ${st.meth === k ? "selected" : ""}>${x.n}</option>`).join("")}</select></div>
           <div class="field"><label>襯板撓度限制 L／?</label>${inp("defP.n", st.defP.n, "可空白")}</div>
           <div class="field"><label>襯板撓度上限（mm）</label>${inp("defP.a", st.defP.a, "可空白")}</div>
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
@@ -253,7 +272,7 @@ function tabColForm(box) {
       <div class="tblwrap"><table class="ct cfres"><tr><th>構件</th>${r.tiers.map(t => `<th>${COL_TIER_N[t.i]}<br><small>P ${fmt(t.P, 3)}</small></th>`).join("")}</tr>${rows.join("")}</table></div>
       <p class="cnote">表中數字為「計算值 ÷ 容許值」，≤ 1 為 OK；未填容許值時顯示計算值。P 單位 kgf/cm²。</p>
       ${r.tiers.map(t => `<details class="cfdet"><summary>${COL_TIER_N[t.i]}（${fmt(t.lo, 0)}～${fmt(t.hi, 0)} cm）計算明細</summary>
-        ${t.mems.map(m => `<p class="cfdh">${m.x.n}：L ${fmt(m.L, 1)} cm，受載寬 ${fmt(m.trib, 1)} cm，w ${fmt(m.w, 3)} kgf/cm，M ${fmt(m.M, 0)} kgf·cm，V ${fmt(m.V, 1)} kgf</p>
+        ${t.mems.map(m => `<p class="cfdh">${colMemText(m, fmt)}</p>
           ${m.checks.map(c => `<div class="big"><span>${c.t}</span><b>${fmt(c.v, c.d)}${c.a > 0 ? ` ／ ${fmt(c.a, c.d)}` : ""} ${c.u} <em class="cfj ${colJudge(c)[1]}">${colJudge(c)[0]}</em></b></div>`).join("")}`).join("")}
         <p class="cfdh">螺桿：T = P × B4 × H4 = ${fmt(t.P, 3)} × ${fmt(t.gap.B4, 1)} × ${fmt(t.gap.H4, 1)}</p>
         <div class="big"><span>拉力 T</span><b>${fmt(t.tie.v, 0)}${t.tie.a > 0 ? ` ／ ${fmt(t.tie.a, 0)}` : ""} kgf <em class="cfj ${colJudge(t.tie)[1]}">${colJudge(t.tie)[0]}</em></b></div></details>`).join("")}`;
@@ -311,7 +330,8 @@ function renderColSheet() {
         <tr><td>單位重 γ</td><td>${esc(st.gamma)} t/m³</td><td>側壓力上限</td><td>${colF(st.pmax) > 0 ? esc(st.pmax) + " t/m²" : "未填（取 γ × 深度）"}</td></tr>
       </table>
       <table class="pt">
-        <tr><th colspan="4">二、材料規格（${r.c.n}；M = ${r.c.mt}、V = ${r.c.v}wL、δ = ${r.c.dt}）</th></tr>
+        <tr><th colspan="4">二、材料規格</th></tr>
+        <tr><td>計算方式</td><td colspan="3">${colMethText(st.meth)}</td></tr>
         ${COL_MEMBERS.map(x => matRow(x.n, r.mat(x.k), allow)).join("")}
         ${matRow("螺桿", r.mat("tie"), m => `${m.bolt ? `；Ft ${esc(st.tieFt) || "—"} kgf/cm²` : ""}；容許拉力 ${esc(m.ta) || "—"} kgf`)}
         <tr><td>撓度限制</td><td colspan="3">襯板：${lim(st.defP)}；格柵：${lim(st.defB)}</td></tr>
@@ -327,7 +347,7 @@ function renderColSheet() {
       ${r.tiers.map(t => `<table class="pt">
         <tr><th colspan="6">${["四", "五", "六", "七"][t.i]}、${COL_TIER_N[t.i]}檢核（${v(t.lo, 0)}～${v(t.hi, 0)} cm，P = ${v(t.P, 3)} kgf/cm²）</th></tr>
         <tr><th>項目</th><th>計算值</th><th>容許值</th><th>單位</th><th>比值</th><th>判定</th></tr>
-        ${t.mems.map(m => `<tr><td colspan="6">${m.x.n}：L = ${v(m.L, 1)} cm，w = P × ${m.x.trib || "100"} = ${v(m.w, 3)} kgf/cm，M = ${v(m.M, 0)} kgf·cm，V = ${v(m.V, 1)} kgf</td></tr>${m.checks.map(crow).join("")}`).join("")}
+        ${t.mems.map(m => `<tr><td colspan="6">${colMemText(m, v)}</td></tr>${m.checks.map(crow).join("")}`).join("")}
         <tr><td colspan="6">螺桿：T = P × B4 × H4</td></tr>${crow(t.tie)}
       </table>`).join("")}`}
       <table class="pt"><tr><th>檢核結果</th><td>${r.err.length ? "分階高度有誤" : r.ng ? `${r.ng} 項超過容許值` : r.miss ? `尚有 ${r.miss} 項未完成` : "全部在容許值以內"}</td></tr>
