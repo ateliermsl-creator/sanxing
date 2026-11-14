@@ -1,0 +1,30 @@
+// scaffold_calc：外牆框型施工架（自重、載重組合、主柱與壁連座檢核、立面圖、計算書、窄螢幕）見 tests/README.md
+const {chromium}=require('playwright');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S,{recursive:true});
+(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+const U='http://localhost:8793/index.html';
+const G=p.goto.bind(p);p.goto=async u=>{const r=await G(u);await p.waitForTimeout(150);await p.evaluate(()=>document.querySelectorAll('dialog[open]').forEach(d=>d.close()));return r;};
+await p.goto(U+'#/calc/scaf');await p.waitForSelector('[data-p="levels"]');
+const f=async(k,v)=>p.fill(`[data-p="${k}"]`,v);const t=async s=>(await p.innerText(s)).replace(/\s+/g,' ');
+const rows=async s=>(await p.$$eval(s+' tr',r=>r.map(x=>x.innerText.replace(/\s+/g,' ')))).join(' / ');
+console.log('分頁存在:',await p.$$eval('.chips a',a=>a.map(x=>x.textContent).includes('施工架')));
+console.log('預設自重:',await t('#scWt'));
+console.log('空白:',await t('#scRes .big'));
+await f('q','180');await f('tie.sv','3.45');await f('tie.sh','5.49');await f('tie.d','1.2');await f('wp','60');await f('wn','80');await f('ch','0.5');
+console.log('結果:',await rows('#scChk'));
+console.log('組合:',await rows('#scCombo'));
+await p.$$eval('details',d=>d.forEach(x=>x.open=true));console.log('明細:',await t('#scRes details'));
+await f('beta','40');console.log('β40 壁連座:',await rows('#scChk'));
+await f('tie.limV','3');console.log('上限NG:',await t('#scRes .big'));await f('tie.limV','');
+await p.selectOption('#scFrame','f6');console.log('換門形121.9:',await p.inputValue('[data-p="frame.w"]'),await p.inputValue('[data-p="frame.kg"]'));
+await p.selectOption('#scCmat','STK400');console.log('STK400 Fy:',await p.inputValue('[data-p="col.fy"]'));
+await p.selectOption('#scFrame','f2');await p.selectOption('#scCmat','STK500');
+await p.goto(U+'#/');await p.goto(U+'#/calc/scaf');await p.waitForSelector('[data-p="levels"]');console.log('重開保留:',await p.inputValue('[data-p="tie.d"]'),await p.inputValue('[data-p="beta"]'));
+await p.$$eval('details',d=>d.forEach(x=>x.open=true));await p.screenshot({path:S+'scaffold_tab.png',fullPage:true});
+await p.goto(U+'#/calc/scaf/sheet');await p.waitForSelector('.paper');await p.waitForTimeout(300);
+console.log('計算書:',(await t('.paper')).slice(0,300));
+await p.screenshot({path:S+'scaffold_sheet.png',fullPage:true});
+for(const w of [360,320]){await p.setViewportSize({width:w,height:800});await p.goto(U+'#/calc/scaf');await p.waitForSelector('[data-p="levels"]');
+ console.log(w,'分頁 橫向捲動',await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth)?'有':'無');
+ await p.goto(U+'#/calc/scaf/sheet');await p.waitForTimeout(300);console.log(w,'計算書 橫向捲動',await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth)?'有':'無');}
+await p.evaluate(()=>localStorage.setItem('calcScafForm','{"levels":"<img src=x onerror=alert(1)>","tie":5,"info":{"proj":"<b>x</b>"}}'));await p.goto(U+'#/calc/scaf');await p.waitForSelector('#scRes');console.log('壞資料:',await p.inputValue('[data-p="levels"]'),await t('#scRes .big'),'img數',await p.$$eval('#calcBox img',x=>x.length));
+console.log('錯誤',e);await b.close();})();

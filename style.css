@@ -349,3 +349,4 @@ section.panel{scroll-margin-top:64px}
 .cfpaper .pt .c{font-size:inherit}.cfpaper .pt th[colspan]{text-align:left}.cfpaper .pt{margin-bottom:3mm}
 .sfpost{fill:var(--card)}.cfpaper .sfpost{fill:#fff}
 .cfpaper .cffig{margin:0 0 3mm}.cfpaper .cfsvg{color:#000;max-width:100%}.cfpaper .cffig .cnote{color:#000;font-size:8.5pt}
+.sctie{stroke:var(--bad)}.cfpaper .sctie{stroke:#000}
