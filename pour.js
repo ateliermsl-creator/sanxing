@@ -111,6 +111,10 @@ async function renderPourBatch(id) {
     bt.trucks.push(t); await flush(); location.hash = `#/pour/${bt.id}/truck/${t.id}`;
   };
   attBind(view, bt.id); cuFormsBind(view, bt, save);
+  { // 從拆模天數設定回來：捲回拆模追蹤
+    let back = null; try { back = sessionStorage.getItem("cuBackPour"); sessionStorage.removeItem("cuBackPour"); } catch { }
+    if (back === bt.id) $("#cuForms")?.scrollIntoView({ block: "start" });
+  }
   { // 整批照片（配比設計書、試驗報告等）
     let bph = (await DB.all("photos")).filter(p => p.recId === bt.id).sort((a, b) => a.created - b.created);
     const draw = () => { $("#bjTh").innerHTML = bph.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
