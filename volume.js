@@ -56,7 +56,7 @@ function volCalc(r) {
   return { v: one < 0 ? NaN : one * n, one, expr, warn };
 }
 
-// 目前正在編輯的內容放 localStorage（calcRows、calcCfg，隨打隨存）；按「儲存」後另存到 IndexedDB 的 vols 表（依工地、可多筆），
+// 目前正在編輯的內容放 localStorage（calcRows、calcCfg，隨打隨存）；按結果區的「存檔」後另存到 IndexedDB 的 vols 表（依工地、可多筆），
 // calcCfg.cur 記住目前開啟的是哪一筆，之後的修改自動寫回那一筆。vols 會進備份、刪工地時一併刪除（safe.js 有 CLEAN 規則）。
 function volNorm(rows, cfg) {
   if (!Array.isArray(rows)) rows = [];
@@ -96,12 +96,11 @@ const volRec = (st, base) => ({ ...base, name: st.cfg.title.trim(), rows: st.row
 function tabVolume(box) {
   const st = volLoad();
   box.innerHTML = `
-    <div class="cfsteps"><a href="#vp0">儲存的計算</a><a href="#vRows">1 構件</a><a href="#vp2">2 損耗與叫料</a><a href="#vp3">3 結果</a></div>
-    <div class="panel" id="vp0"><h2>💾 儲存的計算</h2>
-      <div class="field" style="margin-bottom:6px"><label>計算名稱</label><input id="vTitle" placeholder="例：3F 版梁澆置" value="${esc(st.cfg.title)}"></div>
-      <div id="vSaved" class="saved" style="margin:0 0 8px"></div>
-      <div class="row" style="margin:0"><button id="vSave">💾 儲存</button><button class="sec" id="vNew">＋ 新的計算</button></div>
-      <div id="vList" style="margin-top:10px"></div></div>
+    <div class="cfsteps"><a href="#vRows">1 構件</a><a href="#vp2">2 損耗與叫料</a><a href="#vp3">3 結果與存檔</a></div>
+    <div class="panel vfile" id="vp0">
+      <div class="vfname"><small>目前紀錄</small><b id="vCurName">新計算</b><small id="vCurSt"></small></div>
+      <div class="vfbtn"><button class="sec" id="vOpen" aria-expanded="false" aria-controls="vList">📂 方數紀錄<span id="vCount"></span></button><button class="sec" id="vNew">＋ 新計算</button></div>
+      <div id="vList" hidden></div></div>
     <div id="vRows"></div>
     <div class="panel"><div class="field" style="margin-bottom:8px"><label>新增構件種類</label><select id="vAddType">${VOL_TYPES.map(t => `<option value="${t.k}">${t.n}</option>`).join("")}</select></div>
       <div class="row" style="margin:0"><button class="sec" id="vAdd">＋ 新增一列</button><button class="sec" id="vClear">全部清除</button></div></div>
@@ -112,8 +111,10 @@ function tabVolume(box) {
       <div class="field"><label>計算人員</label><input data-c="who" value="${esc(st.cfg.who)}"></div></div>
       <p class="cnote">損耗率與車容量依你們的習慣填寫。計算書的工程名稱自動帶入目前選的工地。</p></div>
     <p class="cnote" style="margin:0 12px 12px">尺寸一律輸入<b>公尺</b>。梁長建議填柱面到柱面的淨長，避免和柱重複；梁與版一起計算時，梁可填「扣版厚」只算版底以下。樓梯 = 梯寬 ×〔級數 × 級高 × 級深 ÷ 2 ＋ 斜版厚 × 斜長〕，斜長 = √((級數×級深)² + (級數×級高)²)，平台請另以「版」計算。數值僅供估算叫料，實際以圖說與現場量測為準。資料會記在這支手機。</p>
-    <section class="panel" id="vp3"><h2><span class="cfno">3</span>結果</h2><div id="vOut"></div>
-      <div class="row"><a class="btnlink" href="#/calc/vol/sheet">📄 產生計算書（A4）</a></div></section>`;
+    <section class="panel" id="vp3"><h2><span class="cfno">3</span>結果與存檔</h2><div id="vOut"></div>
+      <div class="vsave"><div class="field" style="margin-bottom:4px"><label>紀錄名稱</label><input id="vTitle" placeholder="例：3F 版梁澆置" value="${esc(st.cfg.title)}" enterkeyhint="done"></div>
+        <div id="vSaved" class="saved" style="margin:0 0 8px"></div>
+        <div class="row" style="margin:0"><button id="vSave">💾 存檔</button><a class="btnlink" href="#/calc/vol/sheet">📄 計算書</a></div></div></section>`;
   const dimIn = (i, k, v) => `<input data-k="${k}" inputmode="decimal" value="${esc(v)}">`;
   const rowHtml = (r, i) => {
     const t = volType(r.type);
@@ -145,15 +146,21 @@ function tabVolume(box) {
   let timer = 0, rec = null;
   const gen = ++volGen, live = () => gen === volGen;   // 重新繪製後，舊畫面的非同步回呼不再更新畫面（只把資料存完）
   const mark = t => { const el = live() && $("#vSaved"); if (el) el.textContent = t; };
-  const status = () => mark(!siteId ? "要儲存請先建立或選擇工地（右上角＋）。目前的輸入仍會暫存在這支手機。"
-    : rec ? `✓ 已儲存 ${volStamp(rec.updated)}，之後的修改會自動存回「${rec.name}」` : volHasData(st) ? "目前的輸入尚未儲存，填好名稱後按「儲存」" : "");
+  const head = () => {   // 頁首顯示目前開啟的是哪一筆紀錄
+    if (!live()) return;
+    $("#vCurName").textContent = rec ? rec.name : (st.cfg.title.trim() || "新計算");
+    const c = $("#vCurSt"); c.textContent = rec ? `已存檔・${volStamp(rec.updated)}` : volHasData(st) ? "尚未存檔" : ""; c.classList.toggle("bad", !rec && volHasData(st));
+  };
+  const status = () => { head(); mark(!siteId ? "要存檔請先建立或選擇工地（右上角＋）。目前的輸入仍會暫存在這支手機。"
+    : rec ? `✓ 已存檔 ${volStamp(rec.updated)}，之後的修改會自動更新這筆紀錄` : volHasData(st) ? "尚未存檔：填紀錄名稱後按「存檔」，之後可從頁首「方數紀錄」開啟" : ""); };
   const list = async () => {
     const all = siteId ? (await DB.all("vols")).filter(x => x.siteId === siteId).sort((a, b) => (b.updated || 0) - (a.updated || 0)) : [];
     const el = live() && $("#vList"); if (!el) return;
-    el.innerHTML = all.length ? `<p class="cnote" style="margin:0 0 4px">這個工地已存 ${all.length} 筆：</p>` + all.map(x => { const T = volTotals(volNorm(x.rows, x.cfg)); return `<div class="vsrow${rec && rec.id === x.id ? " on" : ""}" data-id="${esc(x.id)}">
+    $("#vCount").textContent = all.length ? `（${all.length}）` : "";
+    el.innerHTML = all.length ? `<p class="cnote" style="margin:8px 0 4px">這個工地的方數紀錄（新的在前）：</p>` + all.map(x => { const T = volTotals(volNorm(x.rows, x.cfg)); return `<div class="vsrow${rec && rec.id === x.id ? " on" : ""}" data-id="${esc(x.id)}">
         <div class="vsname"><b>${esc(x.name || "（未命名）")}</b>${rec && rec.id === x.id ? "（開啟中）" : ""}<small>${esc(volStamp(x.updated))}・淨 ${fmt(T.sub, 3)} m³・叫料 ${T.call > 0 ? fmt(T.call, 1) : "—"} m³</small></div>
         <div class="vsbtn"><button class="sec" data-vopen="1">開啟</button><button class="sec" data-vcopy="1">複製</button><button class="danger" data-vdel="1" aria-label="刪除「${esc(x.name)}」">刪除</button></div></div>`; }).join("")
-      : siteId ? `<p class="cnote" style="margin:0">這個工地還沒有儲存的計算。</p>` : "";
+      : `<p class="cnote" style="margin:8px 0 0">${siteId ? "這個工地還沒有方數紀錄。算好後在頁面最下方「存檔」。" : "請先建立或選擇工地（右上角＋）。"}</p>`;
   };
   const reopen = (rows, cfg) => { volSave(volNorm(rows, cfg)); tabVolume(box); };
   const doSave = async () => {
@@ -161,17 +168,19 @@ function tabVolume(box) {
     clearTimeout(timer); timer = 0;
     rec = volRec(st, rec); await DB.put("vols", rec); status(); list();
   };
-  function autoSave() { if (!rec) { status(); return; } mark("儲存中…"); clearTimeout(timer); timer = setTimeout(doSave, 400); }
-  $("#vTitle").oninput = e => { st.cfg.title = e.target.value; volSave(st); if (rec && st.cfg.title.trim()) autoSave(); };
+  function autoSave() { if (!rec) { status(); return; } mark("存檔中…"); clearTimeout(timer); timer = setTimeout(doSave, 400); }
+  $("#vTitle").oninput = e => { st.cfg.title = e.target.value; volSave(st); if (rec && st.cfg.title.trim()) autoSave(); else head(); };
+  $("#vTitle").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("#vSave").click(); } };
+  $("#vOpen").onclick = () => { const l = $("#vList"), open = l.hidden; l.hidden = !open; $("#vOpen").setAttribute("aria-expanded", String(open)); $("#vOpen").classList.toggle("on", open); };
   $("#vSave").onclick = async () => {
     if (!siteId) { status(); return; }
-    if (!st.cfg.title.trim()) { mark("請先填「計算名稱」，例如：3F 版梁澆置"); $("#vTitle").focus(); return; }
+    if (!st.cfg.title.trim()) { mark("請先填「紀錄名稱」，例如：3F 版梁澆置"); $("#vTitle").focus(); return; }
     rec = volRec(st, rec || { id: uid(), siteId, created: Date.now() });
     st.cfg.cur = rec.id; volSave(st);
     await DB.put("vols", rec); status(); list();
   };
   $("#vNew").onclick = async () => {
-    if (!rec && volHasData(st) && !confirm("目前的輸入還沒儲存，要清空開始新的計算嗎？")) return;
+    if (!rec && volHasData(st) && !confirm("目前的輸入還沒存檔，要清空開始新計算嗎？")) return;
     if (timer) await doSave();
     reopen([], { loss: st.cfg.loss, cap: st.cfg.cap, who: st.cfg.who });
   };
@@ -179,7 +188,7 @@ function tabVolume(box) {
     const b = e.target.closest("button"), id = b?.closest("[data-id]")?.dataset.id; if (!id) return;
     const x = await DB.get("vols", id); if (!x) { list(); return; }
     if (b.dataset.vopen) {
-      if (!rec && volHasData(st) && !confirm("目前的輸入還沒儲存，開啟後會被取代。要繼續嗎？")) return;
+      if (!rec && volHasData(st) && !confirm("目前的輸入還沒存檔，開啟後會被取代。要繼續嗎？")) return;
       if (timer) await doSave();
       reopen(x.rows, { ...x.cfg, cur: x.id, title: x.name });
     } else if (b.dataset.vcopy) {
@@ -232,7 +241,7 @@ function renderVolSheet() {
       <table class="pt">
         <tr><th colspan="4">一、基本資料</th></tr>
         <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(null))}</td></tr>
-        ${st.cfg.title ? `<tr><td>計算名稱</td><td colspan="3">${esc(st.cfg.title)}</td></tr>` : ""}
+        ${st.cfg.title ? `<tr><td>紀錄名稱</td><td colspan="3">${esc(st.cfg.title)}</td></tr>` : ""}
         <tr><td>樓層／部位</td><td>${esc(st.cfg.loc)}</td><td>計算日期</td><td>${esc(today())}</td></tr>
       </table>
       <table class="pt items">
