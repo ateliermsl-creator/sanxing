@@ -6,8 +6,11 @@
    ‧材料容許應力、E 值、撓度限制、螺桿容許拉力：本工具「不內建任何數值」，由使用者建立材料庫（localStorage calcColLib）。
      例外：使用者提供的參考材料表（2026-11-14 截圖）內建為 COL_SPECIES（木材樹種容許應力）與 COL_PRESETS（襯板、木角材斷面），
      畫面註明「依使用者提供的參考表，非規範原文」；木料的 fb、fv、E 依所選樹種。鋼材（Fb、Fv、E）、鋼角材斷面、螺桿斷面積也取自同一參考表；螺桿容許拉應力 Ft 預設 1800（參考網站螺桿資料 18 kgf/mm²，2026-11-14 使用者同意帶入，非規範原文，可改）。
-   ‧構件依均布載重的梁，計算方式見 COL_METHODS：預設「參考網站算法」＝襯板簡支（wL²/8、0.5wL、5wL⁴/384EI），格柵 wL²/10、0.6wL、wL⁴/128EI，
-     剪應力 fv = k·V/A（矩形 k 1.5、鋼角材 k 1、A = 2ht），小格柵的剪力面積計入襯板厚度 b(h + t襯板)；另可選三跨以上連續（wL⁴/145EI）或簡支。
+   ‧構件依均布載重的梁，計算方式見 COL_METHODS：預設「參考網站算法」＝襯板簡支（wL²/8、0.5wL、5wL⁴/384EI），格柵連續、δ = wL⁴/128EI，
+     剪應力 fv = k·V/A（矩形 k 1.5、鋼角材 k 1、A = 2ht）；另可選連續梁（δ 取各跨數實際係數）或簡支。
+   ‧連續梁的 M、V 係數依「格柵連續跨數」（COL_SPANS，2026-11-15 第三方驗證後使用者同意修正）：三跨以上取 3～5 跨包絡
+     0.107wL²、0.607wL（四跨最大；原參考網站 wL²/10 在四跨時低估 7%）、兩跨 wL²/8、0.625wL、單跨同簡支。
+   ‧小格柵剪力面積原依參考網站計入襯板厚度 b(h + t)，驗證後使用者同意改回只算格柵本身斷面（2026-11-15）。
    ‧單位：長度 cm、力 kgf、應力 kgf/cm²；γ 用 t/m³、側壓力上限用 t/m²。 */
 
 const COL_MEMBERS = [
@@ -20,14 +23,29 @@ const COL_MEMBERS = [
 const COL_GAPS = [["H1", "小格柵垂直間距 H1"], ["B2", "第一層大格柵水平間距 B2"], ["H3", "第二層大格柵垂直間距 H3"], ["H4", "螺桿垂直間距 H4"], ["B4", "螺桿水平間距 B4"]];
 const COL_KINDS = { ply: "襯板", beam: "角材／鋼管（格柵）", tie: "螺桿" };
 const COL_COEF = { s: { m: 1 / 8, v: 0.5, d: 384 / 5, n: "簡支", mt: "wL²/8", dt: "5wL⁴/384EI" }, c: { m: 1 / 10, v: 0.6, d: 145, n: "三跨以上連續（近似）", mt: "wL²/10", dt: "wL⁴/145EI" } };
-// 構件計算方式：r 依參考網站（2026-11-14 使用者要求「跟網站一樣」）：襯板簡支、格柵 M = wL²/10、δ = wL⁴/128EI，小格柵剪力面積計入襯板厚度
+// 構件計算方式：r 依參考網站（2026-11-14 使用者要求「跟網站一樣」）：襯板簡支、格柵 δ = wL⁴/128EI；c 連續梁；s 簡支。
+// 格柵（及 c 的襯板）的 M、V、δ 係數依連續跨數 COL_SPANS 決定（colMeth）
 const COL_METHODS = {
-  r: { n: "參考網站算法", ply: COL_COEF.s, beam: { m: 1 / 10, v: 0.6, d: 128, mt: "wL²/10", dt: "wL⁴/128EI" }, tp: true },
-  c: { n: "三跨以上連續（近似）", ply: COL_COEF.c, beam: COL_COEF.c },
+  r: { n: "參考網站算法", ply: COL_COEF.s, d: 128, dt: "wL⁴/128EI" },
+  c: { n: "連續梁（依跨數）", cont: true },
   s: { n: "簡支（保守）", ply: COL_COEF.s, beam: COL_COEF.s }
 };
-const colMethText = k => { const m = COL_METHODS[k] || COL_METHODS.r, p = m.ply, b = m.beam;
-  return `${m.n}：襯板 M = ${p.mt}、V = ${p.v}wL、δ = ${p.dt}；格柵 M = ${b.mt}、V = ${b.v}wL、δ = ${b.dt}${m.tp ? "；小格柵剪力面積計入襯板厚度" : ""}`; };
+const COL_SPANS = {
+  "3": { n: "三跨以上", m: 0.107, v: 0.607, d: 145, mt: "0.107wL²", dt: "wL⁴/145EI" },
+  "2": { n: "兩跨", m: 1 / 8, v: 0.625, d: 185, mt: "wL²/8", dt: "wL⁴/185EI" },
+  "1": { n: "單跨（簡支）", m: 1 / 8, v: 0.5, d: 384 / 5, mt: "wL²/8", dt: "5wL⁴/384EI" }
+};
+const COL_SPAN_OPTS = Object.entries(COL_SPANS).map(([k, x]) => [k, x.n]);
+// 依計算方式與連續跨數組出構件係數
+function colMeth(st) {
+  const k = COL_METHODS[st.meth] ? st.meth : "r", b = COL_METHODS[k], sp = COL_SPANS[st.spans] || COL_SPANS["3"];
+  if (k === "s") return { ...b, k };
+  const cont = { m: sp.m, v: sp.v, d: sp.d, mt: sp.mt, dt: sp.dt };
+  if (k === "c") return { ...b, k, sp, ply: cont, beam: cont };
+  return { ...b, k, sp, beam: st.spans === "1" ? COL_COEF.s : { ...cont, d: b.d, dt: b.dt } };   // 參考網站算法：撓度一律 128（單跨時同簡支）
+}
+const colMethText = st => { const m = colMeth(st), p = m.ply, b = m.beam;
+  return `${m.n}${m.sp ? `（格柵${m.k === "c" ? "與襯板" : ""}連續跨數：${m.sp.n}）` : ""}：襯板 M = ${p.mt}、V = ${p.v}wL、δ = ${p.dt}；格柵 M = ${b.mt}、V = ${b.v}wL、δ = ${b.dt}`; };
 // 木材樹種（使用者提供的參考表；fc 只供參考，柱模板檢核未用到）
 const COL_SPECIES = [
   { id: "c3", n: "針葉樹III類", note: "赤松、黑松、落葉松、鐵杉、北美鐵杉、南方松", fb: "170", fc: "130", fv: "14", E: "70000" },
@@ -58,7 +76,7 @@ const colStr = v => (typeof v === "string" || typeof v === "number") ? String(v)
 const colTier = () => ({ top: "", H1: "", B2: "", H3: "", H4: "", B4: "" });
 const colBlank = () => ({
   info: { proj: "", loc: "", no: "", bx: "", by: "", H: "", who: "" },
-  gamma: "2.4", pmax: "", meth: "r", species: "c3", tieFt: "1800", defP: { n: "", a: "3" }, defB: { n: "", a: "" },
+  gamma: "2.4", pmax: "", meth: "r", spans: "3", species: "c3", tieFt: "1800", defP: { n: "", a: "3" }, defB: { n: "", a: "" },
   sel: { ply: "p_ply15", stud: "p_b3645", w1: "p_b9045", w2: "p_b9045", tie: "p_t25" }, tiers: [colTier()]
 });
 // 讀回存檔時只留下已知欄位、都轉成字串，避免舊資料或改壞的資料影響畫面
@@ -95,15 +113,11 @@ function colSect(mat) {
 }
 const colSectText = mat => !mat ? "未選擇" : mat.kind === "tie" ? (mat.A ? `斷面積 ${mat.A} cm²` : "") : mat.sect === "t" ? `板厚 ${mat.t} cm（100 cm 寬板帶）` : mat.sect === "rect" ? `${mat.b} × ${mat.h} cm${+mat.cnt > 1 ? ` × ${mat.cnt} 根` : ""}` : `I ${mat.I} cm⁴、S ${mat.S} cm³、A ${mat.A} cm²${mat.kind === "ply" ? "（每 100 cm 寬）" : +mat.cnt > 1 ? ` × ${mat.cnt} 根` : ""}`;
 
-// 單一構件（均布載重的梁）：彎曲、剪力、撓度；tp 為襯板厚度（小格柵剪力面積用）
-function colMember(x, m, L, trib, P, meth, tp, df) {
+// 單一構件（均布載重的梁）：彎曲、剪力、撓度（第 7 個參數原為襯板厚度，已不使用）
+function colMember(x, m, L, trib, P, meth, _tp, df) {
   const c = x.kind === "ply" ? meth.ply : meth.beam, s = colSect(m);
   const w = P * trib, M = c.m * w * L * L, V = c.v * w * L, E = colF(m?.E), dl = s ? w * L ** 4 / (c.d * E * s.I) : NaN;
-  let Av = s ? s.A : NaN, avt = "";
-  if (s && meth.tp && x.k === "stud" && tp > 0) {
-    if (m.sect === "rect") { Av = s.n * colF(m.b) * (colF(m.h) + tp); avt = `${s.n > 1 ? s.n + " × " : ""}${m.b} × (${m.h} + ${tp})`; }
-    else if (m.steel && m.h && m.tw) { Av = s.n * 2 * (colF(m.h) + tp) * colF(m.tw); avt = `2 × (${m.h} + ${tp}) × ${m.tw}`; }
-  }
+  const Av = s ? s.A : NaN, avt = "";
   const lims = [colF(df.n) > 0 ? L / colF(df.n) : NaN, colF(df.a) > 0 ? colF(df.a) / 10 : NaN].filter(Number.isFinite);
   return { x, m, s, L, trib, w, M, V, Av, avt, c, checks: [
     { t: "彎曲 fb", v: s ? M / s.S : NaN, a: colF(m?.fb), u: "kgf/cm²", d: 1 },
@@ -122,7 +136,7 @@ function colCalc(st, lib = colLib()) {
     if (m.steel) return { ...m, fb: COL_STEEL.fb, fv: COL_STEEL.fv, E: COL_STEEL.E, spn: "鋼材" };
     if (m.bolt) { const ft = colF(st.tieFt); return { ...m, ta: ft > 0 ? String(+(ft * colF(m.A)).toFixed(1)) : "" }; }
     return m; };
-  const meth = COL_METHODS[st.meth] || COL_METHODS.r, tiers = [], err = [];
+  const meth = colMeth(st), tiers = [], err = [];
   let lo = 0;
   st.tiers.forEach((t, i) => {
     const last = i === st.tiers.length - 1, hi = last ? H : colF(t.top);
@@ -234,6 +248,7 @@ function tabColForm(box) {
           <div class="field"><label>螺桿</label><select data-p="sel.tie" data-kind="tie">${matOpts("tie", st.sel.tie)}</select></div>
           <div class="field"><label>螺桿容許拉應力 Ft（kgf/cm²）</label>${inp("tieFt", st.tieFt, "參考網站 1800")}</div>
           <div class="field"><label>構件計算方式</label><select data-p="meth">${Object.entries(COL_METHODS).map(([k, x]) => `<option value="${k}" ${st.meth === k ? "selected" : ""}>${x.n}</option>`).join("")}</select></div>
+          <div class="field"><label>格柵連續跨數</label><select data-p="spans">${COL_SPAN_OPTS.map(([k, n]) => `<option value="${k}" ${st.spans === k ? "selected" : ""}>${n}</option>`).join("")}</select></div>
           <div class="field"><label>襯板撓度限制 L／?</label>${inp("defP.n", st.defP.n, "可空白")}</div>
           <div class="field"><label>襯板撓度上限（mm）</label>${inp("defP.a", st.defP.a, "可空白")}</div>
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
@@ -331,7 +346,7 @@ function renderColSheet() {
       </table>
       <table class="pt">
         <tr><th colspan="4">二、材料規格</th></tr>
-        <tr><td>計算方式</td><td colspan="3">${colMethText(st.meth)}</td></tr>
+        <tr><td>計算方式</td><td colspan="3">${colMethText(st)}</td></tr>
         ${COL_MEMBERS.map(x => matRow(x.n, r.mat(x.k), allow)).join("")}
         ${matRow("螺桿", r.mat("tie"), m => `${m.bolt ? `；Ft ${esc(st.tieFt) || "—"} kgf/cm²` : ""}；容許拉力 ${esc(m.ta) || "—"} kgf`)}
         <tr><td>撓度限制</td><td colspan="3">襯板：${lim(st.defP)}；格柵：${lim(st.defB)}</td></tr>

@@ -21,7 +21,7 @@ const SF_LOAD_DEF = { wo: "2.3", imp: "0.5", work: "150", self: "15" };   // 參
 
 const sfBlank = () => ({
   info: { proj: "", loc: "", no: "", H: "", t: "", who: "" },
-  ...SF_LOAD_DEF, meth: "r", species: "c3", lmode: "net", Lu: "",
+  ...SF_LOAD_DEF, meth: "r", spans: "3", species: "c3", lmode: "net", Lu: "",
   pipe: { D: "4.86", t: "0.24" }, defP: { n: "", a: "3" }, defB: { n: "", a: "" },
   sel: { ply: "p_ply15", w1: "p_b9045", w2: "p_b9045" }, gap: { L1: "", L2: "", L3: "" }
 });
@@ -48,7 +48,7 @@ function sfCalc(st, lib = colLib()) {
     if (m.wood) return { ...m, fb: sp?.fb || "", fv: sp?.fv || "", E: sp?.E || "", spn: sp?.n || "未選樹種" };
     if (m.steel) return { ...m, fb: COL_STEEL.fb, fv: COL_STEEL.fv, E: COL_STEEL.E, spn: "鋼材" };
     return m; };
-  const meth = COL_METHODS[st.meth] || COL_METHODS.r;
+  const meth = colMeth(st);
   const gap = { L1: colF(st.gap.L1), L2: colF(st.gap.L2), L3: colF(st.gap.L3) };
   const mems = SF_MEMBERS.map(x => colMember(x, mat(x.k), gap[x.span], x.trib ? gap[x.trib] : 100, N, meth, NaN, x.kind === "ply" ? st.defP : st.defB));
   // 鋼管支撐
@@ -140,6 +140,7 @@ function tabSlabForm(box) {
           <div class="field"><label>鋼管外徑 D（cm）</label>${inp("pipe.D", st.pipe.D)}</div>
           <div class="field"><label>鋼管厚度 t（cm）</label>${inp("pipe.t", st.pipe.t)}</div>
           <div class="field"><label>構件計算方式</label>${sel("meth", Object.entries(COL_METHODS).map(([k, x]) => [k, x.n]), st.meth)}</div>
+          <div class="field"><label>格柵連續跨數</label>${sel("spans", COL_SPAN_OPTS, st.spans)}</div>
           <div class="field"><label>襯板撓度限制 L／?</label>${inp("defP.n", st.defP.n, "可空白")}</div>
           <div class="field"><label>襯板撓度上限（mm）</label>${inp("defP.a", st.defP.a, "可空白")}</div>
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
@@ -238,7 +239,7 @@ function renderSlabSheet() {
       </table>
       <table class="pt">
         <tr><th colspan="4">二、材料規格</th></tr>
-        <tr><td>計算方式</td><td colspan="3">${colMethText(st.meth).replace("；小格柵剪力面積計入襯板厚度", "")}</td></tr>
+        <tr><td>計算方式</td><td colspan="3">${colMethText(st)}</td></tr>
         ${SF_MEMBERS.map(x => matRow(x.n, r.mat(x.k))).join("")}
         <tr><td>鋼管支撐</td><td colspan="3">圓管 D${esc(st.pipe.D)} × t${esc(st.pipe.t)} cm：A ${v(r.pipe?.A, 3)} cm²、I ${v(r.pipe?.I, 3)} cm⁴、r ${v(r.pipe?.r, 3)} cm；Fy ${COL_STEEL.fy}、E ${COL_STEEL.E} kgf/cm²</td></tr>
         <tr><td>撓度限制</td><td colspan="3">襯板：${lim(st.defP)}；格柵：${lim(st.defB)}</td></tr>

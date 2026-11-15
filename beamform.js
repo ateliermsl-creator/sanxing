@@ -7,9 +7,10 @@
      襯板：跨距取第一層大格柵各間距的最大值，側壓力取最下一格中點 p(L1-1 / 2)（偏保守），簡支。
      第一層大格柵（水平，最多 5 階，距梁底 L1-1、其後間距 L1-2…）：分配高度 S（相鄰兩支的中點之間，最下一支從梁底起、最上一支到梁頂），
        w = p(S 中點) × S，跨距 L2（第二層大格柵間距）。
-     第二層大格柵（垂直，間距 L2）：以螺桿為支點分段；兩端段（梁底至第一階螺桿、最上階螺桿至梁頂）為懸臂 wL²/2、wL⁴/8EI、剪力 V = wL，
-       中間段同一般格柵；w = p(段中點) × L2。
-     螺桿（最多 5 階，距梁底 H4-1、其後間距 H4-2…，水平間距 B4 = L2）：T = p(分配區中點) × S × B4，容許拉力 = Ft × 斷面積。
+     第二層大格柵（垂直，間距 L2）：2026-11-15 第三方驗證後改為連續梁（bfWale，自寫直接勁度法）：以各階螺桿為支點、兩端外伸，
+       載重為第一層大格柵傳來的集中力 F = w × L2（作用在各支高度）；只有一階螺桿時另假設梁底端由底模支承（否則不穩定）。
+       原參考網站算法（螺桿處切段、兩端懸臂、段中點側壓力當均布）會低估最下階螺桿約 7%、梁底端剪力約 16%，使用者同意修正。
+     螺桿（最多 5 階，距梁底 H4-1、其後間距 H4-2…，水平間距 B4 = L2）：T = 第二層大格柵在該階的支點反力，容許拉力 = Ft × 斷面積。
    ‧底模：梁底襯板 w = N（100 cm 寬板帶），跨距取貫材邊距 L3/2（參考網站，外側邊緣須有可靠支承）；貫材 2 支以上時另檢核貫材之間的跨距 L3（本工具加的）。
      梁底貫材（沿梁長，支數 1～3，間距 L3 = Bb ／ 支數、邊距 L3/2）：w = N × L3，跨距 L4（鋼管支撐沿梁長間距）。
    ‧鋼管支撐（梁寬方向支數 1～3）：P = N × (Bb ／ 支數) × L4，支撐長 L = 樓層高度 − 梁深（參考網站）或手動輸入，
@@ -18,13 +19,12 @@
    ‧單位：長度 cm、力 kgf、應力 kgf/cm²；Wo 用 t/m³，N3、N4 用 kgf/m²。 */
 
 const BF_MAX = 5, BF_N = ["一", "二", "三", "四", "五"];
-const BF_CANT = { m: 1 / 2, v: 1, d: 8, mt: "wL²/2", dt: "wL⁴/8EI" };   // 懸臂（第二層大格柵兩端段）
 const BF_LMODES = [["net", "樓層高度 − 梁深"], ["man", "自行輸入"]];
 const BF_MEMS = [["ply", "梁側模襯板", "ply"], ["w1", "側模第一層大格柵", "beam"], ["w2", "側模第二層大格柵", "beam"], ["bply", "梁底模襯板", "ply"], ["bw", "梁底貫材", "beam"]];
 
 const bfBlank = () => ({
   info: { proj: "", loc: "", no: "", Bb: "", Hb: "", H: "", who: "" },
-  ...SF_LOAD_DEF, meth: "r", species: "c3", tieFt: WF_FT_DEF, lmode: "net", Lu: "",
+  ...SF_LOAD_DEF, meth: "r", spans: "3", species: "c3", tieFt: WF_FT_DEF, lmode: "net", Lu: "",
   pipe: { D: "4.86", t: "0.24" }, defP: { n: "", a: "3" }, defB: { n: "", a: "" },
   sel: { ply: "p_ply15", w1: "p_b9045", w2: "p_b9045", bply: "p_ply15", bw: "p_b9045", tie: "p_t25" },
   n1: "2", L1: ["", "", "", "", ""], L2: "", nt: "1", H4: ["", "", "", "", ""], nb: "2", np: "2", L4: ""
@@ -57,6 +57,47 @@ function bfPos(gaps, n, Hb, name) {
 // 每支的分配區：相鄰兩支的中點之間；最下一支從梁底起、最上一支到梁頂
 const bfTrib = (z, Hb) => z.map((v, i) => { const lo = i ? (z[i - 1] + v) / 2 : 0, hi = i < z.length - 1 ? (v + z[i + 1]) / 2 : Hb; return { z: v, lo, hi, S: hi - lo, zc: (lo + hi) / 2 }; });
 
+// 第二層大格柵：直接勁度法連續梁（座標 z 由梁底往上，0～Hb）。sup 支點高度、loads [{z, F}]、EI。
+// 回傳最大 |M|、|V|、各區段最大撓度、支點反力。
+function bfWale(Hb, sup, loads, EI) {
+  const key = [0, Hb, ...sup, ...loads.map(l => l.z)].map(z => +z.toFixed(6)).sort((a, b) => a - b).filter((z, i, a) => !i || z - a[i - 1] > 1e-6);
+  const xs = [];
+  key.forEach((z, i) => { if (i) for (let k = 1; k <= 6; k++) xs.push(key[i - 1] + (z - key[i - 1]) * k / 6); else xs.push(z); });
+  const n = xs.length, nd = 2 * n, K = Array.from({ length: nd }, () => new Float64Array(nd)), F = new Float64Array(nd);
+  const at = z => xs.findIndex(x => Math.abs(x - z) < 1e-6);
+  for (let e = 0; e < n - 1; e++) {
+    const L = xs[e + 1] - xs[e], a = 12 * EI / L ** 3, b = 6 * EI / L ** 2, c = 4 * EI / L, d = 2 * EI / L;
+    const k = [[a, b, -a, b], [b, c, -b, d], [-a, -b, a, -b], [b, d, -b, c]], id = [2 * e, 2 * e + 1, 2 * e + 2, 2 * e + 3];
+    for (let r = 0; r < 4; r++) for (let q = 0; q < 4; q++) K[id[r]][id[q]] += k[r][q];
+  }
+  loads.forEach(l => { F[2 * at(l.z)] += l.F; });
+  const fix = new Set(sup.map(z => 2 * at(z))), free = [...Array(nd).keys()].filter(i => !fix.has(i)), m = free.length;
+  const A = free.map(r => [...free.map(q => K[r][q]), F[r]]);
+  for (let c = 0; c < m; c++) {
+    let p = c; for (let r = c + 1; r < m; r++) if (Math.abs(A[r][c]) > Math.abs(A[p][c])) p = r;
+    if (!(Math.abs(A[p][c]) > 1e-12 * EI)) return null;
+    [A[c], A[p]] = [A[p], A[c]];
+    for (let r = 0; r < m; r++) if (r !== c) { const f = A[r][c] / A[c][c]; if (f) for (let q = c; q <= m; q++) A[r][q] -= f * A[c][q]; }
+  }
+  const u = new Float64Array(nd); free.forEach((r, i) => { u[r] = A[i][m] / A[i][i]; });
+  let M = 0, V = 0; const dfl = [];   // dfl：各節點（含元素內 3 點）的 [z, |撓度|]
+  for (let e = 0; e < n - 1; e++) {
+    const L = xs[e + 1] - xs[e], [v1, t1, v2, t2] = [u[2 * e], u[2 * e + 1], u[2 * e + 2], u[2 * e + 3]];
+    const Ve = EI * (12 * (v1 - v2) / L ** 3 + 6 * (t1 + t2) / L ** 2), M1 = EI * (6 * (v2 - v1) / L ** 2 - (4 * t1 + 2 * t2) / L), M2 = EI * (6 * (v1 - v2) / L ** 2 + (2 * t1 + 4 * t2) / L);
+    V = Math.max(V, Math.abs(Ve)); M = Math.max(M, Math.abs(M1), Math.abs(M2));
+    for (let k = 0; k < 4; k++) { const s = k / 4, h = [1 - 3 * s * s + 2 * s ** 3, L * (s - 2 * s * s + s ** 3), 3 * s * s - 2 * s ** 3, L * (-s * s + s ** 3)]; dfl.push([xs[e] + s * L, Math.abs(h[0] * v1 + h[1] * t1 + h[2] * v2 + h[3] * t2)]); }
+  }
+  dfl.push([xs[n - 1], Math.abs(u[nd - 2])]);
+  const R = sup.map(z => { const i = 2 * at(z); let r = F[i]; for (let q = 0; q < nd; q++) r -= K[i][q] * u[q]; return r; });   // 支點反力（與載重反向為正）
+  // 區段（兩支點之間＝跨距 L；外伸段＝懸臂，撓度限制取 2 × 外伸長）
+  const bnd = [0, ...sup, Hb].filter((z, i, a) => !i || z - a[i - 1] > 1e-6), segs = [];
+  for (let i = 0; i < bnd.length - 1; i++) {
+    const lo = bnd[i], hi = bnd[i + 1], cant = (i === 0 && lo < sup[0] - 1e-6) || (i === bnd.length - 2 && hi > sup[sup.length - 1] + 1e-6);
+    segs.push({ lo, hi, cant, Lref: cant ? 2 * (hi - lo) : hi - lo, d: Math.max(0, ...dfl.filter(([z]) => z >= lo - 1e-6 && z <= hi + 1e-6).map(([, d]) => d)) });
+  }
+  return { M, V, R, segs };
+}
+
 function bfCalc(st, lib = colLib()) {
   const Bb = colF(st.info.Bb), Hb = colF(st.info.Hb), H = colF(st.info.H);
   const N1 = colF(st.wo) * Hb / 1000, N2 = colF(st.imp) * N1, N3 = colF(st.work) / 10000, N4 = colF(st.self) / 10000;   // kgf/cm²
@@ -68,7 +109,7 @@ function bfCalc(st, lib = colLib()) {
     if (m.steel) return { ...m, fb: COL_STEEL.fb, fv: COL_STEEL.fv, E: COL_STEEL.E, spn: "鋼材" };
     if (m.bolt) { const ft = colF(st.tieFt); return { ...m, ta: ft > 0 ? String(+(ft * colF(m.A)).toFixed(1)) : "" }; }
     return m; };
-  const meth = COL_METHODS[st.meth] || COL_METHODS.r, cant = { ...meth, beam: BF_CANT };
+  const meth = colMeth(st);
   const n1 = +st.n1, nt = +st.nt, nb = +st.nb, np = +st.np, L2 = colF(st.L2), L4 = colF(st.L4);
   const p1 = bfPos(st.L1, n1, Hb, "第一層大格柵"), pt = bfPos(st.H4, nt, Hb, "螺桿"), err = [p1.err, pt.err].filter(Boolean);
   const mem = (k, n, kind, L, trib, P, m = meth) => colMember({ k, n, kind }, mat(k), L, trib, P, m, NaN, kind === "ply" ? st.defP : st.defB);
@@ -77,16 +118,25 @@ function bfCalc(st, lib = colLib()) {
   const ply = { ...mem("ply", "梁側模襯板", "ply", plyL, 100, plyP), p: plyP };
   // 第一層大格柵（各階）
   const first = bfTrib(p1.z, Hb).map((t, i) => ({ ...mem("w1", `第${BF_N[i]}支`, "beam", L2, t.S, pAt(t.zc)), ...t, p: pAt(t.zc) }));
-  // 第二層大格柵（以螺桿分段）
-  const b = [0, ...pt.z, Hb], second = [];
-  if (pt.z.length && !err.length) for (let j = 0; j < b.length - 1; j++) {
-    const lo = b[j], hi = b[j + 1], zc = (lo + hi) / 2, ct = j === 0 || j === b.length - 2;
-    const lab = nt === 1 ? (j === 0 ? "梁底至螺桿" : "螺桿至梁頂") : j === 0 ? "梁底至第一階螺桿" : j === nt ? `第${BF_N[nt - 1]}階螺桿至梁頂` : `第${BF_N[j - 1]}、${BF_N[j]}階螺桿間`;
-    second.push({ ...mem("w2", lab, "beam", hi - lo, L2, pAt(zc), ct ? cant : meth), lo, hi, zc, p: pAt(zc), cant: ct });
+  // 第二層大格柵：連續梁（螺桿為支點，只有一階螺桿時梁底端另設支承），第一層大格柵以集中力 F = w × L2 傳入
+  const w2m = mat("w2"), w2s = colSect(w2m), E2 = colF(w2m?.E);
+  const sup2 = pt.z.length === 1 ? [0, pt.z[0]] : pt.z;
+  const loads2 = first.map(m => ({ z: m.z, F: m.w * L2 }));
+  const wale = pt.z.length && p1.z.length && !err.length && L2 > 0 && w2s && E2 > 0 ? bfWale(Hb, sup2, loads2, E2 * w2s.I) : null;
+  let second = null;
+  if (pt.z.length && !err.length) {
+    const df = st.defB, lim = sg => Math.min(...[colF(df.n) > 0 ? sg.Lref / colF(df.n) : NaN, colF(df.a) > 0 ? colF(df.a) / 10 : NaN].filter(Number.isFinite));
+    const dr = wale ? wale.segs.map(sg => ({ ...sg, lim: lim(sg) })) : [];
+    const worst = dr.reduce((a, sg) => !a || (Number.isFinite(sg.lim) ? sg.d / sg.lim : sg.d) > (Number.isFinite(a.lim) ? a.d / a.lim : a.d) ? sg : a, null);
+    second = { m: w2m, s: w2s, sup: sup2, loads: loads2, wale, worst, bottom: pt.z.length === 1,
+      checks: [
+        { t: "彎曲 fb", v: wale ? wale.M / w2s.S : NaN, a: colF(w2m?.fb), u: "kgf/cm²", d: 1 },
+        { t: "剪力 fv", v: wale ? w2s.kv * wale.V / w2s.A : NaN, a: colF(w2m?.fv), u: "kgf/cm²", d: 2 },
+        { t: "撓度 δ", v: worst ? worst.d * 10 : NaN, a: worst && Number.isFinite(worst.lim) ? worst.lim * 10 : NaN, u: "mm", d: 2 }] };
   }
-  // 螺桿
-  const tieA = colF(mat("tie")?.ta);
-  const ties = (err.length ? [] : bfTrib(pt.z, Hb)).map((t, i) => ({ ...t, i, p: pAt(t.zc), chk: { t: `第${BF_N[i]}階螺桿 拉力 T`, v: pAt(t.zc) * t.S * L2, a: tieA, u: "kgf", d: 0 } }));
+  // 螺桿：每支第二層大格柵在各階螺桿處的支點反力即該螺桿拉力（螺桿水平間距 = L2）
+  const tieA = colF(mat("tie")?.ta), off = pt.z.length === 1 ? 1 : 0;
+  const ties = (err.length ? [] : pt.z).map((z, i) => ({ z, i, R: wale ? wale.R[i + off] : NaN, chk: { t: `第${BF_N[i]}階螺桿 拉力 T`, v: wale ? wale.R[i + off] : NaN, a: tieA, u: "kgf", d: 0 } }));
   // 底模
   const L3 = Bb > 0 ? Bb / nb : NaN, edge = L3 / 2;
   const bply = [{ ...mem("bply", "梁底襯板（邊距）", "ply", edge, 100, N), sp: "edge" }];
@@ -97,7 +147,7 @@ function bfCalc(st, lib = colLib()) {
   const pipe = wfPipeSect(st.pipe), P = N * (Bb / np) * L4, lam = pipe && L > 0 ? L / pipe.r : NaN;
   const f = wfFa(lam, colF(COL_STEEL.fy), colF(COL_STEEL.E));
   const sup = { t: "壓應力 fc", v: pipe && L > 0 ? P / pipe.A : NaN, a: f.Fa, u: "kgf/cm²", d: 1 };
-  const all = [ply, ...first, ...second, ...bply, bw].flatMap(m => m.checks).concat(ties.map(t => t.chk), [sup]);
+  const all = [ply, ...first, ...(second ? [second] : []), ...bply, bw].flatMap(m => m.checks).concat(ties.map(t => t.chk), [sup]);
   if (err.length) all.push({ v: NaN });
   return { Bb, Hb, H, N1, N2, N3, N4, N, pAt, mat, sp, meth, err, n1, nt, nb, np, L2, L3, L4, edge, z1: p1.z, zt: pt.z,
     ply, plyL, first, second, ties, bply, bw, L, pipe, P, lam, ...f, sup,
@@ -111,8 +161,14 @@ function bfDetails(st, r, f) {
   const out = [];
   out.push([bfMemText(r.ply, f, `側模襯板（簡支，跨距取第一層大格柵最大間距；側壓力取最下一格中點 p = N × (Hb − L1-1/2) / Hb = ${f(r.ply.p, 4)} kgf/cm²，100 cm 寬板帶 w = p × 100）`), r.ply.checks]);
   r.first.forEach(m => out.push([bfMemText(m, f, `側模第一層大格柵 ${m.x.n}（距梁底 ${f(m.z, 1)} cm；分配高度 S = ${f(m.hi, 1)} − ${f(m.lo, 1)} = ${f(m.S, 1)} cm，中點 ${f(m.zc, 1)} cm，p = ${f(m.p, 4)} kgf/cm²；w = p × S；跨距 L2）`), m.checks]));
-  r.second.forEach(m => out.push([bfMemText(m, f, `側模第二層大格柵 ${m.x.n}（${m.cant ? "懸臂" : "中間段"}；區段 ${f(m.lo, 1)}～${f(m.hi, 1)} cm，中點 p = ${f(m.p, 4)} kgf/cm²；w = p × L2）`), m.checks]));
-  r.ties.forEach(t => out.push([`第${BF_N[t.i]}階螺桿（距梁底 ${f(t.z, 1)} cm）：分配高度 S = ${f(t.S, 1)} cm，中點 ${f(t.zc, 1)} cm，p = ${f(t.p, 4)} kgf/cm²；T = p × S × B4 = ${f(t.p, 4)} × ${f(t.S, 1)} × ${f(r.L2, 1)} = ${f(t.chk.v, 0)} kgf`, [t.chk]]));
+  const sc = r.second;
+  if (sc) {
+    const w = sc.wale, wt = sc.worst;
+    out.push([`側模第二層大格柵（連續梁，以${sc.bottom ? "梁底端與螺桿" : "各階螺桿"}為支點、兩端外伸；第一層大格柵集中力 F = w × L2：${sc.loads.map(l => `${f(l.z, 1)} cm 處 ${f(l.F, 1)} kgf`).join("、") || "—"}）：`
+      + (w ? `直接勁度法求得 Mmax = ${f(w.M, 0)} kgf·cm、Vmax = ${f(w.V, 1)} kgf；撓度取最不利區段 ${f(wt.lo, 1)}～${f(wt.hi, 1)} cm（${wt.cant ? "外伸段，限制長度取 2 倍外伸長" : "支點間"}）δ = ${f(wt.d * 10, 2)} mm`
+        + (sc.bottom ? `；只有一階螺桿，假設梁底端有支承：梁底端反力 ${f(Math.abs(w.R[0]), 1)} kgf，${w.R[0] < 0 ? "底端被推向梁內側，由梁底模邊緣頂住" : "底端向外，須有止滑木或角材擋住"}，請確認現場構造` : "") : "材料或配置未完成"), sc.checks]);
+  }
+  r.ties.forEach(t => out.push([`第${BF_N[t.i]}階螺桿（距梁底 ${f(t.z, 1)} cm）：T = 第二層大格柵在此階的支點反力 = ${f(t.chk.v, 0)} kgf（螺桿水平間距 B4 = L2）`, [t.chk]]));
   r.bply.forEach(m => out.push([bfMemText(m, f, `${m.x.n}（簡支，${m.sp === "edge" ? "邊距 L3/2；梁底襯板外側邊緣須有可靠支承及固定" : "貫材間距 L3"}；w = N × 100）`), m.checks]));
   out.push([bfMemText(r.bw, f, `梁底貫材（${r.nb} 支，L3 = Bb ／ ${r.nb} = ${f(r.L3, 1)} cm；w = N × L3；跨距 L4）`), r.bw.checks]);
   out.push([`鋼管支撐（梁寬方向 ${r.np} 支）：P = N × (Bb ／ ${r.np}) × L4 = ${f(r.N, 4)} × ${f(r.Bb / r.np, 1)} × ${f(r.L4, 1)} = ${f(r.P, 1)} kgf；${bfLText(st, r, f)}；A = ${f(r.pipe?.A, 3)} cm²、r = ${f(r.pipe?.r, 3)} cm；λ = KL ÷ r = ${f(r.lam, 1)}（K = 1），Cc = ${f(r.Cc, 1)}，採${r.inel ? "非彈性" : "彈性"}挫曲公式；fc = P ÷ A`, [r.sup]]);
@@ -150,11 +206,11 @@ function bfLayoutSvg(r) {
   // 側壓力分布（右側）
   const px = x0 + bw + 92, pw = 70, pts = `${px},${Y(Hb).toFixed(1)} ${px + pw},${Y(0).toFixed(1)} ${px},${Y(0).toFixed(1)}`;
   d.push(`<polygon points="${pts}" fill="currentColor" fill-opacity=".15" stroke="currentColor" stroke-width="1.2"/><text x="${px}" y="${y0 - 6}">側壓力</text><text x="${px + pw + 2}" y="${(Y(0) + 12).toFixed(1)}" text-anchor="end">N ${fmt(r.N, 4)}</text>`);
-  r.ties.forEach(t => d.push(`<circle cx="${(px + pw * t.p / r.N).toFixed(1)}" cy="${Y(t.zc).toFixed(1)}" r="2"/>`));
+  r.ties.forEach(t => d.push(`<circle cx="${(px + pw * r.pAt(t.z) / r.N).toFixed(1)}" cy="${Y(t.z).toFixed(1)}" r="2"/>`));
   const W = px + pw + 14, Ht = gy + 30;
   return `<svg class="cfsvg bflay" viewBox="0 0 ${W.toFixed(0)} ${Ht.toFixed(0)}" role="img" aria-label="梁模板組立及支撐配置示意圖">${o.join("")}
     <g font-size="9" fill="currentColor">${d.join("")}<text x="${x0 - 60}" y="${gy + 16}">斷面（■ 第一層大格柵、粗線 第二層大格柵、虛線 螺桿；鋼管高度不依比例）</text></g></svg>
-    <p class="cnote" style="margin-top:0">側壓力梁底為 N，往上線性遞減到梁頂為 0；圓點為各階螺桿分配區中點。</p>`;
+    <p class="cnote" style="margin-top:0">側壓力梁底為 N，往上線性遞減到梁頂為 0；圓點為各階螺桿位置。</p>`;
 }
 
 /* ---------- 畫面 ---------- */
@@ -201,6 +257,7 @@ function tabBeamForm(box) {
           <div class="field"><label>鋼管外徑 D（cm）</label>${inp("pipe.D", st.pipe.D)}</div>
           <div class="field"><label>鋼管厚度 t（cm）</label>${inp("pipe.t", st.pipe.t)}</div>
           <div class="field"><label>構件計算方式</label>${sel("meth", Object.entries(COL_METHODS).map(([k, x]) => [k, x.n]), st.meth)}</div>
+          <div class="field"><label>格柵連續跨數</label>${sel("spans", COL_SPAN_OPTS, st.spans)}</div>
           <div class="field"><label>襯板撓度限制 L／?</label>${inp("defP.n", st.defP.n, "可空白")}</div>
           <div class="field"><label>襯板撓度上限（mm）</label>${inp("defP.a", st.defP.a, "可空白")}</div>
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
@@ -222,7 +279,7 @@ function tabBeamForm(box) {
           ${Array.from({ length: +st.nt }, (_, i) => `<div class="field"><label>${H4lab(i)}</label>${inp(`H4.${i}`, st.H4[i])}</div>`).join("")}
           <div class="field"><label>螺桿水平間距 B4（＝ L2）</label><input id="bfB4" value="${esc(st.L2)}" readonly tabindex="-1"></div>
         </div>
-        <p class="cnote">第一層大格柵水平組在襯板外側、以第二層大格柵（間距 L2）為支點；第二層大格柵垂直、以螺桿為支點，梁底至第一階螺桿、最上階螺桿至梁頂兩段以懸臂計算。螺桿設在第二層大格柵上，水平間距同 L2。</p></section>
+        <p class="cnote">第一層大格柵水平組在襯板外側、以第二層大格柵（間距 L2）為支點；第二層大格柵垂直、以螺桿為支點的連續梁（兩端外伸），承受第一層大格柵傳來的集中力；只有一階螺桿時，假設梁底端由梁底模支承。螺桿拉力取支點反力，水平間距同 L2。</p></section>
       <section class="panel" id="bf4"><h2><span class="cfno">4</span>底模及支撐配置條件（cm）</h2>
         <div class="grid2">
           <div class="field"><label>梁底貫材支數</label>${sel("nb", nOpts(3, "支"), st.nb)}</div>
@@ -254,7 +311,7 @@ function tabBeamForm(box) {
       <div class="tblwrap"><table class="ct cfres"><tr><th>構件</th><th>計算值</th><th>容許值</th><th>比值</th></tr>
         ${memRows("側模襯板", r.ply)}
         ${r.first.map(m => memRows(`第一層大格柵 ${m.x.n}`, m)).join("")}
-        ${r.second.map(m => memRows(`第二層大格柵 ${m.x.n}${m.cant ? "（懸臂）" : ""}`, m)).join("")}
+        ${r.second ? memRows("第二層大格柵（連續梁）", r.second) : ""}
         ${r.ties.map(t => row(`螺桿 第${BF_N[t.i]}階`, { ...t.chk, t: "拉力 T" }, true)).join("")}
         ${r.bply.map(m => memRows(m.x.n, m)).join("")}
         ${memRows("梁底貫材", r.bw)}${row("鋼管支撐", r.sup, true)}</table></div>
@@ -322,7 +379,7 @@ function renderBeamSheet() {
       </table>
       <table class="pt">
         <tr><th colspan="4">二、材料規格</th></tr>
-        <tr><td>計算方式</td><td colspan="3">${colMethText(st.meth).replace("；小格柵剪力面積計入襯板厚度", "")}；第二層大格柵兩端段懸臂 M = wL²/2、V = wL、δ = wL⁴/8EI</td></tr>
+        <tr><td>計算方式</td><td colspan="3">${colMethText(st)}；側模第二層大格柵以連續梁（直接勁度法）計算，螺桿拉力取其支點反力</td></tr>
         ${BF_MEMS.map(([k, n]) => matRow(n, r.mat(k))).join("")}
         ${matRow("螺桿", r.mat("tie"))}
         <tr><td>鋼管支撐</td><td colspan="3">圓管 D${esc(st.pipe.D)} × t${esc(st.pipe.t)} cm：A ${v(r.pipe?.A, 3)} cm²、I ${v(r.pipe?.I, 3)} cm⁴、r ${v(r.pipe?.r, 3)} cm；Fy ${COL_STEEL.fy}、E ${COL_STEEL.E} kgf/cm²</td></tr>
@@ -344,7 +401,7 @@ function renderBeamSheet() {
         ${bfDetails(st, r, v).map(([h, cs]) => `<tr><td colspan="6">${h}</td></tr>${cs.map(crow).join("")}`).join("")}
       </table>
       <table class="pt"><tr><th>檢核結果</th><td>${r.ng ? `${r.ng} 項超過容許值` : r.err.length ? esc(r.err[0]) : r.miss ? `尚有 ${r.miss} 項未完成` : "全部在容許值以內"}</td></tr>
-        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算（第二層大格柵兩端段以懸臂計算），螺桿檢核拉力，鋼管支撐以軸壓檢核挫曲。載重、側壓力、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算（側模第二層大格柵以承受集中力之連續梁計算），螺桿檢核拉力，鋼管支撐以軸壓檢核挫曲。載重、側壓力、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#bfBack").onclick = () => goBack("#/struct/beam");

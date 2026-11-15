@@ -6,7 +6,7 @@
    這裡依 ACI 318-19 第 17 章的架構自行實作，SI 公式係數換算成 kgf、cm（換算式寫在 ANC_K），非規範原文。
    ‧受力分配：剛性鋼承板、只計錨栓（不計混凝土承壓），Ni = −P/n − Mx·(yi−ȳ)/Σ(y−ȳ)² − My·(xi−x̄)/Σ(x−x̄)²，
      負值（受壓）取 0；剪力均分＋扭矩 Mz 依距群心距離分配。不計承壓區的力臂，通常偏保守。
-   ‧拉：鋼材 φNsa、混凝土拉破 φNcbg（含 ψec、ψed、ψc、ψcp 與三邊以上近邊時的 hef 修正）、拔出 φNpn、側面爆裂 φNsbg（預埋擴頭）。
+   ‧拉：鋼材 φNsa、混凝土拉破 φNcbg（含 ψec、ψed、ψc、ψcp 與三邊以上近邊時的 hef 修正）、拔出 φNpn、側面爆裂 φNsb（預埋擴頭，逐支、含角落折減）。
    ‧剪：鋼材 φVsa、混凝土剪破 φVcbg（X、Y 兩方向分別朝受剪側邊緣，全部剪力由最靠邊一排承擔）、撬破 φVcpg。
    ‧互制：ζN ≤ 0.2 或 ζV ≤ 0.2 時另一項 ≤ 1，否則 ζN + ζV ≤ 1.2。
    ‧未做：黏結式錨栓的握裹、地震設計的額外折減、剪力偏心 ψec,V、鋼承板與柱斷面檢核。 */
@@ -107,10 +107,18 @@ function ancCalc(st) {
     const Np = cast ? 8 * F(st.Abrg) * fc : F(st.Np);
     if (Np > 0) { const psp = cast && uncr ? 1.4 : 1; ck.push({ g: "N", k: "po", t: "拔出（單支）", v: Nmax, a: phiP * psp * Np, f: cast ? `φNpn = ${phiP} × ψc,P ${psp} × 8Abrg·f′c = ${phiP} × ${psp} × 8 × ${esc(st.Abrg)} × ${fmt(fc, 0)}` : `φNpn = ${phiP} × 產品報告 Np ${fmt(Np, 0)} kgf` }); }
     else ck.push({ g: "N", k: "po", t: "拔出（單支）", v: Nmax, a: NaN, f: "後置式請填產品報告的拔出強度 Np（依開裂狀態），未填不檢核" });
-    // 4. 側面爆裂（預埋擴頭、ca1 < 0.4hef）
+    // 4. 側面爆裂（預埋擴頭、hef > 2.5ca1）：逐支受拉錨栓計算，ca1 取最近邊距、ca2 取垂直方向的較小邊距，
+    //    ca2 < 3ca1 時乘角落折減 (1 + ca2/ca1)/4（ACI 318-19 17.6.4.1.1；2026-11-15 第三方驗證後補上）。群組放大未計（偏保守）。
     if (cast) {
-      const ca1 = Math.min(cL, cR, cB, cT);
-      if (ca1 < 0.4 * hef0) { const Abrg = F(st.Abrg), Nsb = ANC_K.sb * ca1 * Math.sqrt(Abrg) * lam * sf; ck.push({ g: "N", k: "sb", t: "側面爆裂", v: Nmax, a: phiCt * Nsb, f: `φNsb = ${phiCt} × ${fmt(ANC_K.sb, 2)} × ca1 ${fmt(ca1, 1)} × √Abrg × λ × √f′c（取單支，保守）` }); }
+      const Abrg = F(st.Abrg); let sb = null;
+      for (const a of ten) {
+        const dx = [cL + a.x, cR + (Wx - a.x)], dy = [cB + a.y, cT + (Wy - a.y)], mx = Math.min(...dx), my = Math.min(...dy);
+        const ca1 = Math.min(mx, my), ca2 = mx <= my ? my : mx;
+        if (!(ca1 < 0.4 * hef0)) continue;
+        const fac = ca2 < 3 * ca1 ? (1 + Math.min(3, Math.max(1, ca2 / ca1))) / 4 : 1, Nsb = ANC_K.sb * ca1 * Math.sqrt(Abrg) * lam * sf * fac;
+        if (!sb || a.N / Nsb > sb.a.N / sb.Nsb) sb = { a, ca1, ca2, fac, Nsb };
+      }
+      if (sb) ck.push({ g: "N", k: "sb", t: `側面爆裂（${sb.a.id}）`, v: sb.a.N, a: phiCt * sb.Nsb, f: `φNsb = ${phiCt} × ${fmt(ANC_K.sb, 2)} × ca1 ${fmt(sb.ca1, 1)} × √Abrg × λ × √f′c${sb.fac < 1 ? ` × 角落折減 (1 + ca2 ${fmt(sb.ca2, 1)} ／ ca1)／4 = ${fmt(sb.fac, 3)}` : ""}（逐支檢核，取最不利的 ${sb.a.id}；未計群組放大，保守）` });
     }
   }
   // 5. 鋼材剪力
