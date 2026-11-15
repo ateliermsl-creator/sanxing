@@ -1,0 +1,28 @@
+// volume_save：混凝土方數「儲存的計算」：存、自動存回、新的計算、開啟、複製、刪除、換工地、XSS 名稱；見 tests/README.md
+const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});
+(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+const U='http://localhost:8793/index.html';
+await p.goto(U);await p.waitForTimeout(500);
+await p.evaluate(async()=>{await DB.put('sites',{id:'sA',name:'甲工地'});await DB.put('sites',{id:'sB',name:'乙工地'});localStorage.setItem('siteId','sA');localStorage.removeItem('calcRows');localStorage.removeItem('calcCfg');});await p.reload();await p.waitForTimeout(500);
+const go=async()=>{await p.goto(U+'#/calc/vol');await p.waitForSelector('#vTitle');await p.waitForTimeout(500);await p.evaluate(()=>document.querySelectorAll('dialog[open]').forEach(d=>d.close()));};
+const st=async()=>(await p.innerText('#vSaved')).replace(/\s+/g,' ');
+const lst=async()=>p.$$eval('.vsrow',x=>x.map(y=>y.querySelector('.vsname').innerText.replace(/\s+/g,' ')));
+const vols=async()=>p.evaluate(async()=>(await DB.all('vols')).map(v=>v.siteId+':'+v.name+':'+v.rows.length+':'+v.rows[0]?.a));
+await go();
+await p.fill('.vrow[data-i="0"] [data-k="a"]','2');await p.fill('.vrow[data-i="0"] [data-k="b"]','2');await p.fill('.vrow[data-i="0"] [data-k="c"]','0.6');
+console.log('未存',await st());
+await p.click('#vSave');await p.waitForTimeout(200);console.log('沒名稱',await st());
+await p.fill('#vTitle','3F 版梁澆置');await p.click('#vSave');await p.waitForTimeout(300);console.log('已存',await st(),'|',await lst());
+await p.fill('.vrow[data-i="0"] [data-k="a"]','3');await p.waitForTimeout(800);console.log('自動存回',await vols());
+await go();console.log('重開仍開啟中',await p.inputValue('#vTitle'),await p.inputValue('.vrow[data-i="0"] [data-k="a"]'),'|',await st());
+await p.click('#vNew');await p.waitForTimeout(300);console.log('新的計算 名稱',JSON.stringify(await p.inputValue('#vTitle')),'a',JSON.stringify(await p.inputValue('.vrow[data-i="0"] [data-k="a"]')),'|',await lst());
+await p.fill('#vTitle','<img src=x onerror=window.__x=1>');await p.fill('.vrow[data-i="0"] [data-k="a"]','1');await p.fill('.vrow[data-i="0"] [data-k="b"]','1');await p.fill('.vrow[data-i="0"] [data-k="c"]','1');await p.click('#vSave');await p.waitForTimeout(300);
+console.log('兩筆',await lst());
+await p.click('.vsrow:has-text("3F 版梁澆置") [data-vopen]');await p.waitForTimeout(400);console.log('開啟',await p.inputValue('#vTitle'),await p.inputValue('.vrow[data-i="0"] [data-k="a"]'));
+await p.click('.vsrow:has-text("3F 版梁澆置") [data-vcopy]');await p.waitForTimeout(400);console.log('複製',await p.inputValue('#vTitle'),'|',(await lst()).length,'筆');
+await p.click('.vsrow.on [data-vdel]');await p.waitForTimeout(300);console.log('刪除開啟中',await lst(),'|',await st(),'| cur',await p.evaluate(()=>JSON.parse(localStorage.getItem('calcCfg')).cur));
+await p.screenshot({path:O+'vol_save.png',fullPage:true});
+await p.goto(U+'#/calc/vol/sheet');await p.waitForTimeout(300);
+await go();await p.selectOption('#siteSelect','sB');await p.waitForTimeout(600);console.log('乙工地清單',await lst(),'|',await st());
+console.log('hscroll',await p.evaluate(()=>document.documentElement.scrollWidth>innerWidth),'xss',await p.evaluate(()=>window.__x),'DB',await vols());
+console.log('errs',e);await b.close();})();

@@ -5,7 +5,7 @@
 
 ## 技術概況
 - 純前端、無框架、無建置步驟。直接編輯檔案即可。第三方只有 `lib/html2canvas`、`lib/jspdf`（皆 MIT，授權檔在 `lib/`）。
-- 資料只存在使用者手機瀏覽器的 IndexedDB（庫名 `avocado-toolbox`，歷史原因沒改名，**不要改**，會讓既有資料消失）。目前版本 **11**，資料表：`sites records templates photos workorders punch pours matrecs matcats files shots safety logs`。
+- 資料只存在使用者手機瀏覽器的 IndexedDB（庫名 `avocado-toolbox`，歷史原因沒改名，**不要改**，會讓既有資料消失）。目前版本 **12**，資料表：`sites records templates photos workorders punch pours matrecs matcats files shots safety logs vols`。
 - 沒有伺服器、沒有帳號。`localStorage` 只放個人偏好（公司名、上次選的工地等）。
 - 路由是 hash（`#/頁面/id/子頁`），在 `app.js` 的 `route()` 分派，各功能一支檔案：
 
@@ -22,7 +22,7 @@
 | `safety.js` | 職安衛勤前教育／危害告知簽到 |
 | `log.js` | 施工日誌（B14-4 格式） |
 | `calc.js` | 工程計算機（`#/calc`，八個日常分頁）＋「結構計算」路由（`#/struct`、`renderStruct`）。結構計算 2026-11-15 使用者同意從計算機拆出：分類在 `STRUCT_CATS`（模板／施工架／混凝土構造／其他工具），各檔 `STRUCT_TABS.push` 進來，計算書在 `STRUCT_SHEETS`。舊網址 `#/calc/col`、`#/calc/col/sheet` 等由 `renderCalc` 自動轉到 `#/struct/…`，localStorage 鍵名不變。新增結構計算：檔案裡 `STRUCT_TABS.push`、`STRUCT_CATS` 的 tabs 加 key、`STRUCT_SHEETS` 加計算書 |
-| `volume.js` | 計算機「混凝土方數」分頁與 A4 計算書（`#/calc/vol/sheet`）。構件：矩形柱／其他、圓柱、牆（可扣開口）、版（可扣開口）、梁（可扣版厚）、獨立基礎、地梁／連續基礎、樓梯（踏階三角形＋斜版）。欄位共用 a～e（牆、版、矩形皆 a×b×c），開口存 `op`。沿用舊 localStorage `calcRows`、`calcCfg`（多了 loc、who）。載入後以 `CALC_TABS.splice(2,0,…)` 插回原位置，`index.html` 要緊接在 `calc.js` 後面 |
+| `volume.js` | 計算機「混凝土方數」分頁與 A4 計算書（`#/calc/vol/sheet`）。構件：矩形柱／其他、圓柱、牆（可扣開口）、版（可扣開口）、梁（可扣版厚）、獨立基礎、地梁／連續基礎、樓梯（踏階三角形＋斜版）。欄位共用 a～e（牆、版、矩形皆 a×b×c），開口存 `op`。目前編輯中的內容在 localStorage `calcRows`、`calcCfg`（多了 loc、who、cur、title）；按「儲存」存到 IndexedDB `vols`（依工地多筆，`{id, siteId, name, rows, cfg, created, updated}`），`cfg.cur` 指向開啟中的那筆並自動存回；`vols` 已納入備份、匯入、`CLEAN`、刪除工地。載入後以 `CALC_TABS.splice(2,0,…)` 插回原位置，`index.html` 要緊接在 `calc.js` 後面 |
 | `colform.js` | 結構計算「柱模板」分頁與 A4 計算書（`#/struct/col/sheet`）；三步驟＋分階（最多 4 階）＋側壓力分布圖＋配置示意圖。輸入存在 localStorage `calcColForm2`，材料庫 `calcColLib`。使用者同意內建「他提供的」材料表（2026-11-14 參考表截圖）：`COL_SPECIES` 木材樹種容許應力、`COL_PRESETS` 襯板與木角材斷面、`COL_DEFP` 襯板撓度標準，畫面註明非規範原文。鋼材 Fb/Fv/E、鋼角材斷面、螺桿斷面積也照參考表內建；螺桿容許拉應力 Ft 預設 1800 kgf/cm²（參考網站螺桿資料 18 kgf/mm²，2026-11-14 使用者用決策卡同意帶入，可改） |
 | `wallform.js` | 結構計算「牆模板」分頁與 A4 計算書（`#/struct/wall/sheet`）；三層模／四層模（螺桿）／單面模（鋼管斜撐挫曲）。材料庫、樹種、斷面與 `colform.js` 共用（`colLib`、`colLibCard`、`colRefHtml`、`colPressureSvg`）。輸入存在 localStorage `calcWallForm`。側壓力預設 1.5Wo + 0.2Wo(H−1.5)（參考網站公式，註明非規範原文，可切換成 γ×深度） |
 | `slabform.js` | 結構計算「板模板」分頁與 A4 計算書（`#/struct/slab/sheet`）；載重 N = Wo×板厚 + 衝擊 0.5N1 + 作業 150 + 模板自重 15 kgf/m²（參考網站值，註明非規範原文，可改）→ 襯板 → 第一層大格柵（跨 L2）→ 第二層大格柵（跨 L3）→ 鋼管支撐挫曲（P = N×L2×L3）。支撐長 L 預設「樓高 − 板厚」（2026-11-14 使用者用決策卡選定），可改扣模板格柵高或手動。材料庫與柱模共用、鋼管與挫曲公式與牆模單面模共用（`wfPipeSect`、`wfFa`）。輸入存在 localStorage `calcSlabForm` |
@@ -37,7 +37,7 @@
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
-1. **`sw.js` 的 `VERSION` 加 1**（`"v125"` → `"v126"`）。不加的話，已安裝的手機不會換新版。
+1. **`sw.js` 的 `VERSION` 加 1**（`"v127"` → `"v128"`）。不加的話，已安裝的手機不會換新版。
 2. 新增 `.js` 檔：同時加進 `index.html` 的 `<script>` 與 `sw.js` 的 `FILES`。
 3. **新增或改名資料欄位：同步改 `safe.js` 的 `CLEAN` 規則。** 沒改的話，匯入備份時該欄位會被丟掉（`tests/backup_roundtrip.js` 會抓到）。
 4. 新增資料表：`app.js` 的資料庫版本加 1、加進 `onupgradeneeded` 的名單、備份匯出／匯入、`sanitizeBackup`、刪除工地的 `stores`。
