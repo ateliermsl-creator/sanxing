@@ -1,0 +1,7 @@
+# 結構計算獨立驗證用（只在開發電腦跑，網站本身不需要）
+anastruct==1.7.1
+PyNiteFEA==3.2.1
+sectionproperties==3.10.2
+shapely>=2.0
+numpy
+scipy

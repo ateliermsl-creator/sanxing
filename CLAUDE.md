@@ -66,6 +66,7 @@ bash tests/run.sh xss_render          # 資安：惡意資料與渲染轉義
 bash tests/run.sh backup_roundtrip    # 備份往返，找被清理器丟掉的欄位
 bash tests/run.sh print_overflow narrow_overflow pdf_all_outputs   # 版面
 ```
+結構計算另有**第三方獨立驗證**（anaStruct、PyNite、sectionproperties，Python）：`python3 tools/verify/verify.py`，產生 `tools/verify/REPORT.md`。改了任何結構計算檔（`colform.js`～`secprop.js`）都重跑一次，看有沒有新增不一致；新增結構計算時在 `tools/verify/` 補案例（說明見該資料夾 README）。
 改 `safe.js`、資料庫、備份：至少跑 `backup_roundtrip`、`db_upgrade_delete_site`、`xss_render`。改版面：跑 `print_overflow`、`narrow_overflow`。
 
 ## 還沒做、等使用者決定
