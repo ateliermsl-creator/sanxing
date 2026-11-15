@@ -448,3 +448,9 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 #sideNav a.snSub{min-height:36px;padding-left:46px;font-size:14px}
 #sideNav a[hidden]{display:none}
 #sideNav a.open{color:var(--g);font-weight:600}
+
+/* 混凝土方數：儲存的計算清單（volume.js） */
+.vsrow{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.vsrow.on .vsname b{color:var(--g)}
+.vsname{flex:1 1 160px;min-width:0;overflow-wrap:anywhere}.vsname small{display:block;color:var(--mut);font-size:12px}
+.vsbtn{display:flex;gap:6px}.vsbtn button{min-height:40px;padding:0 10px;font-size:14px}

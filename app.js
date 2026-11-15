@@ -87,9 +87,9 @@ new MutationObserver(() => bindLabels()).observe(view, { childList: true, subtre
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("avocado-toolbox", 11);
+  const r = indexedDB.open("avocado-toolbox", 12);
   r.onupgradeneeded = () => {
-    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats", "files", "shots", "safety", "logs"])
+    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats", "files", "shots", "safety", "logs", "vols"])
       if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
   };
   r.onsuccess = () => res(r.result);
@@ -163,13 +163,13 @@ $("#setupForm").addEventListener("submit", async e => {
 // 刪除工地：連同底下所有檢查表、點工單、缺失、澆置、材料進場、照片與附加檔案一併刪除
 $("#sDel").onclick = async () => {
   const cur = sites.find(x => x.id === siteId); if (!cur) return;
-  const stores = ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs"], mine = {}, ids = new Set();
+  const stores = ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs", "vols"], mine = {}, ids = new Set();
   for (const st of stores) {
     mine[st] = (await DB.all(st)).filter(x => x.siteId === cur.id);
     for (const x of mine[st]) { ids.add(x.id); for (const t of x.trucks || []) ids.add(t.id); }
   }
   const total = stores.reduce((a, st) => a + mine[st].length, 0);
-  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
+  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}、混凝土方數 ${mine.vols.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
   const typed = prompt(`為了避免誤刪，請輸入工地名稱確認：\n${cur.name}`);
   if (typed === null) return;
   if (typed.trim() !== cur.name) { alert("名稱不符，沒有刪除。"); return; }
@@ -646,7 +646,7 @@ async function renderBackup() {
   $("#expBtn").onclick = async () => {
     const withFiles = $("#bkFiles") ? $("#bkFiles").checked : true;
     const files = []; if (withFiles) for (const f of await DB.all("files")) files.push({ id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, data: await blobToDataURL(f.blob) });
-    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), shots: (await DB.all("shots")).map(({ thumb, raw, ...x }) => ($("#bkRaw")?.checked ? { ...x, raw } : x)), safety: await DB.all("safety"), logs: await DB.all("logs"), sites: await DB.all("sites"), records: await DB.all("records") };
+    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), shots: (await DB.all("shots")).map(({ thumb, raw, ...x }) => ($("#bkRaw")?.checked ? { ...x, raw } : x)), safety: await DB.all("safety"), logs: await DB.all("logs"), vols: await DB.all("vols"), sites: await DB.all("sites"), records: await DB.all("records") };
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
     a.download = `三星蔥工具箱備份_${today()}.json`;
@@ -725,8 +725,14 @@ async function renderBackup() {
         if (old && (old.updated || 0) >= (x.updated || 0)) continue;
         x.siteId = map[x.siteId] || x.siteId; await DB.put("logs", x); ln++;
       }
+      let vn = 0;
+      for (const x of d.vols || []) {
+        const old = await DB.get("vols", x.id);
+        if (old && (old.updated || 0) >= (x.updated || 0)) continue;
+        x.siteId = map[x.siteId] || x.siteId; await DB.put("vols", x); vn++;
+      }
       await loadSites();
-      alert(`${d.dropped ? `（有 ${d.dropped} 筆資料格式不正確，已略過）\n` : ""}匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}${sn ? `、${sn} 張施工照片` : ""}${an ? `、${an} 筆勤前教育` : ""}${ln ? `、${ln} 張施工日誌` : ""}`);
+      alert(`${d.dropped ? `（有 ${d.dropped} 筆資料格式不正確，已略過）\n` : ""}匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}${sn ? `、${sn} 張施工照片` : ""}${an ? `、${an} 筆勤前教育` : ""}${ln ? `、${ln} 張施工日誌` : ""}${vn ? `、${vn} 筆混凝土方數` : ""}`);
     } catch { alert("這不是有效的備份檔"); }
     e.target.value = "";
   };
