@@ -454,3 +454,10 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 .vsrow.on .vsname b{color:var(--g)}
 .vsname{flex:1 1 160px;min-width:0;overflow-wrap:anywhere}.vsname small{display:block;color:var(--mut);font-size:12px}
 .vsbtn{display:flex;gap:6px}.vsbtn button{min-height:40px;padding:0 10px;font-size:14px}
+.vfile{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding-top:10px;padding-bottom:10px}
+.vfname{flex:1 1 140px;min-width:0}.vfname small{display:block;font-size:12px;color:var(--mut)}.vfname small.bad{color:var(--bad)}
+.vfname b{display:block;font-size:16px;color:var(--g);overflow-wrap:anywhere}
+.vfbtn{display:flex;gap:6px}.vfbtn button{min-height:44px;padding:0 12px;font-size:14px;white-space:nowrap}
+#vOpen.on{background:var(--g);color:var(--card)}
+#vList{flex-basis:100%}
+.vsave{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
