@@ -31,7 +31,7 @@ const wfGapName = (k, sup) => ({ H1: "小格柵垂直間距 H1", B2: "第一層�
 const wfTier = () => ({ top: "", H1: "", B2: "", H3: "", H4: "", B4: "", ang: "", Lu: "" });
 const wfBlank = () => ({
   type: "t4", info: { proj: "", loc: "", no: "", H: "", len: "", thk: "", who: "" },
-  pmode: "ref", gamma: "2.3", pmax: "", meth: "r", species: "c3", tieFt: WF_FT_DEF, manual: "",
+  pmode: "ref", gamma: "2.3", pmax: "", meth: "r", spans: "3", species: "c3", tieFt: WF_FT_DEF, manual: "",
   pipe: { D: "4.86", t: "0.24" }, defP: { n: "", a: "3" }, defB: { n: "", a: "" },
   sel: { ply: "p_ply15", stud: "p_b3645", w1: "p_b9045", w2: "p_b9045", tie: "p_t25" }, tiers: [wfTier()]
 });
@@ -75,7 +75,7 @@ function wfCalc(st, lib = colLib()) {
     if (m.steel) return { ...m, fb: COL_STEEL.fb, fv: COL_STEEL.fv, E: COL_STEEL.E, spn: "鋼材" };
     if (m.bolt) { const ft = colF(st.tieFt); return { ...m, ta: ft > 0 ? String(+(ft * colF(m.A)).toFixed(1)) : "" }; }
     return m; };
-  const meth = COL_METHODS[st.meth] || COL_METHODS.r, tiers = [], err = [];
+  const meth = colMeth(st), tiers = [], err = [];
   const pipe = T.sup === "pipe" ? wfPipeSect(st.pipe) : null, Fy = colF(COL_STEEL.fy), Es = colF(COL_STEEL.E);
   let lo = 0;
   st.tiers.forEach((t, i) => {
@@ -191,6 +191,7 @@ function tabWallForm(box) {
           <div class="field"><label>鋼管外徑 D（cm）</label>${inp("pipe.D", st.pipe.D)}</div>
           <div class="field"><label>鋼管厚度 t（cm）</label>${inp("pipe.t", st.pipe.t)}</div>`}
           <div class="field"><label>構件計算方式</label>${sel("meth", Object.entries(COL_METHODS).map(([k, x]) => [k, x.n]), st.meth)}</div>
+          <div class="field"><label>格柵連續跨數</label>${sel("spans", COL_SPAN_OPTS, st.spans)}</div>
           <div class="field"><label>襯板撓度限制 L／?</label>${inp("defP.n", st.defP.n, "可空白")}</div>
           <div class="field"><label>襯板撓度上限（mm）</label>${inp("defP.a", st.defP.a, "可空白")}</div>
           <div class="field"><label>格柵撓度限制 L／?</label>${inp("defB.n", st.defB.n, "可空白")}</div>
@@ -304,7 +305,7 @@ function renderWallSheet() {
       </table>
       <table class="pt">
         <tr><th colspan="4">二、材料規格</th></tr>
-        <tr><td>計算方式</td><td colspan="3">${colMethText(st.meth)}</td></tr>
+        <tr><td>計算方式</td><td colspan="3">${colMethText(st)}</td></tr>
         ${T.mems.map(x => matRow(x.n, r.mat(x.k), allow)).join("")}
         ${T.sup === "tie" ? matRow("螺桿", r.mat("tie"), m => `${m.bolt ? `；Ft ${esc(st.tieFt) || "—"} kgf/cm²` : ""}；容許拉力 ${esc(m.ta) || "—"} kgf`)
           : `<tr><td>鋼管斜撐</td><td colspan="3">圓管 D${esc(st.pipe.D)} × t${esc(st.pipe.t)} cm：A ${v(r.pipe?.A, 3)} cm²、I ${v(r.pipe?.I, 3)} cm⁴、r ${v(r.pipe?.r, 3)} cm；Fy ${COL_STEEL.fy}、E ${COL_STEEL.E} kgf/cm²</td></tr>`}

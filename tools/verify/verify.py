@@ -158,26 +158,18 @@ def check_coefs():
     cmp(T, "簡支梁", "M 係數（wL²/8）", "", 1 / 8, C[1]["m"], "anaStruct 簡支")
     cmp(T, "簡支梁", "V 係數（0.5wL）", "", 0.5, C[1]["v"], "anaStruct 簡支")
     cmp(T, "簡支梁", "δ 分母（384/5）", "", 384 / 5, C[1]["d"], "anaStruct 簡支")
-    cmp(T, "三跨連續梁", "M 係數（wL²/10）", "", 1 / 10, C[3]["m"], "anaStruct 三跨等跨")
-    cmp(T, "三跨連續梁", "V 係數（0.6wL）", "", 0.6, C[3]["v"], "anaStruct 三跨等跨")
-    cmp(T, "三跨連續梁", "δ 分母（145）", "", 145, C[3]["d"], "anaStruct 三跨等跨")
+    cmp(T, "三跨以上連續梁", "M 係數（0.107wL²）", "", 0.107, max(C[n]["m"] for n in (3, 4, 5)), "anaStruct 3～5 跨包絡")
+    cmp(T, "三跨以上連續梁", "V 係數（0.607wL）", "", 0.607, max(C[n]["v"] for n in (3, 4, 5)), "anaStruct 3～5 跨包絡")
+    cmp(T, "三跨以上連續梁", "δ 分母（145）", "", 145, min(C[n]["d"] for n in (3, 4, 5)), "anaStruct 3～5 跨包絡")
+    cmp(T, "兩跨連續梁", "M 係數（wL²/8）", "", 1 / 8, C[2]["m"], "anaStruct 兩跨")
+    cmp(T, "兩跨連續梁", "V 係數（0.625wL）", "", 0.625, C[2]["v"], "anaStruct 兩跨")
+    cmp(T, "兩跨連續梁", "δ 分母（185）", "", 185, C[2]["d"], "anaStruct 兩跨")
     cmp(T, "懸臂梁", "M 係數（wL²/2）", "", 1 / 2, cant["M"] / 100 ** 2, "anaStruct 懸臂")
     cmp(T, "懸臂梁", "V 係數（wL）", "", 1.0, cant["V"] / 100, "anaStruct 懸臂")
     cmp(T, "懸臂梁", "δ 分母（8）", "", 8, 1.0 * 100 ** 4 / (cant["d"] * 1.0e6), "anaStruct 懸臂")
     # 參考網站算法的格柵撓度 wL⁴/128EI vs 三跨連續
     info(T, "參考網站算法（格柵）", "δ 分母 128 對三跨連續", "", 128, C[3]["d"], "anaStruct 三跨",
          "分母較小 → 撓度算大 13%，偏保守。")
-    for n in (2, 4, 5):
-        info(T, f"{n} 跨等跨連續", "M 係數（工具箱用 1/10）", "", 0.1, C[n]["m"], f"anaStruct {n} 跨",
-             "工具箱 0.1 小於實際" if C[n]["m"] > 0.1 * (1 + TOL) else "")
-        info(T, f"{n} 跨等跨連續", "V 係數（工具箱用 0.6）", "", 0.6, C[n]["v"], f"anaStruct {n} 跨", "")
-    if C[2]["m"] > 0.1 * 1.2:
-        finding("中", "柱模、牆模、板模、梁模（格柵）",
-                "格柵 M = wL²/10、V = 0.6wL 只對「三跨以上」成立；兩跨時低估",
-                f"anaStruct：兩跨等跨連續 M = {C[2]['m']:.4f}wL²（工具箱用 0.1，低估 {(1 - 0.1 / C[2]['m']) * 100:.0f}%）、"
-                f"V = {C[2]['v']:.3f}wL（工具箱 0.6，低估 {(1 - 0.6 / C[2]['v']) * 100:.0f}%）；四跨 M = {C[4]['m']:.4f}wL²（低估 {(1 - 0.1 / C[4]['m']) * 100:.1f}%）、"
-                f"五跨 {C[5]['m']:.4f}wL²（低估 {(1 - 0.1 / C[5]['m']) * 100:.1f}%）。三跨剛好 0.100、0.600。"
-                "參考網站與工具箱都用 wL²/10，屬業界常用近似。柱寬小、小格柵只跨兩格時，建議改選「簡支（保守）」或人工確認。")
     return C
 
 
@@ -208,40 +200,44 @@ def rect_pts(b, h):
 
 
 # ---------------------------------------------------------------- 2. 柱模板
-def member_ref(kind, meth, w, L, I, S, A_shear, kv, E, C):
-    """依工具箱聲明的支承條件，用 anaStruct 結果算 M、V、δ、fb、fv。"""
-    if meth == "s" or (meth == "r" and kind == "ply"):
-        n = 1
+def member_ref(kind, meth, w, L, I, S, A_shear, kv, E, C, spans="3"):
+    """依工具箱聲明的支承條件，用 anaStruct 結果算 M、V、δ。
+    連續（三跨以上）取 3、4、5 跨的包絡（M、V 取最大；撓度取三跨，三跨最大）。"""
+    if meth == "s" or (meth == "r" and kind == "ply") or spans == "1":
+        ns = [1]
+    elif spans == "2":
+        ns = [2]
     else:
-        n = 3
-    r = fe_beam([L] * n, w, E * I)
-    return dict(M=r["M"], V=r["V"], d=r["d"], fb=r["M"] / S, fv=kv * r["V"] / A_shear, n=n)
+        ns = [3, 4, 5]
+    rs = [fe_beam([L] * n, w, E * I) for n in ns]
+    M = max(r["M"] for r in rs)
+    V = max(r["V"] for r in rs)
+    d = max(r["d"] for r in rs)
+    return dict(M=M, V=V, d=d, fb=M / S, fv=kv * V / A_shear, n=ns[0], ns=ns)
 
 
-def check_member_list(T, case, mems, meth, C, tp=None, label=None):
-    """mems：extract 輸出的構件；meth：r/c/s。回傳 None。"""
+def check_member_list(T, case, mems, meth, C, tp=None, label=None, spans="3"):
     names = {"ply": "襯板", "stud": "小格柵", "w1": "第一層大格柵", "w2": "第二層大格柵"}
     for m in mems:
         k = m["k"]
         nm = (label or "") + names.get(k, k)
         if m["L"] is None or m["w"] is None:
             continue
-        kv = 1.5
-        Ashear = None
-        # 斷面：由輸入尺寸獨立算（sectionproperties）
         I, S = m["I"], m["S"]
-        ref = member_ref("ply" if k == "ply" else "beam", meth, m["w"], m["L"], I, S, 1.0, kv, m["E"], C)
-        src = f"anaStruct {'簡支' if ref['n'] == 1 else '三跨連續'}"
+        ref = member_ref("ply" if k == "ply" else "beam", meth, m["w"], m["L"], I, S, 1.0, 1.5, m["E"], C, spans)
+        src = "anaStruct " + ("簡支" if ref["ns"] == [1] else "兩跨連續" if ref["ns"] == [2] else "3～5 跨包絡")
+        # 工具箱三跨以上取 0.107、0.607（四跨精確值 0.10714、0.60714 四捨五入）
         cmp(T, case, f"{nm} M", "kgf·cm", m["M"], ref["M"], src)
         cmp(T, case, f"{nm} V", "kgf", m["V"], ref["V"], src)
         d_app = m["checks"][2]["v"] / 10
-        if meth == "r" and k != "ply":
+        if meth == "r" and k != "ply" and ref["ns"] != [1]:
             info(T, case, f"{nm} δ（wL⁴/128EI）", "cm", d_app, ref["d"], src,
-                 "參考網站算法的格柵撓度比三跨連續大 13%（偏保守）。")
+                 "參考網站算法的格柵撓度用 wL⁴/128EI，比連續梁實際值大（偏保守）。")
         else:
             cmp(T, case, f"{nm} δ", "cm", d_app, ref["d"], src)
-        fb_app = m["checks"][0]["v"]
-        cmp(T, case, f"{nm} fb = M/S", "kgf/cm²", fb_app, ref["M"] / S, src + "＋斷面 S")
+        cmp(T, case, f"{nm} fb = M/S", "kgf/cm²", m["checks"][0]["v"], ref["M"] / S, src + "＋斷面 S")
+        if m.get("Av"):
+            cmp(T, case, f"{nm} fv = 1.5V/A", "kgf/cm²", m["checks"][1]["v"], 1.5 * ref["V"] / m["Av"], src + "＋斷面 A")
 
 
 def check_col(C):
@@ -265,18 +261,14 @@ def check_col(C):
     check_member_list(T, "C1 單階 H=300（參考網站算法）", t["mems"], "r", C)
     cmp(T, "C1 單階 H=300", "螺桿拉力 T", "kgf", t["tie"]["v"], P * 80 * 60, "獨立：P×B4×H4（H4 空白＝H3）")
     cmp(T, "C1 單階 H=300", "螺桿容許拉力（2.5 分）", "kgf", t["tie"]["a"], 1800 * 0.369, "獨立：Ft×A")
-    # 小格柵剪力面積
+    # 小格柵剪力面積：只算角材本身（2026-11-15 修正）
     stud = t["mems"][1]
-    fv_app = stud["checks"][1]["v"]
-    fv_std = 1.5 * stud["V"] / (3.6 * 4.5)
-    info(T, "C1 單階 H=300", "小格柵剪應力 fv（剪力面積計入襯板厚）", "kgf/cm²", fv_app, fv_std,
-         "一般矩形梁 1.5V/(b·h)",
-         "工具箱依參考網站把襯板厚度加進小格柵剪力面積 b(h+t)，比只算角材本身低 25%。")
-    finding("中", "柱模板、牆模板",
-            "小格柵剪應力的剪力面積計入襯板厚度 b×(h + t襯板)",
-            f"C1 案例：工具箱 fv = {fv_app:.1f} kgf/cm²，只算角材斷面 1.5V/(b·h) = {fv_std:.1f} kgf/cm²（工具箱低 {(1 - fv_app / fv_std) * 100:.0f}%）。"
-            "這等於假設襯板與角材是組合斷面共同受剪，一般釘接的模板不一定成立。公式本身照參考網站正確實作，"
-            "是假設偏向不保守；建議由 Matt 決定是否保留，或在畫面加註、加一個「不計襯板」選項。")
+    cmp(T, "C1 單階 H=300", "小格柵剪應力 fv（剪力面積只算角材 b·h）", "kgf/cm²", stud["checks"][1]["v"], 1.5 * stud["V"] / sp_stud["A"], "sectionproperties A＋1.5V/A")
+    # C4：兩跨（柱寬小，小格柵只跨兩格）
+    r4 = app1({"tool": "col", "st": {**st, "spans": "2"}})
+    check_member_list(T, "C4 單階（格柵兩跨）", r4["tiers"][0]["mems"], "r", C, spans="2")
+    r5 = app1({"tool": "col", "st": {**st, "meth": "c", "spans": "2"}})
+    check_member_list(T, "C5 單階（連續梁、兩跨）", r5["tiers"][0]["mems"], "c", C, spans="2")
     # C2：三階、側壓力上限、三跨連續
     st2 = {"info": {"H": "400"}, "gamma": "2.4", "pmax": "6", "meth": "c",
            "tiers": [{"top": "150", "H1": "25", "B2": "45", "H3": "70", "H4": "60", "B4": "90"},
@@ -429,51 +421,45 @@ def check_beam(C):
     for i, (m, (lo, hi)) in enumerate(zip(r["first"], trib)):
         w = p((lo + hi) / 2) * (hi - lo)
         cmp(T, "B1 側模第一層大格柵", f"第{i + 1}支 w", "kgf/cm", m["w"], w, "獨立：p(中點)×分配高")
-        fe = fe_beam([60] * 3, w, 1.0)
-        cmp(T, "B1 側模第一層大格柵", f"第{i + 1}支 M", "kgf·cm", m["M"], fe["M"], "anaStruct 三跨")
-    # 第二層大格柵：工具箱分段（兩端懸臂） vs 連續梁有限元素
-    seg_M = max(m["M"] for m in r["second"])
-    seg_V = max(m["V"] for m in r["second"])
-    ties = [20, 60]
-    # (a) 側壓力直接作用（線性分布），支點在螺桿，兩端懸臂
-    fa = fe_beam([40], 0, 1.0, left_cant=20, right_cant=20, dist=lambda x: p(x) * 60, supports=[20, 60])
-    # (b) 第一層大格柵集中力（三跨連續反力 ≈ 1.1wL；此處用 w×L2 與工具箱一致）
+        feM = max(fe_beam([60] * n, w, 1.0)["M"] for n in (3, 4, 5))
+        cmp(T, "B1 側模第一層大格柵", f"第{i + 1}支 M", "kgf·cm", m["M"], feM, "anaStruct 3～5 跨包絡")
+    # 第二層大格柵：連續梁（2026-11-15 修正）vs anaStruct（螺桿為支點、兩端外伸、第一層格柵集中力）
+    sc = r["second"]
     pts = [(zi, m["w"] * 60) for zi, m in zip(z, r["first"])]
-    fb = fe_beam([40], 0, 1.0, left_cant=20, right_cant=20, points=pts, supports=[20, 60])
-    info(T, "B1 側模第二層大格柵", "max M：分段算法 vs 連續梁（側壓力線性分布）", "kgf·cm", seg_M, fa["M"],
-         "anaStruct 螺桿為支點、兩端懸臂", "")
-    info(T, "B1 側模第二層大格柵", "max M：分段算法 vs 連續梁（第一層格柵集中力）", "kgf·cm", seg_M, fb["M"],
-         "anaStruct 集中力", "實際力由第一層大格柵以集中力傳入。")
-    info(T, "B1 側模第二層大格柵", "max V：分段算法 vs 連續梁（集中力）", "kgf", seg_V, fb["V"], "anaStruct 集中力", "")
-    # 螺桿拉力 vs 連續梁反力
-    tie_app = [t["v"] for t in r["ties"]]
+    fb = fe_beam([40], 0, sc["E"] * sc["I"], left_cant=20, right_cant=20, points=pts, supports=[20, 60])
+    cmp(T, "B1 側模第二層大格柵", "max M", "kgf·cm", sc["M"], fb["M"], "anaStruct 連續梁（集中力）")
+    cmp(T, "B1 側模第二層大格柵", "max V", "kgf", sc["V"], fb["V"], "anaStruct 連續梁（集中力）")
+    cmp(T, "B1 側模第二層大格柵", "最大撓度", "cm", sc["worst"]["d"], fb["d"], "anaStruct 連續梁（集中力）")
+    cmp(T, "B1 側模第二層大格柵", "fb = M/S", "kgf/cm²", sc["checks"][0]["v"], fb["M"] / sc["S"], "anaStruct＋斷面")
     for i in range(2):
-        info(T, "B1 螺桿", f"第{i + 1}階拉力：分配高 vs 連續梁反力（集中力）", "kgf", tie_app[i], fb["R"][i] , "anaStruct 反力", "")
-    tot_app = sum(tie_app)
-    tot_fe = sum(fb["R"])
-    cmp(T, "B1 螺桿", "螺桿拉力合計 = 第二層格柵受力合計", "kgf", tot_app, sum(pz[1] for pz in pts), "獨立：力平衡")
-    # 懸臂端：均布（中點值）vs 線性分布
-    bot = r["second"][0]
-    L0 = 20.0
-    pa, pb_ = p(20) * 60, p(0) * 60
-    Mlin = L0 ** 2 * (pa / 6 + pb_ / 3)
-    info(T, "B1 側模第二層大格柵", "梁底端懸臂 M：中點均布 vs 線性分布", "kgf·cm", bot["M"], Mlin, "獨立：梯形載重懸臂",
-         "梁底側壓力最大，在懸臂自由端；用中點值平均會略低估。")
+        cmp(T, "B1 螺桿", f"第{i + 1}階拉力 = 支點反力", "kgf", r["ties"][i]["v"], fb["R"][i], "anaStruct 反力")
+    cmp(T, "B1 螺桿", "螺桿拉力合計 = 第一層格柵傳入合計", "kgf", sum(t["v"] for t in r["ties"]), sum(p_[1] for p_ in pts), "獨立：力平衡")
+    fa = fe_beam([40], 0, 1.0, left_cant=20, right_cant=20, dist=lambda x: p(x) * 60, supports=[20, 60])
+    info(T, "B1 側模第二層大格柵", "max M：集中力模型 vs 側壓力直接作用（線性分布）", "kgf·cm", sc["M"], fa["M"], "anaStruct",
+         "工具箱依傳力路徑用集中力；若把側壓力直接當分布載重，彎矩略大。兩者都是理想化。")
+    # B2：只有一階螺桿（梁底端假設有支承）
+    st2 = {**st, "nt": "1", "H4": ["30", "", "", "", ""]}
+    r2 = app1({"tool": "beam", "st": st2})
+    sc2 = r2["second"]
+    fb2 = fe_beam([30], 0, sc2["E"] * sc2["I"], right_cant=50, points=pts, supports=[0, 30])
+    cmp(T, "B2 一階螺桿（梁底端支承）", "max M", "kgf·cm", sc2["M"], fb2["M"], "anaStruct")
+    cmp(T, "B2 一階螺桿（梁底端支承）", "max V", "kgf", sc2["V"], fb2["V"], "anaStruct")
+    cmp(T, "B2 一階螺桿（梁底端支承）", "螺桿拉力 = 支點反力", "kgf", r2["ties"][0]["v"], fb2["R"][1], "anaStruct 反力")
     # 底模
     L3 = 40 / 2
     e = r["bply"][0]
     cmp(T, "B1 底模", "梁底襯板（邊距 L3/2）M", "kgf·cm", e["M"], N * 100 * (L3 / 2) ** 2 / 8, "獨立：簡支")
     m2 = r["bply"][1]
     cmp(T, "B1 底模", "梁底襯板（貫材間 L3）M", "kgf·cm", m2["M"], N * 100 * L3 ** 2 / 8, "獨立：簡支")
-    fe = fe_beam([90] * 3, N * L3, 1.0)
-    cmp(T, "B1 底模", "梁底貫材 M（三跨）", "kgf·cm", r["bw"]["M"], fe["M"], "anaStruct 三跨")
+    feM = max(fe_beam([90] * n, N * L3, 1.0)["M"] for n in (3, 4, 5))
+    cmp(T, "B1 底模", "梁底貫材 M（三跨以上）", "kgf·cm", r["bw"]["M"], feM, "anaStruct 3～5 跨包絡")
     ps = pipe_sect(4.86, 0.24)
     P = N * (40 / 2) * 90
     L = 320 - 80
     cmp(T, "B1 鋼管支撐", "P = N×(Bb/支數)×L4", "kgf", r["P"], P, "獨立")
     cmp(T, "B1 鋼管支撐", "Fa", "kgf/cm²", r["Fa"], asd_fa(L / ps["r"], 2400, 2.1e6), "獨立：AISC ASD")
     cmp(T, "B1 鋼管支撐", "fc", "kgf/cm²", r["sup"]["v"], P / ps["A"], "獨立")
-    return dict(seg_M=seg_M, seg_V=seg_V, fa=fa, fb=fb, bot=bot["M"], Mlin=Mlin, tie_app=tie_app)
+    return dict(fb=fb)
 
 
 # ---------------------------------------------------------------- 施工架
@@ -823,16 +809,20 @@ def aci_anchor(inp):
         if cast:
             Np = 8 * float(inp["Abrg"]) * 100 * fc
             out["po"] = (Nmax, phic_t * (1.4 if uncr else 1.0) * Np)
-            ca1 = min(cL, cR, cB, cT)
-            if hef0 > 2.5 * ca1:
-                Abrg = float(inp["Abrg"]) * 100
-                Nsb = 13 * ca1 * math.sqrt(Abrg) * lam_a * math.sqrt(fc)
-                # 17.6.4.1.1：角落（ca2 < 3ca1）折減 (1 + ca2/ca1)/4
-                edges = sorted([cL, cR, cB, cT])
-                ca2 = edges[1]
+            Abrg = float(inp["Abrg"]) * 100
+            worst = None
+            for (x, y), N in ten:
+                mx, my = min(cL + x, cR + Wx - x), min(cB + y, cT + Wy - y)
+                ca1, ca2 = min(mx, my), max(mx, my)
+                if not hef0 > 2.5 * ca1:
+                    continue
                 fac = (1 + min(max(ca2 / ca1, 1), 3)) / 4 if ca2 < 3 * ca1 else 1.0
-                out["sb"] = (Nmax, phic_t * Nsb * fac)
-                out["sb_nocorner"] = (Nmax, phic_t * Nsb)
+                Nsb = 13 * ca1 * math.sqrt(Abrg) * lam_a * math.sqrt(fc)
+                if worst is None or N / (Nsb * fac) > worst[0] / worst[1]:
+                    worst = (N, Nsb * fac, Nsb)
+            if worst:
+                out["sb"] = (worst[0], phic_t * worst[1])
+                out["sb_nocorner"] = (worst[0], phic_t * worst[2])
         elif inp.get("Np"):
             out["po"] = (Nmax, phic_t * float(inp["Np"]) * G)
     # 17.7.1 鋼材剪力
@@ -909,10 +899,8 @@ def check_anc():
                 continue
             c = ck[ak]
             cmp(T, name, f"{names.get(k, k)} 需求", "kgf", c["v"], dem, "ACI 318-19 SI 獨立實作")
-            if k == "sb" and abs(rel(c["a"], cap) or 0) > TOL:
-                cmp(T, name, f"{names[k]} φ強度", "kgf", c["a"], cap, "ACI 318-19 17.6.4.1.1（含角落折減）",
-                    "工具箱未乘角落折減 (1 + ca2/ca1)/4")
-                cmp(T, name, f"{names[k]} φ強度（不含角落折減）", "kgf", c["a"], ref["sb_nocorner"][1], "ACI 318-19 SI 獨立實作")
+            if k == "sb":
+                cmp(T, name, f"{names[k]} φ強度（含角落折減）", "kgf", c["a"], cap, "ACI 318-19 17.6.4.1.1 SI 獨立實作")
             else:
                 cmp(T, name, f"{names.get(k, k)} φ強度", "kgf", c["a"], cap, "ACI 318-19 SI 獨立實作")
         for k in ("cbVx_lit", "cbVy_lit"):
@@ -1020,10 +1008,12 @@ def write_report(path, versions, extra):
     L.append("")
     L.append(f"- 共比對 **{len(ROWS)}** 項數值，**{sum(r['ok'] for r in ROWS)}** 項與第三方程式或獨立重算一致（誤差 ≤ 1%；其中 {sum(1 for r in ROWS if r['ok'] and abs(r['err']) < 1e-5)} 項差異小於 0.001%，"
              f"其餘最大 {max(abs(r['err']) for r in ROWS if r['ok']) * 100:.2f}%，來自連續梁撓度取有限元素節點值的網格誤差）。"
-             "柱模、牆模、板模、梁模、施工架、排架、三角架、斷面性質這八支，程式都有照它聲明的公式算對；三角架的構架分析與 PyNite 有限元素結果逐項相同。")
-    L.append(f"- 不一致 **{len(ROWS) - sum(r['ok'] for r in ROWS)}** 項，在錨栓：" + "；".join(f"{f['title']}" for f in hi) + "。屬程式漏做條文的一項修正，結果不保守，建議修。")
-    L.append(f"- 另有 {len(mid)} 項「中」等級，是沿用參考網站的假設在特定條件下偏不保守（程式沒算錯，是模型選擇），請 Matt 決定要不要改：" + "；".join(f"{f['tool']}－{f['title']}" for f in mid) + "。")
-    L.append("- 細節見第二節；第三節列出假設差異（多數偏保守）；第四節是逐項明細。")
+             "柱模、牆模、板模、梁模、施工架、排架、三角架、錨栓、斷面性質九支，程式都有照它聲明的公式算對；三角架的構架分析與 PyNite 有限元素結果逐項相同。")
+    nbad = len(ROWS) - sum(r['ok'] for r in ROWS)
+    L.append(f"- 不一致 **{nbad}** 項。" + ("" if not nbad else "見第四節標 ❌ 的項目。"))
+    L.append("- 第一次驗證找到的 4 項（錨栓側面爆裂角落折減、格柵係數、小格柵剪力面積、梁模側模第二層大格柵）已修正，見第五節。"
+             f"目前剩下 {len(FINDINGS)} 項低等級說明（影響小或偏保守），列在第二節。")
+    L.append("- 第三節列出假設差異；第四節是逐項明細。")
     L.append("")
     # 總表
     L.append("## 一、總覽")
@@ -1044,7 +1034,7 @@ def write_report(path, versions, extra):
     # 發現
     L.append("## 二、發現的問題與需要決定的事項")
     L.append("")
-    L.append("沒有直接修改網站的計算邏輯，以下請 Matt 決定是否調整。等級：高＝算出不保守的結果且常遇到；中＝特定條件下不保守或假設待確認；低＝影響小或偏保守。")
+    L.append("以下是目前仍存在、但影響小或偏保守的差異，沒有修改，列出供參考；要不要改由 Matt 決定。等級：高＝算出不保守的結果且常遇到；中＝特定條件下不保守或假設待確認；低＝影響小或偏保守。")
     L.append("")
     for i, f in enumerate(sorted(FINDINGS, key=lambda f: "高中低".index(f["level"])), 1):
         L.append(f"### {i}. 【{f['level']}】{f['tool']}：{f['title']}")
@@ -1102,19 +1092,8 @@ def main():
     check_sec()
 
     # ---- 依結果寫發現（數值取自本次執行）
-    fb = bm["fb"]
-    ta, tr = bm["tie_app"], fb["R"]
-    finding("中", "梁模板", "側模第二層大格柵與螺桿的受力，和實際傳力路徑有落差",
-            f"B1 案例（梁 40×80、第一層大格柵 3 支、螺桿 2 階距梁底 20／60 cm）。工具箱把第二層大格柵在螺桿處切段，兩端段當懸臂、"
-            f"各段用段中點側壓力當均布；實際上側壓力是經第一層大格柵以集中力傳入。用 anaStruct 把第二層大格柵建成以螺桿為支點、兩端外伸的連續梁比較："
-            f"最大彎矩 工具箱 {bm['seg_M']:.0f}／集中力模型 {fb['M']:.0f}／線性分布模型 {bm['fa']['M']:.0f} kgf·cm（差 {(bm['seg_M'] / fb['M'] - 1) * 100:+.0f}%、{(bm['seg_M'] / bm['fa']['M'] - 1) * 100:+.0f}%）；"
-            f"最大剪力 工具箱 {bm['seg_V']:.0f}／集中力模型 {fb['V']:.0f} kgf（{(bm['seg_V'] / fb['V'] - 1) * 100:+.0f}%）；"
-            f"螺桿拉力 第 1 階 {ta[0]:.0f}／{tr[0]:.0f} kgf（{(ta[0] / tr[0] - 1) * 100:+.0f}%）、第 2 階 {ta[1]:.0f}／{tr[1]:.0f} kgf（{(ta[1] / tr[1] - 1) * 100:+.0f}%）。"
-            "合力相同（力平衡驗證一致），但分配不同：最下一階螺桿與梁底端剪力被低估，上階螺桿高估。這是參考網站的算法，程式照實作沒有錯；"
-            "建議改成「第二層大格柵以連續梁（集中力）計算、螺桿取支點反力」，或至少在計算書註明。"
-            "另外只有一階螺桿時，兩段懸臂在螺桿處彎矩不平衡，實際要靠梁底的支承（側模底角材、止滑木）才穩定，計算書沒寫出。")
     finding("低", "柱模、牆模、梁模（螺桿、上層格柵）", "受力用「受載寬度」計算，沒計連續梁中間支點反力約 1.1 倍",
-            "工具箱螺桿拉力 T = P × B4 × H4、上一層格柵 w = P × 間距，都是受載面積法。下層構件若為三跨連續，中間支點反力為 1.1wL（兩跨 1.25wL），"
+            "柱模、牆模的螺桿拉力 T = P × B4 × H4、上一層格柵 w = P × 間距，梁模第一層大格柵傳給第二層的集中力 F = w × L2，都是受載面積法。下層構件若為三跨連續，中間支點反力為 1.1wL（兩跨 1.25wL），"
             "實際傳到螺桿的力可能多 10%～25%。這是模板設計常用的簡化，參考網站相同，列出供參考；是否需要放大由設計者依契約與規範判斷。")
     # 錨栓發現
     for name, (r, ref) in anc.items():
@@ -1142,7 +1121,18 @@ def main():
             "角鋼目前只當加勁桿（桁架元素，不檢核彎矩），所以不影響現有結果；若將來讓角鋼當上弦或下斜桿，要改。")
 
     extra = []
-    extra.append("## 五、驗證方法與範圍")
+    extra.append("## 五、修正紀錄")
+    extra.append("")
+    extra.append("2026-11-15 第一次驗證（PR #21）找到 4 項，Matt 同意全部修正（sw v129）。修正後本報告重跑，上面的比對已是修正後的程式：")
+    extra.append("")
+    extra.append("| 項目 | 修正前 | 修正後 | 驗證 |")
+    extra.append("|---|---|---|---|")
+    extra.append("| 錨栓：預埋擴頭側面爆裂 | 取最小邊距單支計算，未乘角落折減；A2 案例 φNsb 9,725 kgf（高估 82%） | 逐支受拉錨栓計算，ca2 < 3ca1 乘 (1 + ca2/ca1)/4，取最不利一支 | A2 與 ACI 獨立實作一致 |")
+    extra.append("| 格柵 M、V 係數 | 一律 wL²/10、0.6wL（兩跨低估 20%、四跨低估 7%） | 新增「格柵連續跨數」：三跨以上 0.107wL²、0.607wL（3～5 跨包絡）；兩跨 wL²/8、0.625wL；單跨同簡支 | 與 anaStruct 3～5 跨包絡、兩跨一致 |")
+    extra.append("| 小格柵剪應力 | 剪力面積計入襯板厚 b(h + t)，C1 案例 fv 24.0 kgf/cm² | 只算格柵斷面 1.5V/(b·h)，C1 案例 32.0 kgf/cm² | 與 sectionproperties 面積一致 |")
+    extra.append("| 梁模側模第二層大格柵 | 螺桿處切段、兩端懸臂、中點側壓力當均布；B1 案例底階螺桿 526 kgf（少 7%）、剪力 307 kgf（少 16%） | 連續梁（直接勁度法），第一層大格柵集中力，螺桿取支點反力；一階螺桿時假設梁底端有支承 | B1、B2 與 anaStruct 一致（M、V、撓度、反力） |")
+    extra.append("")
+    extra.append("## 六、驗證方法與範圍")
     extra.append("")
     extra.append("- **工具箱數值**：`tools/verify/extract.js` 用 Node 直接載入網站的 `colform.js` 等九支檔案，呼叫 `colCalc`、`wfCalc`、`sfCalc`、`bfCalc`、`scCalc`、`rfCalc`、`bkCalc`、`ancCalc`、`secCalc`，與手機上算的是同一份程式碼。")
     extra.append("- **anaStruct**：二維梁有限元素。每跨切 40 段以上取最大彎矩、剪力、撓度；用來驗證簡支、連續、懸臂係數與梁模板第二層大格柵。")
