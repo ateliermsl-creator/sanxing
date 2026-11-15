@@ -67,7 +67,7 @@ async function cuUrgent() {
 async function renderCure(a, b, c) {
   if (!a) return renderCureList();
   if (a === "ledger") return renderCureLedger();
-  if (a === "set") return renderCureSet();
+  if (a === "set") return renderCureSet(b, c);
   if (a === "test") return renderCureTest(b, c);
   goReplace("#/cure");
 }
@@ -178,14 +178,18 @@ async function renderCureLedger() {
 }
 
 /* ---------- 設定：試驗齡期、拆模項目與天數 ---------- */
-async function renderCureSet() {
+async function renderCureSet(from, fromId) {
   const cfg = await cuCfg();
+  const pourId = from === "pour" && safeId(fromId) ? fromId : "";
+  const back = pourId ? `<div class="row"><button id="csBack">✓ 完成，回澆置紀錄</button></div>` : "";
   view.innerHTML = `
     <h2 class="t">追蹤設定</h2>
+    ${pourId ? `<p class="cnote">填好天數後按最下方「完成，回澆置紀錄」，就能在拆模追蹤看到可拆日。</p>` : ""}
     <div class="panel"><b>試驗齡期（天）</b><p class="cnote">用逗號分開，預設 7、28。從澆置當天起算。</p>
       <input id="csAges" value="${esc(cfg.ages.join(", "))}" inputmode="numeric"></div>
     <div class="panel"><b>拆模項目與天數</b><p class="cnote">天數請依契約與規範填寫；沒填天數的項目不會提醒。系統不內建任何規範數值。</p>
-      <div id="csForms"></div><div class="row"><button class="sec" id="csAdd">＋ 新增拆模項目</button></div></div>`;
+      <div id="csForms"></div><div class="row"><button class="sec" id="csAdd">＋ 新增拆模項目</button></div></div>
+    ${back}`;
   const forms = cfg.forms.map(f => ({ ...f }));
   const save = async () => {
     const ages = [...new Set($("#csAges").value.split(/[,，、\s]+/).map(Number).filter(n => Number.isInteger(n) && n > 0 && n <= 365))].sort((a, b) => a - b).slice(0, 6);
@@ -199,17 +203,30 @@ async function renderCureSet() {
   };
   draw(); $("#csAges").oninput = save;
   $("#csAdd").onclick = () => { forms.push({ n: "", d: "" }); draw(); };
+  if (pourId) {
+    $("#csBack").onclick = async () => { await save(); goBack("#/pour/" + pourId); };
+    let want = null; try { want = sessionStorage.getItem("cuSetFocus"); sessionStorage.removeItem("cuSetFocus"); } catch { }
+    if (want !== null) {   // 從澆置頁點某一項過來：捲到那一項的天數欄（點下方按鈕則找第一個沒填的）
+      const i = want ? forms.findIndex(f => f.n === want) : forms.findIndex(f => !String(f.d).trim());
+      const el = i >= 0 && $(`#csForms [data-d="${i}"]`);
+      if (el) { el.scrollIntoView({ block: "center" }); el.focus({ preventScroll: true }); }
+    }
+  }
 }
 
 /* ---------- 澆置頁裡的「拆模追蹤」面板 ---------- */
 async function cuFormsPanel(bt) {
-  const cfg = await cuCfg(), set = cfg.forms.filter(f => f.n);
+  const cfg = await cuCfg(), set = cfg.forms.filter(f => f.n), setUrl = `#/cure/set/pour/${esc(bt.id)}`;
   return `<div class="panel" id="cuForms"><b>🧱 拆模追蹤</b> <small style="color:var(--mut)">勾選這次澆置要追蹤的模板</small>
     ${set.length ? set.map(f => { const on = !!bt.forms?.[f.n], d = cuNum(f.d), st = bt.forms?.[f.n]?.strip;
-      return `<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><label style="display:flex;gap:8px;align-items:center;flex:1"><input type="checkbox" data-cf="${esc(f.n)}" ${on ? "checked" : ""} style="width:22px;height:22px"> ${esc(f.n)}<small style="color:var(--mut)">${d === null ? "（未設定天數）" : `（${d} 天）`}</small></label>${on ? (st ? `<small>已拆 ${esc(pRoc(st))}</small>` : `<small style="color:var(--mut)">${d === null || !Number.isFinite(cuDay(bt.date)) ? "" : "可拆日 " + cuMD(cuDay(bt.date) + d)}</small>`) : ""}</div>`; }).join("") : `<p class="cnote">還沒有拆模項目，到「試體養護與拆模追蹤」的 ⚙ 新增。</p>`}
-    <div class="row"><a class="btnlink" href="#/cure">🧪 看待辦清單</a></div></div>`;
+      return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;margin-top:8px"><label style="display:flex;gap:8px;align-items:center;flex:1;min-width:0"><input type="checkbox" data-cf="${esc(f.n)}" ${on ? "checked" : ""} style="width:22px;height:22px"> ${esc(f.n)}</label><a href="${setUrl}" data-cfset="${esc(f.n)}" class="cfset${d === null ? " unset" : ""}" aria-label="設定${esc(f.n)}拆模天數">${d === null ? "未設定天數 ⚙" : `${d} 天 ⚙`}</a>${on ? (st ? `<small>已拆 ${esc(pRoc(st))}</small>` : `<small style="color:var(--mut)">${d === null || !Number.isFinite(cuDay(bt.date)) ? "" : "可拆日 " + cuMD(cuDay(bt.date) + d)}</small>`) : ""}</div>`; }).join("") : `<p class="cnote">還沒有拆模項目，按下方「⚙ 設定天數」新增。</p>`}
+    <div class="row"><a class="btnlink" href="${setUrl}" data-cfset="">⚙ 設定天數</a><a class="btnlink" href="#/cure">🧪 看待辦清單</a></div></div>`;
 }
 function cuFormsBind(view, bt, save) {
+  // 點「未設定天數／x 天 ⚙」到設定頁：記住要聚焦哪一項，回來時捲回拆模追蹤
+  view.querySelectorAll("[data-cfset]").forEach(el => el.onclick = () => {
+    try { sessionStorage.setItem("cuSetFocus", el.dataset.cfset); sessionStorage.setItem("cuBackPour", bt.id); } catch { }
+  });
   view.querySelectorAll("[data-cf]").forEach(el => el.onchange = async () => {
     bt.forms = { ...(bt.forms || {}) };
     if (el.checked) bt.forms[el.dataset.cf] = { strip: "" }; else delete bt.forms[el.dataset.cf];

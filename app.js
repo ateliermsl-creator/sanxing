@@ -199,14 +199,14 @@ function goBack(fallback) {
   setTimeout(() => { if (location.hash === before) goReplace(fallback); }, 300);
 }
 function parentHash() {
-  const [, page, a, b] = location.hash.split("/");
+  const [, page, a, b, c] = location.hash.split("/");
   if (page === "checklist") return a ? (b === "preview" ? "#/checklist/" + a : "#/checklist") : "#/";
   if (page === "workorder") return a ? (b === "preview" ? "#/workorder/" + a : "#/workorder") : "#/";
   if (page === "punch") return a ? "#/punch" : "#/";
   if (page === "material") return !a ? "#/" : b === "print" ? "#/material/" + a : "#/material";
   if (page === "pour") return a === "summary" ? "#/pour" : !a ? "#/" : b === "truck" || b === "print" ? "#/pour/" + a : "#/pour";
   if (page === "shot") return a ? "#/shot" : "#/";
-  if (page === "cure") return a ? "#/cure" : "#/";
+  if (page === "cure") return a === "set" && b === "pour" && safeId(c) ? "#/pour/" + c : a ? "#/cure" : "#/";
   if (page === "log") return !a ? "#/" : b === "print" ? "#/log/" + a : "#/log";
   if (page === "safety") return !a ? "#/" : b === "print" ? "#/safety/" + a : "#/safety";
   if (page === "calc") return b ? "#/calc/" + a : "#/";
