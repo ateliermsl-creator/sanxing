@@ -262,9 +262,9 @@ async function renderHome() {
   view.innerHTML = `
     ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
     <section class="hero"><img src="leek.png" alt=""><h1>三星蔥工具箱</h1><p>粗糲的現場，需要最純粹的隨身器物</p>
-      <div class="hsite">${sites.length
-        ? `<label for="hSite">目前工程</label><div class="hsrow"><select id="hSite">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select><button class="sec" id="hEdit" aria-label="修改目前工程" title="修改目前工程">✎</button><button class="sec" id="hAdd">＋ 新增</button></div>`
-        : `<span class="hsnone">尚未建立工程</span><button id="hAdd">＋ 新增工程</button>`}</div></section>
+      <div class="hsite${sites.length ? "" : " empty"}"><span class="hseal" aria-hidden="true">工</span>${sites.length
+        ? `<div class="hsmain"><small>目前工程</small><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b><span class="hshint">${sites.length > 1 ? `共 ${sites.length} 個工程・點此切換 ▾` : "表單與計算書自動帶入此名稱"}</span><select id="hSite" aria-label="切換目前工程">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></div><div class="hsbtns"><button id="hEdit" aria-label="修改目前工程" title="修改目前工程">✎</button><button id="hAdd" aria-label="新增工程" title="新增工程">＋</button></div>`
+        : `<div class="hsmain"><small>目前工程</small><b>尚未建立工程</b><span class="hshint">建立後，表單與計算書會自動帶入工程名稱</span></div><button id="hAdd" class="hsnew">＋ 新增工程</button>`}</div></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/safety"><div class="ph">👷</div><div><b>職安衛勤前教育／危害告知</b><small>全體合照・高風險作業・九宮格手寫簽到・A4 簽到表</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/log"><div class="ph">📒</div><div><b>施工日誌</b><small>B14-4 格式・自動累計・帶入材料與取樣・A4 PDF</small></div><span class="arrow">›</span></a>
@@ -282,7 +282,7 @@ async function renderHome() {
     <a class="card" href="#/install"><div class="ph">📲</div><div><b>加到手機桌面</b><small>像 App 一樣使用・教學</small></div><span class="arrow">›</span></a>
     <div class="card soon"><div class="ph">＋</div><div><b>更多工具開發中</b><small>敬請期待</small></div></div>
     <details class="panel"><summary><b>📢 最新更新</b>${updates[0] ? ` <small style="color:var(--mut)">${esc(updates[0].date)}</small>` : ""}</summary>${updates.map(u => `<div class="d">${esc(u.date)}</div><ul>${u.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`).join("")}</details>`;
-  $("#hSite")?.addEventListener("change", e => { siteId = e.target.value; ls.set("siteId", siteId); $("#siteSelect").value = siteId; });
+  $("#hSite")?.addEventListener("change", e => { siteId = e.target.value; ls.set("siteId", siteId); $("#siteSelect").value = siteId; $("#hName").textContent = sites.find(s => s.id === siteId)?.name || ""; });
   $("#hAdd")?.addEventListener("click", () => openSetup("add"));
   $("#hEdit")?.addEventListener("click", () => openSetup("edit"));
   $("#instHide")?.addEventListener("click", () => { try { localStorage.setItem("installHint", "1"); } catch {} $("#instHint").remove(); });
