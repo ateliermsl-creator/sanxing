@@ -211,7 +211,7 @@ function parentHash() {
   if (page === "safety") return !a ? "#/" : b === "print" ? "#/safety/" + a : "#/safety";
   if (page === "calc") return b ? "#/calc/" + a : "#/";
   if (page === "struct") return b ? "#/struct/" + a : a ? "#/struct" : "#/";
-  if (page === "template") return "#/checklist";
+  if (page === "template") return "#/checklist/new";
   return "#/";
 }
 $("#homeBtn").onclick = () => {
@@ -235,6 +235,7 @@ async function route() {
   window.scrollTo(0, 0);
   if (page === "checklist") {
     if (!a) return renderChecklist();
+    if (a === "new") return renderChecklistPick();
     return location.hash.endsWith("/preview") ? renderPreview(a) : renderForm(a);
   }
   if (page === "pour") return renderPour(a, b2, c2);
@@ -382,40 +383,109 @@ window.addEventListener("popstate", () => closeLightbox(true));
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeLightbox(); });
 
 /* ---------- 檢查表列表 ---------- */
-let cat = "全部";
+// 入口是「已填紀錄」列表；按「＋ 新增檢查表」先選表（#/checklist/new），每次新增都是獨立的一筆紀錄，同一張表可填很多次
+let cat = "全部", clFilter = "all", clTpl = "", clQuery = "";
 const SYM = { ok: "○", ng: "✕", na: "／" };
 const doneCount = r => Object.values(r.items || {}).filter(i => i.r).length;
+const ngCount = r => Object.values(r.items || {}).filter(i => i.r === "ng").length;
+const tplShort = t => t ? t.name.replace("施工自主檢查表", "").replace("自主檢查表", "") || t.name : "";
+const clStatus = (r, t) => t && doneCount(r) >= t.items.length ? "已完成" : "填寫中";
+const clNewRec = (templateId, from) => ({ id: uid(), siteId, templateId, docNo: "", contractor: from?.contractor ?? ls.get("contractor", ""), subcontractor: from?.subcontractor || "", date: today(), location: "", timing: {}, items: {}, sigs: {}, updated: Date.now() });
+// 按了新增卻什麼都沒填就離開的空白紀錄，回到列表時清掉（廠商、日期是自動帶入的，不算）
+let clDirty = null;   // 表單裡還沒寫進資料庫的那一份（剛輸入就按返回），清空白紀錄前先存
+async function clPurgeBlank() {
+  if (clDirty) { const r = clDirty; clDirty = null; r.updated = Date.now(); await DB.put("records", r); }
+  const recs = (await DB.all("records")).filter(r => r.siteId === siteId);
+  const ph = new Set((await DB.all("photos")).map(p => p.recId)), fl = new Set((await DB.all("files")).map(f => f.recId));
+  for (const r of recs) {
+    const blank = !String(r.location || "").trim() && !String(r.docNo || "").trim() && !String(r.subcontractor || "").trim()
+      && !Object.values(r.timing || {}).some(Boolean) && !Object.keys(r.sigs || {}).length
+      && !Object.values(r.items || {}).some(i => i && (i.r || String(i.actual ?? i.note ?? "").trim())) && !ph.has(r.id) && !fl.has(r.id);
+    if (blank) await DB.del("records", r.id);
+  }
+}
 async function renderChecklist() {
+  const seq = renderChecklist.seq = (renderChecklist.seq || 0) + 1;
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  await clPurgeBlank();
+  const all = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
+  const pc = {}; for (const p of await DB.all("photos")) pc[p.recId] = (pc[p.recId] || 0) + 1;
+  if (seq !== renderChecklist.seq) return;
+  const tOf = r => TEMPLATES.find(x => x.id === r.templateId);
+  const used = [...new Set(all.map(r => r.templateId))].map(id => TEMPLATES.find(t => t.id === id) || { id, name: id, cat: "其他", items: [] });
+  const ucats = [...new Set(used.map(t => t.cat))];
+  if (clTpl && !(clTpl.startsWith("c:") ? ucats.includes(clTpl.slice(2)) : used.some(t => t.id === clTpl))) clTpl = "";   // 記著的表已沒有紀錄，就清掉
+  const fit = { all: () => true, doing: r => clStatus(r, tOf(r)) === "填寫中", done: r => clStatus(r, tOf(r)) === "已完成", ng: r => ngCount(r) > 0 };
+  const chips = [["all", "全部"], ["doing", "填寫中"], ["done", "已完成"], ["ng", "有缺失"]];
+  const q = clQuery.trim();
+  const list = all.filter(r => {
+    const t = tOf(r);
+    if (!fit[clFilter](r)) return false;
+    if (clTpl && (clTpl.startsWith("c:") ? (t?.cat || "其他") !== clTpl.slice(2) : r.templateId !== clTpl)) return false;
+    return !q || [t?.name, r.location, r.docNo, r.subcontractor, r.date].join(" ").includes(q);
+  });
+  view.innerHTML = `
+    <h2 class="t">自主檢查表</h2>
+    <div class="row" style="margin-top:0"><a class="btnlink" id="clAdd" href="#/checklist/new" style="background:var(--g);color:#f5f1e8">＋ 新增檢查表</a></div>
+    ${all.length ? `<div class="chips">${chips.map(([k, l]) => `<button class="chip ${k === clFilter ? "on" : ""}" data-cf="${k}">${l}（${all.filter(fit[k]).length}）</button>`).join("")}</div>
+    <div class="panel" style="padding:10px 12px"><div class="grid2" style="gap:0 8px">
+      <div class="field" style="margin:0"><input id="clQ" placeholder="搜尋位置／編號／表名" value="${esc(clQuery)}"></div>
+      <div class="field" style="margin:0"><select id="clT" aria-label="依表單篩選"><option value="">全部表單</option>${ucats.map(c => `<optgroup label="${esc(c)}"><option value="c:${esc(c)}" ${clTpl === "c:" + c ? "selected" : ""}>${esc(c)}類全部</option>${used.filter(t => t.cat === c).map(t => `<option value="${esc(t.id)}" ${t.id === clTpl ? "selected" : ""}>${esc(tplShort(t))}</option>`).join("")}</optgroup>`).join("")}</select></div></div>
+      <small style="color:var(--mut)">所在專案共 ${all.length} 筆，顯示 ${list.length} 筆</small></div>` : ""}
+    ${list.length ? list.map(r => {
+      const t = tOf(r), ng = ngCount(r), st = clStatus(r, t);
+      return `<a class="rec" href="#/checklist/${esc(r.id)}"><div class="ptop"><b>${esc(t ? tplShort(t) : r.templateId)}</b><span class="st st-${st}">${st}</span></div>
+        <small><span class="tag">${esc(t?.cat || "其他")}</span>${esc(r.date)}・${r.location ? esc(r.location) : "未填位置"}${r.docNo ? "・編號 " + esc(r.docNo) : ""}</small><br>
+        <small>已標記 ${doneCount(r)}/${t?.items.length ?? "?"} 項${pc[r.id] ? `・📷${pc[r.id]}` : ""}${ng ? `・<span style="color:var(--bad)">有缺失 ${ng} 項</span>` : ""}</small></a>`;
+    }).join("")
+    : `<div class="panel" style="color:var(--mut)">${all.length ? `這個條件下沒有紀錄。<br><button class="sec" id="clClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button>`
+      : "這個專案還沒有檢查表紀錄。<br>按「＋ 新增檢查表」選一張表開始填，同一張表可以依位置、日期填很多份。"}</div>`}`;
+  view.querySelectorAll("[data-cf]").forEach(b => b.onclick = () => { clFilter = b.dataset.cf; renderChecklist(); });
+  $("#clClear")?.addEventListener("click", () => { clFilter = "all"; clTpl = ""; clQuery = ""; renderChecklist(); });
+  const qi = $("#clQ");
+  if (qi) qi.oninput = () => { clQuery = qi.value; clearTimeout(renderChecklist.t); renderChecklist.t = setTimeout(async () => { await renderChecklist(); const el = $("#clQ"); if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); } }, 350); };
+  $("#clT")?.addEventListener("change", e => { clTpl = e.target.value; renderChecklist(); });
+}
+
+/* ---------- 選擇要填的檢查表 ---------- */
+let pickQuery = "";
+async function renderChecklistPick() {
   if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
   const recs = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
-  const pc = {}; for (const p of await DB.all("photos")) pc[p.recId] = (pc[p.recId] || 0) + 1;
   const shown = TEMPLATES.filter(t => !t.retired);   // 舊示範表不列出，舊紀錄仍可開啟
   const cats = ["全部", ...new Set(shown.map(t => t.cat))];
   if (!cats.includes(cat)) cat = "全部";
-  const list = shown.filter(t => cat === "全部" || t.cat === cat);
+  const stat = {}; for (const r of recs) (stat[r.templateId] = stat[r.templateId] || []).push(r);
+  const recent = [...new Set(recs.slice().sort((a, b) => b.updated - a.updated).map(r => r.templateId))].map(id => shown.find(t => t.id === id)).filter(Boolean).slice(0, 4);
+  const row = t => {
+    const mine = stat[t.id] || [];
+    return `<div class="trow"><div class="tinfo"><span class="tag">${esc(t.cat)}</span>${t.custom ? `<span class="tag" style="color:var(--g)">自訂</span>` : ""}<b>${esc(tplShort(t))}</b>
+      <small>${mine.length ? `已填 ${mine.length} 份・最近 ${esc(mine[0].date)}${mine[0].location ? "・" + esc(mine[0].location) : ""}` : `${t.items.length} 個檢查項目`}</small></div>
+      ${t.custom ? `<a class="btnlink sm" href="#/template/${esc(t.id)}" aria-label="編輯範本">✎</a>` : ""}<button data-new="${esc(t.id)}">填這張</button></div>`;
+  };
+  const draw = () => {
+    const q = pickQuery.trim();
+    const list = shown.filter(t => (cat === "全部" || t.cat === cat) && (!q || (t.name + t.cat + (t.sub || "")).includes(q)));
+    $("#pkList").innerHTML = `${!q && cat === "全部" && recent.length ? `<h2 class="t" style="font-size:16px">最近用過</h2>${recent.map(row).join("")}<h2 class="t" style="font-size:16px">全部檢查表</h2>` : ""}
+      ${list.length ? list.map(row).join("") : `<div class="panel" style="color:var(--mut)">找不到符合的檢查表</div>`}`;
+    view.querySelectorAll("[data-cat]").forEach(b => b.classList.toggle("on", b.dataset.cat === cat));
+  };
   view.innerHTML = `
-    <h2 class="t">自主檢查表（${shown.length}）</h2>
-    <div class="row" style="margin-top:0"><a class="btnlink" href="#/template/new">📋 自訂空白檢查表</a></div>
+    <h2 class="t" style="margin-bottom:0">選擇要填的檢查表</h2>
+    <div style="margin:0 12px 8px;color:var(--mut);font-size:14px">點「填這張」會新增一份獨立紀錄，存在所在專案底下。</div>
+    <div class="panel" style="padding:10px 12px"><div class="field" style="margin:0"><input id="pkQ" placeholder="搜尋表名，例如：鋼筋、模板、防水" value="${esc(pickQuery)}"></div></div>
     <div class="chips">${cats.map(c => `<button class="chip ${c === cat ? "on" : ""}" data-cat="${esc(c)}">${esc(c)}（${c === "全部" ? shown.length : shown.filter(t => t.cat === c).length}）</button>`).join("")}</div>
-    ${list.map(t => {
-      const mine = recs.filter(r => r.templateId === t.id), last = mine[0];
-      const st = !last ? "未填" : doneCount(last) >= t.items.length ? "已完成" : "填寫中";
-      return `<div class="trow"><div class="tinfo"><span class="tag">${esc(t.cat)}</span>${t.custom ? `<span class="tag" style="color:var(--g)">自訂</span>` : ""}<b>${esc(t.name.replace("施工自主檢查表", "").replace("自主檢查表", ""))}</b>
-        <small>${last ? `${esc(last.location || "未填位置")}・${esc(last.date)}・共 ${mine.length} 筆` : "尚無紀錄"}</small></div>
-        <span class="st st-${st}">${st}</span>${t.custom ? `<a class="btnlink sm" href="#/template/${esc(t.id)}" aria-label="編輯範本">✎</a>` : ""}<button data-new="${esc(t.id)}">填表</button></div>`;
-    }).join("")}
-    <h2 class="t">已填寫紀錄</h2>
-    ${recs.length ? recs.filter(r => cat === "全部" || TEMPLATES.find(x => x.id === r.templateId)?.cat === cat).map(r => {
-      const t = TEMPLATES.find(x => x.id === r.templateId);
-      const ng = Object.values(r.items || {}).filter(i => i.r === "ng").length;
-      return `<a class="rec" href="#/checklist/${esc(r.id)}"><b>${esc(t?.name || r.templateId)}</b><br><small>${esc(r.date)}${r.location ? "・" + esc(r.location) : ""}・已標記 ${doneCount(r)}/${t?.items.length ?? "?"} 項${pc[r.id] ? `・📷${pc[r.id]}` : ""}${ng ? `・<span style="color:var(--bad)">有缺失 ${ng} 項</span>` : ""}</small></a>`;
-    }).join("") : `<div class="panel" style="color:var(--mut)">這個工地還沒有紀錄</div>`}`;
-  view.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; renderChecklist(); });
-  view.querySelectorAll("[data-new]").forEach(b => b.onclick = async () => {
-    const rec = { id: uid(), siteId, templateId: b.dataset.new, docNo: "", contractor: ls.get("contractor", ""), subcontractor: "", date: today(), location: "", timing: {}, items: {}, sigs: {}, updated: Date.now() };
+    <div id="pkList"></div>
+    <div class="row"><a class="btnlink" href="#/template/new">📋 沒有合適的表？自訂空白檢查表</a></div>`;
+  draw();
+  view.querySelectorAll("[data-cat]").forEach(b => b.onclick = () => { cat = b.dataset.cat; draw(); });
+  $("#pkQ").oninput = e => { pickQuery = e.target.value; draw(); };
+  view.onclick = async e => {
+    const b = e.target.closest?.("[data-new]"); if (!b) return;
+    const rec = clNewRec(b.dataset.new);
     await DB.put("records", rec);
-    location.hash = "#/checklist/" + rec.id;
-  });
+    goReplace("#/checklist/" + rec.id);   // 換掉選表頁，從表單按返回直接回到紀錄列表
+  };
 }
 
 /* ---------- 填寫表單 ---------- */
@@ -431,8 +501,8 @@ async function renderForm(id) {
   if (!rec) return;
   let timer;
   let photos = await photosOf(rec.id);
-  const save = () => { clearTimeout(timer); timer = setTimeout(flush, 300); };
-  const flush = () => { clearTimeout(timer); rec.updated = Date.now(); return DB.put("records", rec); };
+  const save = () => { clDirty = rec; clearTimeout(timer); timer = setTimeout(flush, 300); };
+  const flush = () => { clearTimeout(timer); if (clDirty === rec) clDirty = null; rec.updated = Date.now(); return DB.put("records", rec); };
   const prog = () => `已標記 ${doneCount(rec)}/${tpl.items.length} 項`;
   const inp = (k, lab, ph) => `<div class="field"><label>${lab}</label><input data-f="${k}" value="${esc(rec[k])}" placeholder="${ph || ""}"></div>`;
   view.innerHTML = `
@@ -457,6 +527,7 @@ async function renderForm(id) {
     ${[["worker", "檢查人員簽名"], ["manager", "工地主任簽名"]].map(([k, l]) => `
       <div class="sigbox"><div class="bar"><b>${l}</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div>`).join("")}
     <div class="row"><button id="previewBtn">👁 預覽／列印</button></div>
+    <div class="row"><button class="sec" id="againBtn">＋ 同一張表再填一份</button></div>
     <div class="row"><button class="danger" id="delBtn">刪除這份紀錄</button></div>`;
 
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => {
@@ -520,6 +591,11 @@ async function renderForm(id) {
     delete rec.sigs[b.dataset.clear]; save();
   });
   $("#previewBtn").onclick = async () => { await flush(); location.hash = "#/checklist/" + rec.id + "/preview"; };
+  $("#againBtn").onclick = async () => {   // 新的一份：沿用廠商，位置、日期、結果、簽名都重新填
+    await flush();
+    const nr = clNewRec(rec.templateId, rec); nr.siteId = rec.siteId;
+    await DB.put("records", nr); goReplace("#/checklist/" + nr.id);
+  };
   $("#delBtn").onclick = async () => {
     if (!confirm("確定刪除這份紀錄？")) return;
     for (const p of photos) await DB.del("photos", p.id);
@@ -620,12 +696,12 @@ async function renderTemplateEditor(id) {
       tpl.items = items.map(i => ({ t: i.t.trim(), std: i.std.trim() })); tpl.updated = Date.now();
       delete tpl.origLen;
       await DB.put("templates", tpl); await loadTemplates();
-      goBack("#/checklist");
+      goBack("#/checklist/new");
     };
     $("#tDel")?.addEventListener("click", async () => {
       if (used) { alert(`已有 ${used} 筆紀錄使用這張表，請先刪除那些紀錄`); return; }
       if (!confirm("確定刪除這張檢查表？")) return;
-      await DB.del("templates", tpl.id); await loadTemplates(); goBack("#/checklist");
+      await DB.del("templates", tpl.id); await loadTemplates(); goBack("#/checklist/new");
     });
   };
   const sync = () => {

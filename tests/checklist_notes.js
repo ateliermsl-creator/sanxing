@@ -34,15 +34,15 @@ await p.check('#pvNotes');ok(await vis()===info.beamNotes,'勾選後印出解說
 await p.reload();await p.waitForSelector('.paper');await p.waitForTimeout(300);ok(await vis()===info.beamNotes&&await p.isChecked('#pvNotes'),'勾選偏好會記住');
 await p.uncheck('#pvNotes');ok(await vis()===0,'取消勾選即隱藏');
 // 沒有解說的範本不顯示開關
-await p.evaluate(async()=>{await DB.put('records',{id:'r2',siteId:'s9',templateId:'mep_embed',docNo:'',contractor:'',subcontractor:'',date:today(),location:'',timing:{},items:{},sigs:{},updated:1})});
+await p.evaluate(async()=>{await DB.put('records',{id:'r2',siteId:'s9',templateId:'mep_embed',docNo:'',contractor:'',subcontractor:'',date:today(),location:'1F',timing:{},items:{},sigs:{},updated:1})});
 await p.goto('http://localhost:8793/index.html#/checklist/r2/preview');await p.waitForSelector('.paper');ok(await p.locator('#pvNotes').count()===0,'無解說的表不顯示開關');
 // 舊示範表不在選單，但舊紀錄仍可開
-await p.goto('http://localhost:8793/index.html#/checklist');await p.waitForSelector('[data-new]');
-const nn=await p.evaluate(()=>[...document.querySelectorAll('[data-new]')].map(b=>b.dataset.new));
+await p.goto('http://localhost:8793/index.html#/checklist/new');await p.waitForSelector('[data-new]');
+const nn=await p.evaluate(()=>[...new Set([...document.querySelectorAll('[data-new]')].map(b=>b.dataset.new))]);
 ok(!['formwork','rebar','concrete','mep_embed'].some(x=>nn.includes(x))&&nn.length===37,'選單只列新表 '+nn.length+' 張');
 await p.goto('http://localhost:8793/index.html#/checklist/r2');await p.waitForSelector('.item');ok(await p.locator('.item').count()===21,'舊示範表的紀錄仍可開啟');
 ok(await p.evaluate(()=>TEMPLATES.find(t=>t.id==='cc_2').items[2].std)==='小於0.15kg/m³','氯離子單位 kg/m³');
 await p.setViewportSize({width:320,height:700});
-for(const h of ['#/checklist/r1','#/checklist/r1/preview','#/checklist']){await p.goto('http://localhost:8793/index.html'+h);await p.waitForTimeout(500);
+for(const h of ['#/checklist/r1','#/checklist/r1/preview','#/checklist','#/checklist/new']){await p.goto('http://localhost:8793/index.html'+h);await p.waitForTimeout(500);
   const w=await p.evaluate(()=>document.documentElement.scrollWidth);ok(w<=320,'320px 無橫向捲動 '+h+' ('+w+')');}
 console.log('JS錯誤',errs);await b.close();})();
