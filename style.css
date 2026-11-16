@@ -295,13 +295,13 @@ button.danger{background:#e6d5cc;color:#8c4535}
 .hero h1{font-family:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;font-weight:600;letter-spacing:.18em;color:#3d3a2e}
 .hero p{font-family:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;color:#7b755f;letter-spacing:.12em;font-size:15px;line-height:1.8;margin-top:6px}
 .hero img{border-radius:18px;filter:saturate(.7) sepia(.15)}
-/* 首頁目前工地 */
-.hsite{max-width:460px;margin:16px auto 0;display:flex;flex-direction:column;align-items:center;gap:6px}
-.hsite label,.hsnone{font-size:13px;letter-spacing:.12em;color:#5d5948}
-.hsrow{display:flex;gap:6px;width:100%}
-.hsite select{flex:1;min-width:0;height:44px;border-radius:4px;border:1px solid var(--line);background:var(--card);color:#3d3a2e;padding:0 10px;font-size:16px;font-weight:600}
-.hsite button{min-height:44px;padding:0 14px;white-space:nowrap;font-size:15px}
-.hsite #hEdit{min-width:44px;padding:0}
+/* 首頁最上方「目前工程」細條：色調同備份提醒，低調但找得到 */
+.hbar{margin:12px;padding:6px 14px;min-height:48px;box-sizing:border-box;background:#eadfc6;color:#6a5830;border-radius:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 0;font-size:15px;line-height:1.5}
+.hbname{position:relative;min-width:0;overflow-wrap:anywhere}
+.hbname b{font-weight:600}
+.hbname select{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);opacity:0;cursor:pointer;font-size:16px}
+.hbact{margin-left:auto;display:flex;gap:12px}
+.hbar button.lnk{min-height:32px;padding:0 2px;background:none;border:0;color:#6a5a33;text-decoration:underline;font:inherit;font-weight:400}
 .card,.panel,.rec,.item{background:var(--card);border-color:var(--line);border-radius:6px}
 .card img{filter:saturate(.7) sepia(.15)}
 .card .ph{background:#ddd6c6;color:#8b8571;border-radius:6px}
@@ -412,7 +412,7 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
   #view:has(> .hero){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;padding:0 12px 40px}
   #view:has(> .hero) > :not(.card){grid-column:1 / -1}
   #view:has(> .hero) > .card{margin:6px 0}
-  #view:has(> .hero) > .panel,#view:has(> .hero) > .hint{margin-left:0;margin-right:0}
+  #view:has(> .hero) > .panel,#view:has(> .hero) > .hint,#view:has(> .hero) > .hbar{margin-left:0;margin-right:0}
   #topbar select{flex:0 1 420px}
   #topbar #addSiteBtn{margin-left:auto}
 }
