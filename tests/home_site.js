@@ -13,7 +13,7 @@ await p.fill('#sName','宜蘭三星蔥新建工程');await p.click('#sOk');await
 ok(await p.$eval('#hSite',s=>s.selectedOptions[0].textContent)==='宜蘭三星蔥新建工程',tag+' 新增後首頁顯示該工地');
 await p.click('#hAdd');await p.fill('#sName','<img src=x onerror=alert(1)>羅東宿舍');await p.click('#sOk');await p.waitForTimeout(500);
 ok(await p.$eval('#hSite',s=>s.options.length)===2&&!(await p.$('.hsite img')),tag+' 兩個工地、名稱有轉義');
-const first=await p.$eval('#hSite',s=>[...s.options].find(o=>o.textContent.startsWith('宜蘭')).value);await p.selectOption('#hSite',first);ok(await p.$eval('#hName',x=>x.textContent)==='宜蘭三星蔥新建工程',tag+' 切換後名牌名稱更新');
+const first=await p.$eval('#hSite',s=>[...s.options].find(o=>o.textContent.startsWith('宜蘭')).value);await p.selectOption('#hSite',first);
 ok(await p.evaluate(()=>localStorage.getItem('siteId'))===JSON.stringify(first)||await p.evaluate(()=>siteId)===first,tag+' 切換工地寫回目前工地');
 await p.goto('http://localhost:8793/index.html#/checklist');await p.waitForTimeout(400);ok(await p.$eval('#siteSelect',s=>s.value)===first,tag+' 內頁工地選單同步');
 await p.goto('http://localhost:8793/index.html#/');await p.waitForTimeout(500);
