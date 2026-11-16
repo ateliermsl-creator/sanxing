@@ -296,12 +296,24 @@ button.danger{background:#e6d5cc;color:#8c4535}
 .hero p{font-family:"Noto Serif TC","Songti TC","Source Han Serif TC","PMingLiU",serif;color:#7b755f;letter-spacing:.12em;font-size:15px;line-height:1.8;margin-top:6px}
 .hero img{border-radius:18px;filter:saturate(.7) sepia(.15)}
 /* 首頁最上方「目前工程」細條：色調同備份提醒，低調但找得到 */
-.hbar{margin:12px;padding:6px 14px;min-height:48px;box-sizing:border-box;background:#eadfc6;color:#6a5830;border-radius:12px;display:flex;flex-wrap:wrap;align-items:center;gap:2px 0;font-size:15px;line-height:1.5}
-.hbname{position:relative;min-width:0;overflow-wrap:anywhere}
+/* 首頁最上方一行：左邊備份提醒、右邊目前工程，兩個小標籤（窄螢幕自動換行） */
+body:has(#view > .htop) #backupWarn{display:none}
+.htop{display:flex;flex-wrap:nowrap;justify-content:space-between;align-items:flex-start;gap:6px;margin:8px 12px 0}
+.hbak[hidden]{display:none}
+.hbak,.hbar{box-sizing:border-box;max-width:100%;padding:2px 12px;min-height:34px;background:#eadfc6;color:#6a5830;border-radius:17px;display:flex;flex-wrap:wrap;align-items:center;column-gap:0;font-size:13px;line-height:1.4}
+.hbak{flex:none;white-space:nowrap}
+.hbar{margin-left:auto;flex:0 1 auto;min-width:0;flex-wrap:nowrap}
+.hblbl{white-space:nowrap}
+@media (max-width:420px){.hblbl{display:none}}
+.hbak a{color:#6a5a33}
+.hbname{position:relative;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hbname b{font-weight:600}
-.hbname select{position:absolute;inset:-6px;width:calc(100% + 12px);height:calc(100% + 12px);opacity:0;cursor:pointer;font-size:16px}
-.hbact{margin-left:auto;display:flex;gap:12px}
-.hbar button.lnk{min-height:32px;padding:0 2px;background:none;border:0;color:#6a5a33;text-decoration:underline;font:inherit;font-weight:400}
+.hbname select{position:absolute;inset:-8px;width:calc(100% + 16px);height:calc(100% + 16px);opacity:0;cursor:pointer;font-size:16px}
+.hbact{flex:none;display:flex;gap:2px;margin-left:4px}
+.hbic{margin-right:4px}
+.hbar button.lnk{height:30px;min-height:0;margin:-7px 0;min-width:30px;padding:0;background:none;border:0;border-radius:15px;color:#6a5a33;font-size:15px;line-height:30px;font-weight:400}
+.hbar button.lnk.t{min-width:0;padding:0 2px;font-size:13px;text-decoration:underline}
+.hbar button.lnk:active{background:#dfd2b4}
 .card,.panel,.rec,.item{background:var(--card);border-color:var(--line);border-radius:6px}
 .card img{filter:saturate(.7) sepia(.15)}
 .card .ph{background:#ddd6c6;color:#8b8571;border-radius:6px}
@@ -412,7 +424,8 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
   #view:has(> .hero){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:12px;padding:0 12px 40px}
   #view:has(> .hero) > :not(.card){grid-column:1 / -1}
   #view:has(> .hero) > .card{margin:6px 0}
-  #view:has(> .hero) > .panel,#view:has(> .hero) > .hint,#view:has(> .hero) > .hbar{margin-left:0;margin-right:0}
+  #view:has(> .hero) > .panel,#view:has(> .hero) > .hint{margin-left:0;margin-right:0}
+  #view:has(> .hero) > .htop{margin-left:0;margin-right:0}
   #topbar select{flex:0 1 420px}
   #topbar #addSiteBtn{margin-left:auto}
 }
