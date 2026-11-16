@@ -262,8 +262,8 @@ async function renderHome() {
   if (location.hash.split("/")[1]) return;   // 讀取期間已切到別的頁面，就不要用首頁蓋掉它
   view.innerHTML = `
     <div class="htop"><div class="hbak" id="hBak" hidden></div><div class="hbar"><span class="hbic" aria-hidden="true">🏗️</span>${sites.length
-      ? `<span class="hblbl">目前工程：</span><span class="hbname"><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b>${sites.length > 1 ? " ▾" : ""}<select id="hSite" aria-label="切換目前工程">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></span><span class="hbact"><button class="lnk" id="hEdit" aria-label="修改目前工程" title="修改目前工程">✎</button><button class="lnk" id="hAdd" aria-label="新增工程" title="新增工程">＋</button></span>`
-      : `尚未建立工程，<button class="lnk t" id="hAdd">新增工程</button>`}</div></div>
+      ? `<span class="hblbl">所在專案：</span><span class="hbname"><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b>${sites.length > 1 ? " ▾" : ""}<select id="hSite" aria-label="切換所在專案">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></span><span class="hbact"><button class="lnk" id="hEdit" aria-label="修改所在專案" title="修改所在專案">✎</button><button class="lnk" id="hAdd" aria-label="新增專案" title="新增專案">＋</button></span>`
+      : `尚未建立專案，<button class="lnk t" id="hAdd">新增專案</button>`}</div></div>
     ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
     <section class="hero"><img src="leek.png" alt=""><h1>三星蔥工具箱</h1><p>粗糲的現場，需要最純粹的隨身器物</p></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
@@ -431,7 +431,7 @@ async function renderChecklist() {
     <div class="panel" style="padding:10px 12px"><div class="grid2" style="gap:0 8px">
       <div class="field" style="margin:0"><input id="clQ" placeholder="搜尋位置／編號／表名" value="${esc(clQuery)}"></div>
       <div class="field" style="margin:0"><select id="clT" aria-label="依表單篩選"><option value="">全部表單</option>${ucats.map(c => `<optgroup label="${esc(c)}"><option value="c:${esc(c)}" ${clTpl === "c:" + c ? "selected" : ""}>${esc(c)}類全部</option>${used.filter(t => t.cat === c).map(t => `<option value="${esc(t.id)}" ${t.id === clTpl ? "selected" : ""}>${esc(tplShort(t))}</option>`).join("")}</optgroup>`).join("")}</select></div></div>
-      <small style="color:var(--mut)">目前工程共 ${all.length} 筆，顯示 ${list.length} 筆</small></div>` : ""}
+      <small style="color:var(--mut)">所在專案共 ${all.length} 筆，顯示 ${list.length} 筆</small></div>` : ""}
     ${list.length ? list.map(r => {
       const t = tOf(r), ng = ngCount(r), st = clStatus(r, t);
       return `<a class="rec" href="#/checklist/${esc(r.id)}"><div class="ptop"><b>${esc(t ? tplShort(t) : r.templateId)}</b><span class="st st-${st}">${st}</span></div>
@@ -439,7 +439,7 @@ async function renderChecklist() {
         <small>已標記 ${doneCount(r)}/${t?.items.length ?? "?"} 項${pc[r.id] ? `・📷${pc[r.id]}` : ""}${ng ? `・<span style="color:var(--bad)">有缺失 ${ng} 項</span>` : ""}</small></a>`;
     }).join("")
     : `<div class="panel" style="color:var(--mut)">${all.length ? `這個條件下沒有紀錄。<br><button class="sec" id="clClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button>`
-      : "這個工程還沒有檢查表紀錄。<br>按「＋ 新增檢查表」選一張表開始填，同一張表可以依位置、日期填很多份。"}</div>`}`;
+      : "這個專案還沒有檢查表紀錄。<br>按「＋ 新增檢查表」選一張表開始填，同一張表可以依位置、日期填很多份。"}</div>`}`;
   view.querySelectorAll("[data-cf]").forEach(b => b.onclick = () => { clFilter = b.dataset.cf; renderChecklist(); });
   $("#clClear")?.addEventListener("click", () => { clFilter = "all"; clTpl = ""; clQuery = ""; renderChecklist(); });
   const qi = $("#clQ");
@@ -472,7 +472,7 @@ async function renderChecklistPick() {
   };
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">選擇要填的檢查表</h2>
-    <div style="margin:0 12px 8px;color:var(--mut);font-size:14px">點「填這張」會新增一份獨立紀錄，存在目前工程底下。</div>
+    <div style="margin:0 12px 8px;color:var(--mut);font-size:14px">點「填這張」會新增一份獨立紀錄，存在所在專案底下。</div>
     <div class="panel" style="padding:10px 12px"><div class="field" style="margin:0"><input id="pkQ" placeholder="搜尋表名，例如：鋼筋、模板、防水" value="${esc(pickQuery)}"></div></div>
     <div class="chips">${cats.map(c => `<button class="chip ${c === cat ? "on" : ""}" data-cat="${esc(c)}">${esc(c)}（${c === "全部" ? shown.length : shown.filter(t => t.cat === c).length}）</button>`).join("")}</div>
     <div id="pkList"></div>
