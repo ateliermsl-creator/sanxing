@@ -44,3 +44,6 @@ bash tests/run.sh xss_render      # 單支
 | `desktop_layout` | 1440（電腦）、1024（平板）、390（手機）開首頁、牆模板、檢查表、混凝土方數，截圖 `out/desktop_*.png`、`out/tablet_*.png` | 全部「橫向捲動 false」；電腦與平板 bar hidden 皆 true（結果固定在右欄）；手機牆模 bar hidden false；側欄只有 desktop 的 wall／check／vol 為 true（首頁、平板、手機皆 false）；errs [] |
 ## 已知會失敗、與程式無關的舊測試
 早期的測試（檢查表返回鍵、澆置統計列、附加檔案以新分頁開啟）已因介面調整而過時，沒有放進這個資料夾。
+
+### home_site
+首頁標題下方「目前工地」：沒有工地時顯示「＋ 新增工地」、新增後顯示並選取該工地、切換後內頁工地選單同步、名稱轉義、320 px 不橫向捲動。預期最後一行「全部符合」；截圖在 `tests/out/home_site_*.png`。
