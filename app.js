@@ -382,13 +382,14 @@ async function renderChecklist() {
   if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
   const recs = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
   const pc = {}; for (const p of await DB.all("photos")) pc[p.recId] = (pc[p.recId] || 0) + 1;
-  const cats = ["全部", ...new Set(TEMPLATES.map(t => t.cat))];
+  const shown = TEMPLATES.filter(t => !t.retired);   // 舊示範表不列出，舊紀錄仍可開啟
+  const cats = ["全部", ...new Set(shown.map(t => t.cat))];
   if (!cats.includes(cat)) cat = "全部";
-  const list = TEMPLATES.filter(t => cat === "全部" || t.cat === cat);
+  const list = shown.filter(t => cat === "全部" || t.cat === cat);
   view.innerHTML = `
-    <h2 class="t">自主檢查表（${TEMPLATES.length}）</h2>
+    <h2 class="t">自主檢查表（${shown.length}）</h2>
     <div class="row" style="margin-top:0"><a class="btnlink" href="#/template/new">📋 自訂空白檢查表</a></div>
-    <div class="chips">${cats.map(c => `<button class="chip ${c === cat ? "on" : ""}" data-cat="${esc(c)}">${esc(c)}（${c === "全部" ? TEMPLATES.length : TEMPLATES.filter(t => t.cat === c).length}）</button>`).join("")}</div>
+    <div class="chips">${cats.map(c => `<button class="chip ${c === cat ? "on" : ""}" data-cat="${esc(c)}">${esc(c)}（${c === "全部" ? shown.length : shown.filter(t => t.cat === c).length}）</button>`).join("")}</div>
     ${list.map(t => {
       const mine = recs.filter(r => r.templateId === t.id), last = mine[0];
       const st = !last ? "未填" : doneCount(last) >= t.items.length ? "已完成" : "填寫中";
@@ -440,7 +441,7 @@ async function renderForm(id) {
     <div class="legend">結果標記：<b style="color:var(--ok)">○ 合格</b>　<b style="color:var(--bad)">✕ 不合格</b>　<b style="color:var(--mut)">／ 不適用</b></div>
     ${tpl.items.map((it, i) => {
       const v = rec.items[i] || {};
-      return `<div class="item" data-i="${i}"><div class="top"><div><div class="t"><span class="n">${i + 1}.</span> ${esc(it.t)}</div>${it.std ? `<div class="m">規定標準：${esc(it.std)}</div>` : ""}</div>
+      return `<div class="item" data-i="${i}"><div class="top"><div><div class="t"><span class="n">${i + 1}.</span> ${esc(it.t)}${it.note ? ` <button type="button" class="tipbtn" data-tip="${i}" aria-label="解說" aria-expanded="false">ⓘ</button>` : ""}</div>${it.std ? `<div class="m">規定標準：${esc(it.std)}</div>` : ""}${it.note ? `<div class="tipbox" data-tipbox="${i}" hidden>💡 ${esc(it.note)}</div>` : ""}</div>
         <div class="sym">${["ok", "ng", "na"].map(k => `<button class="${v.r === k ? "on" : ""}" data-r="${k}" aria-label="${k}">${SYM[k]}</button>`).join("")}</div></div>
         <input class="note" placeholder="實際檢查情形（可空白）" value="${esc(v.actual ?? v.note)}">
         <div class="phrow"><button type="button" class="phbtn" data-cam="${i}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-ph="${i}"></label><div class="thumbs" data-th="${i}"></div></div></div>`;
@@ -474,6 +475,11 @@ async function renderForm(id) {
   };
   tpl.items.forEach((_, i) => drawThumbs(i));
   view.onclick = async e => {
+    const tip = e.target.closest?.("[data-tip]");
+    if (tip) {
+      const box = $(`[data-tipbox="${tip.dataset.tip}"]`);
+      box.hidden = !box.hidden; tip.setAttribute("aria-expanded", String(!box.hidden)); tip.classList.toggle("on", !box.hidden); return;
+    }
     const th = e.target.closest?.(".th img");
     if (th) {
       const id0 = th.parentElement.querySelector("[data-delph]").dataset.delph;
@@ -537,10 +543,12 @@ async function renderPreview(id) {
   const d = rec.date ? rec.date.replace(/^(\d+)-(\d+)-(\d+)$/, "$1 年 $2 月 $3 日") : "";
   const box = k => (rec.timing[k] ? "☑" : "□");
   const photos = await photosOf(rec.id);
+  const withNotes = ls.get("pvNotes", "") === "1";
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回填表</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
+    ${tpl.items.some(it => it.note) ? `<label class="noprint pvopt"><input type="checkbox" id="pvNotes" ${withNotes ? "checked" : ""}> PDF 附解說（教育訓練用，正式送審請勿勾選）</label>` : ""}
     <div class="noprint" style="margin:0 12px 8px;color:var(--mut);font-size:13px">顯示目前填寫的內容。請用 Safari 開啟：iPhone 按列印後，在預覽縮圖上用兩指放大，即可「儲存到檔案」成 PDF；iPad 也是按列印，再用分享圖示存檔。</div>
-    <div class="paper">
+    <div class="paper${withNotes ? "" : " nonotes"}">
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}
       <div class="ptitle">${esc(tpl.name)}</div>
       <div class="pno">編號：<span>${esc(rec.docNo)}</span></div>
@@ -554,7 +562,7 @@ async function renderPreview(id) {
       </table>
       <table class="pt items">
         <tr><th>檢查項目</th><th>管理標準</th><th>實際檢查結果<br>(量化檢查數據)</th><th style="width:16mm">檢查結果</th></tr>
-        ${tpl.items.map((it, i) => { const v = rec.items[i] || {}; return `<tr><td>${esc(it.t)}</td><td>${esc(it.std)}</td><td>${esc(v.actual ?? v.note)}</td><td class="c">${SYM[v.r] || ""}</td></tr>`; }).join("")}
+        ${tpl.items.map((it, i) => { const v = rec.items[i] || {}; return `<tr><td>${esc(it.t)}</td><td>${esc(it.std)}${it.note ? `<div class="pnote">解說：${esc(it.note)}</div>` : ""}</td><td>${esc(v.actual ?? v.note)}</td><td class="c">${SYM[v.r] || ""}</td></tr>`; }).join("")}
         <tr><td colspan="4" class="recheck">缺失複查結果：<br>□已完成改善（檢附改善前中後照片）<br>□未完成改善，填具「缺失改善追蹤表」進行追蹤改善<br><br>複查日期：　　　年　　月　　日　　複查人員職稱：　　　　　　　　簽名：</td></tr>
         <tr><td colspan="4" class="recheck">備註：<br>1.檢查結果合格者註明「○」，不合格者註明「✕」，如無需檢查之項目則打「／」。</td></tr>
       </table>
@@ -563,6 +571,7 @@ async function renderPreview(id) {
     ${photos.length ? `<div class="paper gallery"><div class="ptitle">附件：檢查照片</div><div class="gal">${photos.map(p => `<figure><img src="${safeImg(p.data)}"><figcaption>第 ${p.itemIdx + 1} 項　${esc(tpl.items[p.itemIdx]?.t)}</figcaption></figure>`).join("")}</div></div>` : ""}`;
   { const ln = await attNamesLine(rec.id, true); if (ln) $(".paper").insertAdjacentHTML("beforeend", ln); const g = await attGallery(rec.id); if (g) view.insertAdjacentHTML("beforeend", g); }
   $("#pvBack").onclick = () => goBack("#/checklist/" + id);
+  const nt = $("#pvNotes"); if (nt) nt.onchange = () => { ls.set("pvNotes", nt.checked ? "1" : ""); $(".paper").classList.toggle("nonotes", !nt.checked); };
   $("#pvPrint").onclick = doPrint;
 }
 

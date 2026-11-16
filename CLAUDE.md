@@ -12,7 +12,7 @@
 | 檔案 | 內容 |
 |---|---|
 | `app.js` | 資料庫包裝、路由、首頁、自主檢查表、備份／匯入、相機、燈箱、工地設定 |
-| `templates.js` | 內建自主檢查表範本（新增範本在這裡加一筆） |
+| `templates.js` | 內建自主檢查表範本（新增範本在這裡加一筆）。2026-11-16 依使用者提供的「土建自主檢查表」Word 轉入 37 張（id 依類別前綴 `fm_ rb_ cc_ tp_ mt_ fn_ me_ ls_`），原表紅字解說存在 `note`：填表點 ⓘ 才顯示、預覽／PDF 預設不印，勾「PDF 附解說」（localStorage `pvNotes`）才印。**紀錄以項目順序對應範本，已上線範本只能在最後加項目**。舊示範表（formwork、rebar、concrete、mep_embed）標 `retired: true`：使用者要求以新表為主，不列在選單，只留給舊紀錄開啟 |
 | `safe.js` | **匯入備份的驗證與清理**，以及 `safeImg` / `safeId` |
 | `attach.js` | 附加檔案（Blob，單檔 10 MB） |
 | `pdf.js` | 「分享 PDF」：html2canvas + jsPDF，把 `.paper` 轉成 A4 |
