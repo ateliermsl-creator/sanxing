@@ -2,7 +2,8 @@
 // 1. 每張內建範本 id 不重複、每項都有 t；舊範本（layout）前 6 項文字不變（紀錄依順序對應）
 // 2. 填表畫面：有解說的項目有 ⓘ，點開才顯示，再點收起
 // 3. 預覽：預設不印解說（PDF 也不印）；勾「PDF 附解說」才顯示；偏好會記住
-// 4. 窄螢幕 320px 填表與預覽不橫向捲動
+// 4. 舊示範表（retired）不在選單、舊紀錄仍可開；氯離子單位
+// 5. 窄螢幕 320px 填表與預覽不橫向捲動
 const {chromium}=require('playwright');
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844}});const errs=[];p.on('pageerror',x=>errs.push(x.message));p.on('dialog',d=>d.accept());
 const ok=(c,m)=>console.log((c?'OK    ':'失敗  ')+m);
@@ -35,6 +36,12 @@ await p.uncheck('#pvNotes');ok(await vis()===0,'取消勾選即隱藏');
 // 沒有解說的範本不顯示開關
 await p.evaluate(async()=>{await DB.put('records',{id:'r2',siteId:'s9',templateId:'mep_embed',docNo:'',contractor:'',subcontractor:'',date:today(),location:'',timing:{},items:{},sigs:{},updated:1})});
 await p.goto('http://localhost:8793/index.html#/checklist/r2/preview');await p.waitForSelector('.paper');ok(await p.locator('#pvNotes').count()===0,'無解說的表不顯示開關');
+// 舊示範表不在選單，但舊紀錄仍可開
+await p.goto('http://localhost:8793/index.html#/checklist');await p.waitForSelector('[data-new]');
+const nn=await p.evaluate(()=>[...document.querySelectorAll('[data-new]')].map(b=>b.dataset.new));
+ok(!['formwork','rebar','concrete','mep_embed'].some(x=>nn.includes(x))&&nn.length===37,'選單只列新表 '+nn.length+' 張');
+await p.goto('http://localhost:8793/index.html#/checklist/r2');await p.waitForSelector('.item');ok(await p.locator('.item').count()===21,'舊示範表的紀錄仍可開啟');
+ok(await p.evaluate(()=>TEMPLATES.find(t=>t.id==='cc_2').items[2].std)==='小於0.15kg/m³','氯離子單位 kg/m³');
 await p.setViewportSize({width:320,height:700});
 for(const h of ['#/checklist/r1','#/checklist/r1/preview','#/checklist']){await p.goto('http://localhost:8793/index.html'+h);await p.waitForTimeout(500);
   const w=await p.evaluate(()=>document.documentElement.scrollWidth);ok(w<=320,'320px 無橫向捲動 '+h+' ('+w+')');}

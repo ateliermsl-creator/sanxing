@@ -382,13 +382,14 @@ async function renderChecklist() {
   if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
   const recs = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
   const pc = {}; for (const p of await DB.all("photos")) pc[p.recId] = (pc[p.recId] || 0) + 1;
-  const cats = ["全部", ...new Set(TEMPLATES.map(t => t.cat))];
+  const shown = TEMPLATES.filter(t => !t.retired);   // 舊示範表不列出，舊紀錄仍可開啟
+  const cats = ["全部", ...new Set(shown.map(t => t.cat))];
   if (!cats.includes(cat)) cat = "全部";
-  const list = TEMPLATES.filter(t => cat === "全部" || t.cat === cat);
+  const list = shown.filter(t => cat === "全部" || t.cat === cat);
   view.innerHTML = `
-    <h2 class="t">自主檢查表（${TEMPLATES.length}）</h2>
+    <h2 class="t">自主檢查表（${shown.length}）</h2>
     <div class="row" style="margin-top:0"><a class="btnlink" href="#/template/new">📋 自訂空白檢查表</a></div>
-    <div class="chips">${cats.map(c => `<button class="chip ${c === cat ? "on" : ""}" data-cat="${esc(c)}">${esc(c)}（${c === "全部" ? TEMPLATES.length : TEMPLATES.filter(t => t.cat === c).length}）</button>`).join("")}</div>
+    <div class="chips">${cats.map(c => `<button class="chip ${c === cat ? "on" : ""}" data-cat="${esc(c)}">${esc(c)}（${c === "全部" ? shown.length : shown.filter(t => t.cat === c).length}）</button>`).join("")}</div>
     ${list.map(t => {
       const mine = recs.filter(r => r.templateId === t.id), last = mine[0];
       const st = !last ? "未填" : doneCount(last) >= t.items.length ? "已完成" : "填寫中";
