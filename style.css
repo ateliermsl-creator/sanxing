@@ -472,3 +472,12 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 #cuForms .cfset{display:inline-flex;align-items:center;min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:var(--mut);text-decoration:none;white-space:nowrap;background:var(--card)}
 #cuForms .cfset.unset{color:var(--bad);border-color:var(--bad)}
 #cuForms{scroll-margin-top:80px}
+/* 自主檢查表：紅字解說（ⓘ 點開；預覽預設不印，勾「PDF 附解說」才印） */
+.item .m,.pt.items td{white-space:pre-line}
+#view .item .tipbtn{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;min-height:32px;margin:-4px 0 -4px 2px;padding:0;border:1px solid var(--line);border-radius:50%;background:var(--card);color:var(--g);font-size:16px;font-weight:400;line-height:1;vertical-align:middle;box-shadow:none}
+#view .item .tipbtn.on{background:var(--g);color:var(--card);border-color:var(--g)}
+.tipbox{margin:0 0 8px;padding:8px 10px;border-left:3px solid var(--g);background:var(--bg,transparent);font-size:14px;color:var(--mut);white-space:pre-line;overflow-wrap:anywhere}
+.pvopt{display:flex;align-items:center;gap:8px;margin:0 12px 8px;font-size:14px}
+.pvopt input{width:22px;height:22px;flex:none}
+.paper .pnote{margin-top:3px;font-size:.85em;color:#000;font-style:italic}
+.paper.nonotes .pnote{display:none}
