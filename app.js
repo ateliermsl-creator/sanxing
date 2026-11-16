@@ -261,8 +261,8 @@ async function renderHome() {
   if (location.hash.split("/")[1]) return;   // 讀取期間已切到別的頁面，就不要用首頁蓋掉它
   view.innerHTML = `
     <div class="htop"><div class="hbak" id="hBak" hidden></div><div class="hbar"><span class="hbic" aria-hidden="true">🏗️</span>${sites.length
-      ? `<span class="hblbl">目前工程：</span><span class="hbname"><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b>${sites.length > 1 ? " ▾" : ""}<select id="hSite" aria-label="切換目前工程">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></span><span class="hbact"><button class="lnk" id="hEdit" aria-label="修改目前工程" title="修改目前工程">✎</button><button class="lnk" id="hAdd" aria-label="新增工程" title="新增工程">＋</button></span>`
-      : `尚未建立工程，<button class="lnk t" id="hAdd">新增工程</button>`}</div></div>
+      ? `<span class="hblbl">所在專案：</span><span class="hbname"><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b>${sites.length > 1 ? " ▾" : ""}<select id="hSite" aria-label="切換所在專案">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></span><span class="hbact"><button class="lnk" id="hEdit" aria-label="修改所在專案" title="修改所在專案">✎</button><button class="lnk" id="hAdd" aria-label="新增專案" title="新增專案">＋</button></span>`
+      : `尚未建立專案，<button class="lnk t" id="hAdd">新增專案</button>`}</div></div>
     ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
     <section class="hero"><img src="leek.png" alt=""><h1>三星蔥工具箱</h1><p>粗糲的現場，需要最純粹的隨身器物</p></section>
     <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
