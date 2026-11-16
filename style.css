@@ -500,3 +500,12 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 .pvopt input{width:22px;height:22px;flex:none}
 .paper .pnote{margin-top:3px;font-size:.85em;color:#000;font-style:italic}
 .paper.nonotes .pnote{display:none}
+/* 表單儲存狀態（savestat.js）：右下角低調小標籤，不擋操作（點不到、穿透） */
+.saved.svnote{color:var(--mut)}
+#saveTip{position:fixed;right:calc(env(safe-area-inset-right) + 12px);bottom:calc(env(safe-area-inset-bottom) + 12px);z-index:19;max-width:calc(100vw - 24px);padding:5px 12px;border:1px solid var(--line);border-radius:999px;background:var(--card);color:var(--ok);font-size:13px;line-height:1.4;box-shadow:0 2px 8px rgba(55,51,43,.12);pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#saveTip[hidden]{display:none}
+#saveTip.sv-saving{color:var(--mut)}
+#saveTip.sv-error,#saveTip.sv-unsaved{color:var(--bad);font-weight:700}
+body.svon #view{padding-bottom:44px}
+body:has(#calcBar:not([hidden])) #saveTip{bottom:calc(env(safe-area-inset-bottom) + 72px)}
+@media print{#saveTip{display:none!important}}

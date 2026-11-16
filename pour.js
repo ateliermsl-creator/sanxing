@@ -74,17 +74,14 @@ async function renderPourBatch(id) {
   const bt = await DB.get("pours", id);
   if (!bt) { goReplace("#/pour"); return; }
   bt.trucks = bt.trucks || [];
-  let timer;
-  const mark = t => { const el = $("#pjSaved"); if (el) el.textContent = t; };
-  const flush = async () => { clearTimeout(timer); bt.updated = Date.now(); await DB.put("pours", bt); pourSaveSpec(bt); mark(`✓ 已暫存 ${pourNow()}`); };
-  const save = () => { clearTimeout(timer); mark("儲存中…"); timer = setTimeout(flush, 300); };
+  const sv = svAuto(async () => { bt.updated = Date.now(); await DB.put("pours", bt); pourSaveSpec(bt); }), save = sv.save, flush = sv.flush;
   const all = (await DB.all("pours")).filter(x => x.siteId === bt.siteId);
   const floors = [...new Set(all.map(x => x.floor).filter(Boolean))].sort(pourFloorSort), sups = [...new Set(all.map(x => x.supplier).filter(Boolean))];
   const f = (k, lab, ph, extra = "") => `<div class="field"><label>${lab}</label><input data-f="${k}" ${extra} placeholder="${ph}" value="${esc(bt[k])}"></div>`;
   const noSpec = !(bt.slumpMin || bt.slumpMax || bt.clMax);   // 坍度、氯離子標準都還沒填 → 預設展開
   const stat = pourStats([bt]);
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">澆置抽驗紀錄</h2><div id="pjSaved" class="saved">✓ 內容會自動暫存</div>
+    <h2 class="t" style="margin-bottom:0">澆置抽驗紀錄</h2><div id="pjSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
     <div class="panel"><div class="grid2"><div class="field"><label>日期</label><input type="date" data-f="date" value="${esc(bt.date)}"></div>
         <div class="field"><label>樓層</label><input data-f="floor" list="pjFloors" placeholder="例：3F、B1" value="${esc(bt.floor)}"><datalist id="pjFloors">${floors.map(x => `<option value="${esc(x)}">`).join("")}</datalist></div></div>
       ${f("part", "澆置部位", "例：柱牆、梁板、基礎")}
@@ -102,6 +99,7 @@ async function renderPourBatch(id) {
       <small>到場 ${esc(t.arrive || "—")}・${esc(t.volume || "—")} m³${t.slump ? "・坍度 " + esc(t.slump) : ""}${t.chloride ? "・Cl⁻ " + esc(t.chloride) : ""}${t.sampled ? "・試體 " + esc(t.specimen || "✓") : ""}${t.disp === "reject" ? `・<span style="color:var(--bad)">退料</span>` : ""}${t.sigs?.tester && t.sigs?.driver ? "・✔簽名" : ""}</small></a>`; }).join("")}
     <div class="row"><button id="pjTruck">＋ 新增一車</button></div>
     ${attBlock("檢附文件／照片", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="bjCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="bjFile"></label><div class="thumbs" id="bjTh"></div></div>`)}
+    ${svDoneRow()}
     <div class="row"><button class="sec" id="pjPrint">👁 預覽／列印（A4 橫式）</button><button class="sec" id="pjShare">📤 分享摘要</button></div>
     <div class="row"><button class="danger" id="pjDel">刪除這次澆置（含全部車次）</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => { bt[el.dataset.f] = el.value; save(); });
@@ -129,6 +127,7 @@ async function renderPourBatch(id) {
       await DB.del("photos", del); bph = bph.filter(x => x.id !== del); draw();
     };
   }
+  svBindDone(sv, "#/pour");
   $("#pjPrint").onclick = async () => { await flush(); location.hash = "#/pour/" + id + "/print"; };
   $("#pjShare").onclick = async () => {
     const s = pourStats([bt]), site = sites.find(x => x.id === bt.siteId);
@@ -151,14 +150,12 @@ async function renderPourTruck(id, tid) {
   if (!t) { goReplace(bt ? "#/pour/" + id : "#/pour"); return; }
   t.names = t.names || {}; t.sigs = t.sigs || {};
   const site = sites.find(s => s.id === bt.siteId), idx = bt.trucks.indexOf(t) + 1;
-  let photos = (await DB.all("photos")).filter(p => p.recId === t.id).sort((a, b) => a.created - b.created), timer;
-  const mark = x => { const el = $("#ptSaved"); if (el) el.textContent = x; };
-  const flush = async () => { clearTimeout(timer); bt.updated = Date.now(); await DB.put("pours", bt); mark(`✓ 已暫存 ${pourNow()}`); };
-  const save = () => { clearTimeout(timer); mark("儲存中…"); timer = setTimeout(flush, 300); };
+  let photos = (await DB.all("photos")).filter(p => p.recId === t.id).sort((a, b) => a.created - b.created);
+  const sv = svAuto(async () => { bt.updated = Date.now(); await DB.put("pours", bt); }), save = sv.save, flush = sv.flush;
   const inp = (k, lab, ph, extra = "") => `<div class="field"><label>${lab}</label><input data-t="${k}" ${extra} placeholder="${ph}" value="${esc(t[k])}"></div>`;
   const timeInp = (k, lab) => `<div class="field"><label>${lab}</label><div style="display:flex;gap:6px"><input type="time" data-t="${k}" value="${esc(t[k])}" style="flex:1;min-width:0"><button type="button" class="sec" data-now="${k}" style="min-height:46px;padding:0 10px">現在</button></div></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">第 ${idx} 車　<small style="color:var(--mut);font-weight:400">${esc(pourTitle(bt))}</small></h2><div id="ptSaved" class="saved">✓ 內容會自動暫存</div>
+    <h2 class="t" style="margin-bottom:0">第 ${idx} 車　<small style="color:var(--mut);font-weight:400">${esc(pourTitle(bt))}</small></h2><div id="ptSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
     <div class="panel"><div class="grid2">${inp("plate", "車號", "例：ABC-1234")}${inp("ticket", "送貨單號（可空白）", "")}</div>
       <div class="grid2">${timeInp("leave", "出廠時間")}${timeInp("arrive", "到場時間")}</div><div id="ptEl" class="cnote" style="margin:0"></div></div>
     <div class="panel"><b>檢測與方量</b><div class="grid2" style="margin-top:8px">${inp("volume", "方量（m³）", "例：6", 'inputmode="decimal"')}${inp("slump", "坍度（cm）", "", 'inputmode="decimal"')}${inp("chloride", "氯離子（kg/m³）", "", 'inputmode="decimal"')}${inp("temp", "混凝土溫度（℃，可空白）", "", 'inputmode="decimal"')}</div>
@@ -170,7 +167,7 @@ async function renderPourTruck(id, tid) {
     ${attBlock("送貨單／試驗報告", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="ptCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="ptFile"></label><div class="thumbs" id="ptTh"></div></div>`)}
     ${[["tester", "試驗人員"], ["driver", "司機"]].map(([k, l]) => `<div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(t.names[k])}"></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l}簽名</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div></div>`).join("")}
-    <div class="row"><button id="ptDone">✔ 完成（回澆置表）</button></div>
+    <div class="row"><button id="ptDone">💾 儲存並返回澆置表</button></div>
     <div class="row"><button class="sec" id="ptNext">＋ 下一車</button></div>
     <div class="row"><button class="danger" id="ptDel">刪除這一車</button></div>`;
   const judge = () => {
@@ -201,7 +198,7 @@ async function renderPourTruck(id, tid) {
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
   attBind(view, t.id);
-  $("#ptDone").onclick = async () => { await flush(); goBack("#/pour/" + id); };
+  svBindDone(sv, "#/pour/" + id, "ptDone");
   $("#ptNext").onclick = async () => {
     await flush();
     const n = { id: uid(), plate: "", ticket: "", leave: "", arrive: pourNow(), volume: t.volume, slump: "", chloride: "", temp: "", sampled: false, specimen: "", disp: "use", note: "", names: { tester: t.names.tester || "", driver: "" }, sigs: {}, created: Date.now() };

@@ -45,7 +45,7 @@ function wfLoad() {
   if (Array.isArray(s.tiers) && s.tiers.length) d.tiers = s.tiers.slice(0, COL_MAX_TIERS).map(t => { const o = wfTier(); pick(o, t); return o; });
   return d;
 }
-const wfSave = st => ls.set("calcWallForm", JSON.stringify(st));
+const wfSave = st => { ls.set("calcWallForm", JSON.stringify(st)); svKept(); };
 
 /* ---------- 計算 ---------- */
 // 圓管斷面（外徑 D、管厚 t）

@@ -191,10 +191,10 @@ async function renderCureSet(from, fromId) {
       <div id="csForms"></div><div class="row"><button class="sec" id="csAdd">＋ 新增拆模項目</button></div></div>
     ${back}`;
   const forms = cfg.forms.map(f => ({ ...f }));
-  const save = async () => {
+  const sv = svAuto(async () => {
     const ages = [...new Set($("#csAges").value.split(/[,，、\s]+/).map(Number).filter(n => Number.isInteger(n) && n > 0 && n <= 365))].sort((a, b) => a - b).slice(0, 6);
     await cuCfgSave({ ages: ages.length ? ages : [7, 28], forms: forms.filter(f => f.n.trim()).map(f => ({ n: f.n.trim().slice(0, 30), d: String(f.d).trim().slice(0, 4) })) });
-  };
+  }), save = sv.save;
   const draw = () => {
     $("#csForms").innerHTML = forms.map((f, i) => `<div class="grid2" style="margin-bottom:6px;align-items:center"><input data-n="${i}" value="${esc(f.n)}" placeholder="例：樑底模"><div style="display:flex;gap:6px;align-items:center"><input data-d="${i}" inputmode="numeric" placeholder="天數" value="${esc(f.d)}"><button class="danger" data-x="${i}" aria-label="刪除" style="min-height:44px">✕</button></div></div>`).join("");
     $("#csForms").querySelectorAll("[data-n]").forEach(el => el.oninput = () => { forms[+el.dataset.n].n = el.value; save(); });
@@ -204,7 +204,7 @@ async function renderCureSet(from, fromId) {
   draw(); $("#csAges").oninput = save;
   $("#csAdd").onclick = () => { forms.push({ n: "", d: "" }); draw(); };
   if (pourId) {
-    $("#csBack").onclick = async () => { await save(); goBack("#/pour/" + pourId); };
+    $("#csBack").onclick = async () => { await sv.flush(); goBack("#/pour/" + pourId); };
     let want = null; try { want = sessionStorage.getItem("cuSetFocus"); sessionStorage.removeItem("cuSetFocus"); } catch { }
     if (want !== null) {   // 從澆置頁點某一項過來：捲到那一項的天數欄（點下方按鈕則找第一個沒填的）
       const i = want ? forms.findIndex(f => f.n === want) : forms.findIndex(f => !String(f.d).trim());

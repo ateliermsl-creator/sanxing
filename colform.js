@@ -89,7 +89,7 @@ function colLoad() {
   if (Array.isArray(s.tiers) && s.tiers.length) d.tiers = s.tiers.slice(0, COL_MAX_TIERS).map(t => { const o = colTier(); pick(o, t); return o; });
   return d;
 }
-const colSave = st => ls.set("calcColForm2", JSON.stringify(st));
+const colSave = st => { ls.set("calcColForm2", JSON.stringify(st)); svKept(); };
 const COL_LIB_KEYS = ["id", "kind", "n", "sect", "t", "b", "h", "cnt", "I", "S", "A", "kv", "fb", "fv", "E", "ta"];
 function colLib() {
   let a; try { a = JSON.parse(ls.get("calcColLib", "[]")); } catch { a = []; }

@@ -123,16 +123,14 @@ async function renderMatForm(id) {
   r.checks = r.checks || []; r.docs = r.docs || []; r.names = r.names || {}; r.sigs = r.sigs || {};
   const site = sites.find(s => s.id === r.siteId), cats = await matCats(), all = (await DB.all("matrecs")).filter(x => x.siteId === r.siteId);
   const vendors = [...new Set(all.map(x => x.vendor).filter(Boolean))];
-  let photos = (await DB.all("photos")).filter(p => p.recId === r.id).sort((a, b) => a.created - b.created), timer;
-  const mark = t => { const el = $("#mrSaved"); if (el) el.textContent = t; };
-  const flush = async () => { clearTimeout(timer); r.updated = Date.now(); await DB.put("matrecs", r); mark(`✓ 已暫存 ${pourNow()}`); };
-  const save = () => { clearTimeout(timer); mark("儲存中…"); timer = setTimeout(flush, 300); };
+  let photos = (await DB.all("photos")).filter(p => p.recId === r.id).sort((a, b) => a.created - b.created);
+  const sv = svAuto(async () => { r.updated = Date.now(); await DB.put("matrecs", r); }), save = sv.save, flush = sv.flush;
   const inp = (k, lab, ph, extra = "") => `<div class="field"><label>${lab}</label><input data-f="${k}" ${extra} placeholder="${ph}" value="${esc(r[k])}"></div>`;
   const chk = (c, i) => `<div class="item" data-i="${i}"><div class="top"><div class="t" style="font-weight:600">${i + 1}. ${esc(c.t)}${c.extra ? ` <small style="color:var(--mut)">（本次增加）</small>` : ""}</div>
       <div class="sym">${["ok", "ng", "na"].map(k => `<button class="${c.r === k ? "on" : ""}" data-r="${k}" aria-label="${k}">${SYM[k]}</button>`).join("")}</div></div>
       <input class="note" placeholder="備註（可空白）" value="${esc(c.note)}" style="${c.r === "ng" || c.note ? "" : "display:none"}"></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">材料進場驗收</h2><div id="mrSaved" class="saved">✓ 內容會自動暫存</div>
+    <h2 class="t" style="margin-bottom:0">材料進場驗收</h2><div id="mrSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
     <div class="panel"><div class="grid2"><div class="field"><label>日期</label><input type="date" data-f="date" value="${esc(r.date)}"></div>
         <div class="field"><label>進場時間</label><div style="display:flex;gap:6px"><input type="time" data-f="time" value="${esc(r.time)}" style="flex:1;min-width:0"><button type="button" class="sec" id="mNow" style="min-height:46px;padding:0 10px">現在</button></div></div></div>
       <div class="field"><label>材料類別</label><select id="mCat">${cats.map(c => `<option value="${c.id}" ${c.id === r.catId ? "selected" : ""}>${esc(c.name)}</option>`).join("")}${cats.some(c => c.id === r.catId) ? "" : `<option value="${esc(r.catId)}" selected>${esc(r.catName)}（已刪除）</option>`}</select></div>
@@ -153,7 +151,7 @@ async function renderMatForm(id) {
       <div class="field" style="margin:10px 0 0"><label>備註</label><input data-f="note" placeholder="例：外箱破損 2 箱，已退貨" value="${esc(r.note)}"></div></div>
     ${[["deliver", "送貨人（可空白）"], ["inspector", "驗收人員"]].map(([k, l]) => `<div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(r.names[k])}"></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l.replace("（可空白）", "")}簽名</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div></div>`).join("")}
-    <div class="row"><button id="mDone">✔ 完成（回列表）</button></div>
+    <div class="row"><button id="mDone">💾 儲存並返回</button></div>
     <div class="row"><button class="sec" id="mPrint">👁 預覽／列印驗收單</button><button class="sec" id="mNext">＋ 再新增一筆</button></div>
     <div class="row"><button class="danger" id="mDel">刪除這筆進場紀錄</button></div>`;
 
@@ -199,7 +197,7 @@ async function renderMatForm(id) {
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
   attBind(view, r.id);
-  $("#mDone").onclick = async () => { await flush(); goBack("#/material"); };
+  svBindDone(sv, "#/material", "mDone");
   $("#mPrint").onclick = async () => { await flush(); location.hash = "#/material/" + id + "/print"; };
   $("#mNext").onclick = async () => { await flush(); const n = await matNew({ catId: r.catId, vendor: r.vendor, date: r.date, location: r.location, names: { deliver: "", inspector: r.names.inspector || "" } }); goReplace("#/material/" + n.id); };
   $("#mDel").onclick = async () => { if (!confirm("確定刪除這筆進場紀錄？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("matrecs", id); goBack("#/material"); };
@@ -252,14 +250,19 @@ async function renderMatCfg() {
       <button class="danger" data-cdel style="min-height:40px">刪除這個類別</button></details>`).join("")}</div>
     <div class="row"><button class="sec" id="cAdd">＋ 新增類別</button></div>
     <div class="row"><a class="btnlink" href="#/material">← 回進場列表</a></div>`;
-  let t;
-  const saveCat = async el => {
-    const box = el.closest("[data-id]"), c = await DB.get("matcats", box.dataset.id); if (!c) return;
+  const dirty = new Set();   // 改過的類別（沒改的不要動到 updated，匯入備份時才不會誤判誰比較新）
+  let docsDirty = false;
+  const saveCat = async box => {
+    const c = await DB.get("matcats", box.dataset.id); if (!c) return;
     c.name = box.querySelector("[data-cn]").value.trim() || c.name; c.checks = box.querySelector("[data-cc]").value.split("\n").map(x => x.trim()).filter(Boolean); c.updated = Date.now(); await DB.put("matcats", c);
     box.querySelector("summary").innerHTML = `${esc(c.name)}　<small style="color:var(--mut)">${c.checks.length} 項</small>`;
   };
-  view.querySelectorAll("[data-cn],[data-cc]").forEach(el => el.oninput = () => { clearTimeout(t); t = setTimeout(() => saveCat(el), 400); });
-  $("#cDocs").oninput = e => { clearTimeout(t); t = setTimeout(async () => { await DB.put("matcats", { id: "__docs", docs: e.target.value.split("\n").map(x => x.trim()).filter(Boolean), updated: Date.now() }); }, 400); };
+  const sv = svAuto(async () => {
+    if (docsDirty) { docsDirty = false; await DB.put("matcats", { id: "__docs", docs: $("#cDocs").value.split("\n").map(x => x.trim()).filter(Boolean), updated: Date.now() }); }
+    const boxes = [...dirty]; dirty.clear(); for (const box of boxes) await saveCat(box);
+  }, 400);
+  view.querySelectorAll("[data-cn],[data-cc]").forEach(el => el.oninput = () => { dirty.add(el.closest("[data-id]")); sv.save(); });
+  $("#cDocs").oninput = () => { docsDirty = true; sv.save(); };
   view.querySelectorAll("[data-cdel]").forEach(b => b.onclick = async () => {
     const box = b.closest("[data-id]"); if (!confirm("刪除這個類別？已建立的進場紀錄不受影響。")) return;
     await DB.del("matcats", box.dataset.id); await DB.put("matcats", { id: "__deleted", updated: Date.now() }); renderMatCfg();   // __deleted：避免之後又自動補回內建類別

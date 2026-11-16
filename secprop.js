@@ -46,7 +46,7 @@ function secLoad() {
   if (Array.isArray(s.holes)) d.holes = s.holes.slice(0, SEC_MAX_HOLES).map(h => str(h, 12000));
   return d;
 }
-const secSave = st => ls.set("calcSecForm", JSON.stringify(st));
+const secSave = st => { ls.set("calcSecForm", JSON.stringify(st)); svKept(); };
 
 /* ---------- 計算 ---------- */
 // 解析座標文字：每行（或分號隔開）一點 x, y；回傳 { pts, err }

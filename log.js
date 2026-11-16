@@ -59,16 +59,13 @@ async function renderLogForm(id) {
   const r = await DB.get("logs", id);
   if (!r) { goReplace("#/log"); return; }
   r.techRows = r.techRows || [];
-  let timer;
-  const mark = t => { const el = $("#lgSaved"); if (el) el.textContent = t; };
-  const flush = async () => { clearTimeout(timer); r.updated = Date.now(); await DB.put("logs", r); mark(`✓ 已暫存 ${shotNowTime()}`); };
-  const save = () => { clearTimeout(timer); mark("儲存中…"); timer = setTimeout(flush, 300); };
+  const sv = svAuto(async () => { r.updated = Date.now(); await DB.put("logs", r); }), save = sv.save, flush = sv.flush;
   const f = (k, lab, ph = "", type = "text", extra = "") => `<div class="field"><label>${lab}</label><input data-f="${k}" type="${type}" ${extra} placeholder="${ph}" value="${esc(r[k])}"></div>`;
   const wx = k => `<div class="field"><label>${k === "wxAm" ? "上午天氣" : "下午天氣"}</label><input data-f="${k}" list="lgWx" value="${esc(r[k])}" placeholder="例：晴"></div>`;
   const tri = (k, opts) => `<div class="timing" data-tri="${k}">${opts.map(([v, l]) => `<label><input type="radio" name="${k}" value="${v}" ${r[k] === v ? "checked" : ""}> ${l}</label>`).join("")}</div>`;
   const sec = (key, title, hint = "") => `<div class="panel"><b>${title}</b>${hint ? ` <small style="color:var(--mut)">${hint}</small>` : ""}<div id="lg_${key}"></div><div class="row"><button class="sec" data-add="${key}">＋ 增加一列</button>${key === "items" ? `<button class="sec" id="lgCarry">📋 重新帶入上次</button>` : ""}${key === "mats" ? `<button class="sec" id="lgMat">📥 帶入今日進場材料</button>` : ""}</div></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">施工日誌</h2><div id="lgSaved" class="saved">✓ 內容會自動暫存</div>
+    <h2 class="t" style="margin-bottom:0">施工日誌</h2><div id="lgSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
     <datalist id="lgWx">${LG_WX.map(x => `<option value="${x}">`).join("")}</datalist>
     <div class="panel"><div class="grid2">${f("date", "填表日期", "", "date")}${f("no", "表報編號")}</div><div id="lgWeek" class="cnote" style="margin:0"></div>
       <div class="grid2">${wx("wxAm")}${wx("wxPm")}</div></div>
@@ -99,6 +96,7 @@ async function renderLogForm(id) {
     <div class="panel"><div class="field"><label>工地主任姓名</label><input data-f="signer" value="${esc(r.signer)}"></div>
       <div style="display:flex;justify-content:space-between;align-items:center"><b>簽章：【工地主任】</b><button class="sec" id="lgClr" style="min-height:36px">清除</button></div><div class="sigbox"><canvas data-sig="boss"></canvas></div></div>
     ${attBlock("附加檔案")}
+    ${svDoneRow()}
     <div class="row"><button class="sec" id="lgPrint">👁 預覽／列印（A4）</button></div>
     <div class="row"><button class="danger" id="lgDel">刪除這張日誌</button></div>`;
 
@@ -173,6 +171,7 @@ async function renderLogForm(id) {
   setupSig($('canvas[data-sig="boss"]'), hs, () => { r.sig = hs.sigs.boss || ""; save(); });
   $("#lgClr").onclick = () => { const c = $('canvas[data-sig="boss"]'); c.getContext("2d").clearRect(0, 0, c.width, c.height); delete hs.sigs.boss; r.sig = ""; save(); };
   attBind(view, id);
+  svBindDone(sv, "#/log");
   $("#lgPrint").onclick = async () => { await flush(); location.hash = `#/log/${id}/print`; };
   $("#lgDel").onclick = async () => { if (!confirm("確定刪除這張施工日誌？含附加檔案，無法復原。")) return; await attPurge(id); await DB.del("logs", id); goBack("#/log"); };
 }
