@@ -452,6 +452,12 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
   #copyright{max-width:1080px}
   #view:has(> .hero){grid-template-columns:repeat(3,minmax(0,1fr))}
 }
+/* 浮出面板（如「回報已改善」）：手機維持底部面板；平板與電腦改成畫面中央的對話框，避免貼在螢幕最下方 */
+@media screen and (min-width:768px){
+  .psheet{align-items:center;justify-content:center;padding:24px}
+  .psheet-in{max-width:560px;border-radius:14px;padding:20px 22px;max-height:calc(100vh - 48px);box-shadow:0 12px 40px rgba(0,0,0,.25)}
+}
+@media screen and (min-width:1200px){body:not(.snOff) .psheet{padding-left:256px}}   /* 有左側導覽列時，對準內容區中央 */
 @media screen and (min-width:1200px){body.snOff{padding-left:0}body.snOff #sideNav{display:none}}   /* 首頁不顯示側欄，避免和功能卡片重複 */
 @media print{#sideNav{display:none!important}body{padding-left:0!important}}
 /* ===== 結構計算（#/struct）：首頁分區標題、總覽、分類導覽 ===== */
