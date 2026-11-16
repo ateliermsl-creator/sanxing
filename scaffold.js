@@ -43,7 +43,7 @@ function scLoad() {
   pick(d.info, s.info); pick(d, s); pick(d.frame, s.frame); pick(d.col, s.col); pick(d.tie, s.tie);
   return d;
 }
-const scSave = st => ls.set("calcScafForm", JSON.stringify(st));
+const scSave = st => { ls.set("calcScafForm", JSON.stringify(st)); svKept(); };
 
 /* ---------- 計算 ---------- */
 // 圓形斷面（管或實心），cm

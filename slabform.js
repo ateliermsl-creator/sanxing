@@ -34,7 +34,7 @@ function sfLoad() {
   if (!SF_LMODES.some(([k]) => k === d.lmode)) d.lmode = "net";
   return d;
 }
-const sfSave = st => ls.set("calcSlabForm", JSON.stringify(st));
+const sfSave = st => { ls.set("calcSlabForm", JSON.stringify(st)); svKept(); };
 
 /* ---------- 計算 ---------- */
 // 構件受力方向的深度（算支撐長用）：襯板取板厚，矩形取 h，其他取填寫的 h；不知道時為 NaN

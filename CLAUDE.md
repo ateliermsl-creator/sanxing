@@ -34,10 +34,11 @@
 | `secprop.js` | 結構計算「斷面性質」分頁與 A4 計算書（`#/struct/sec/sheet`）。同參考網站：外輪廓＋孔洞頂點座標（多邊形格林定理），輸出 A、形心、Ix、Iy、Ixy、Jc、主慣性矩與主軸角、Sx±／Sy±，8 位有效數字；另加常用斷面產生器（圓以 72 邊形近似）、迴轉半徑。「存成格柵材自訂斷面」把 A、I、S（換算 cm，S 取兩側較小）寫進 `calcColLib`；`colLibCard` 的自訂格柵卡片有「帶入斷面性質」按鈕（`data-lsec`，在 secprop.js 用委派事件處理）。輸入存在 localStorage `calcSecForm`。未做 DXF 匯入 |
 | `calcbar.js` | 計算機底部「結果摘要列」：只讀畫面上的「總結」列與 `.cfres` 的 `td.ok／td.bad`，不碰計算；新計算機沿用同樣結構就自動套用。沒有 OK／NG 的計算機在 `.big` 加 `data-bar="摘要"` 只顯示文字。結果區在畫面上時自動隱藏 |
 | `sidenav.js` | 電腦版左側導覽列（≥ 1200px 才顯示，**首頁不顯示**，避免和首頁卡片重複，使用者要求）；新增首頁功能時這裡也加一筆。結構計算區自動讀 `STRUCT_CATS`，目前分類會展開並標目前頁 |
+| `savestat.js` | **表單儲存狀態（全站共用）**：`svAuto(write)` 回傳 `{save, flush}`，右下角低調小標籤 `#saveTip`（儲存中… → ✓ 已自動儲存 hh:mm、⚠ 儲存失敗）；換頁（hashchange，所以要在 `app.js` 前載入）、切 App、關網頁時立刻寫入未寫的修改；`svDoneRow()`＋`svBindDone(sv, 列表網址)` 是表單底部「💾 儲存並返回」；結構計算的 `xxSave` 呼叫 `svKept()` 顯示「輸入已自動保留」。2026-11-17 使用者反映填完不知道有沒有存而加。**新表單一律用 `svAuto`，不要再自己寫 timer** |
 | `sw.js` | Service Worker（網路優先、離線備援） |
 
 ## 每次修改一定要做的事
-1. **`sw.js` 的 `VERSION` 加 1**（`"v129"` → `"v130"`）。不加的話，已安裝的手機不會換新版。
+1. **`sw.js` 的 `VERSION` 加 1**（例如 `"v135"` → `"v136"`）。不加的話，已安裝的手機不會換新版。
 2. 新增 `.js` 檔：同時加進 `index.html` 的 `<script>` 與 `sw.js` 的 `FILES`。
 3. **新增或改名資料欄位：同步改 `safe.js` 的 `CLEAN` 規則。** 沒改的話，匯入備份時該欄位會被丟掉（`tests/backup_roundtrip.js` 會抓到）。
 4. 新增資料表：`app.js` 的資料庫版本加 1、加進 `onupgradeneeded` 的名單、備份匯出／匯入、`sanitizeBackup`、刪除工地的 `stores`。

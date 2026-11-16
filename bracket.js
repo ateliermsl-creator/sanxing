@@ -35,7 +35,7 @@ function bkLoad() {
   for (const [g] of BK_GROUPS) if (!BK_KINDS.some(([k]) => k === d.sec[g].kind)) d.sec[g].kind = "rhs";
   return d;
 }
-const bkSave = st => ls.set("calcBrkForm", JSON.stringify(st));
+const bkSave = st => { ls.set("calcBrkForm", JSON.stringify(st)); svKept(); };
 
 /* ---------- 斷面（輸入 mm，輸出 cm） ---------- */
 function bkSection(p) {

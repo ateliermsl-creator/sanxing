@@ -32,7 +32,7 @@ function ancLoad() {
   if (!["1", "2", "3"].includes(d.cat)) d.cat = "2";
   return d;
 }
-const ancSave = st => ls.set("calcAncForm", JSON.stringify(st));
+const ancSave = st => { ls.set("calcAncForm", JSON.stringify(st)); svKept(); };
 
 function ancCalc(st) {
   const F = colF, nx = Math.round(F(st.nx)), ny = Math.round(F(st.ny)), sx = F(st.sx), sy = F(st.sy);

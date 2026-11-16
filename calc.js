@@ -63,7 +63,7 @@ function tabRebarWt(box) {
     <p class="cnote" style="margin:0 12px 12px">重量 = 單位重 W（kgf/m）× 每根長度（m）× 根數，kgf 視為 kg。長度請輸入<b>公尺</b>。單位重取自「鋼筋稱號」分頁的標稱值，實際進場重量會有 ±誤差，請以過磅為準。資料會記在這支手機。</p>`;
   const wOf = d => parseFloat(REBARS.find(r => r.d === d)?.w);
   const rowW = r => wOf(r.d) * (+r.len || 0) * (+r.n || 0);
-  const save = () => { try { localStorage.setItem("rebarRows", JSON.stringify(rows)); localStorage.setItem("rebarCfg", JSON.stringify({ loss: $("#wLoss").value })); } catch {} };
+  const save = () => { try { localStorage.setItem("rebarRows", JSON.stringify(rows)); localStorage.setItem("rebarCfg", JSON.stringify({ loss: $("#wLoss").value })); svKept(); } catch {} };
   const sum = () => {
     box.querySelectorAll("[data-wr]").forEach(el => { const v = rowW(rows[+el.dataset.wr]); el.textContent = v > 0 ? fmt(v, 2) + " kg" : "—"; });
     const by = {};

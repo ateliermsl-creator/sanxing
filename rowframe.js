@@ -27,7 +27,7 @@ function rfLoad() {
   if (!["none", "direct"].includes(d.eq)) d.eq = "none";
   return d;
 }
-const rfSave = st => ls.set("calcRowForm", JSON.stringify(st));
+const rfSave = st => { ls.set("calcRowForm", JSON.stringify(st)); svKept(); };
 
 function rfCalc(st) {
   const F = colF, levels = Math.round(F(st.levels)), fw = F(st.frame.w), fh = F(st.frame.h), span = F(st.span);

@@ -61,13 +61,11 @@ async function renderSafetyForm(id) {
   if (!r) { goReplace("#/safety"); return; }
   const cfg = await saCfg(), all = (await DB.all("safety")).filter(x => x.siteId === r.siteId && x.id !== id).sort((a, b) => b.created - a.created);
   const known = k => [...new Set([...all.flatMap(x => x.people.map(p => p[k])), ...r.people.map(p => p[k])].filter(Boolean))].slice(0, 200);
-  let photos = await photosOf(id), timer;
-  const mark = t => { const el = $("#saSaved"); if (el) el.textContent = t; };
-  const flush = async () => { clearTimeout(timer); r.updated = Date.now(); await DB.put("safety", r); ls.set("saHost", r.host); mark(`✓ 已暫存 ${saNow()}`); };
-  const save = () => { clearTimeout(timer); mark("儲存中…"); timer = setTimeout(flush, 300); };
+  let photos = await photosOf(id);
+  const sv = svAuto(async () => { r.updated = Date.now(); await DB.put("safety", r); ls.set("saHost", r.host); }), save = sv.save, flush = sv.flush;
   const f = (k, lab, ph, type = "text") => `<div class="field"><label>${lab}</label><input data-f="${k}" type="${type}" placeholder="${ph}" value="${esc(r[k])}"></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">勤前教育／危害告知</h2><div id="saSaved" class="saved">✓ 內容會自動暫存</div>
+    <h2 class="t" style="margin-bottom:0">勤前教育／危害告知</h2><div id="saSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
     <div class="panel"><div class="grid2">${f("date", "日期", "", "date")}${f("time", "時間", "", "time")}</div>
       ${f("place", "地點／作業區域", "例：3F 樓板、地下室開挖區")}${f("host", "主持人（工地負責人）", "姓名")}${f("content", "今日工作內容", "例：3F 柱鋼筋綁紮、模板組立")}</div>
     <div class="panel"><b>今日高風險作業</b> <small style="color:var(--mut)">有就勾，會自動勾下方相關的危害告知（工具預設，非法規原文，可自行增減）</small>
@@ -83,6 +81,7 @@ async function renderSafetyForm(id) {
     <datalist id="saNames">${known("name").map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="saCos">${known("co").map(x => `<option value="${esc(x)}">`).join("")}</datalist>
     <div class="panel"><b>主持人簽名</b><div class="field" style="margin-top:8px"><label>主持人姓名（與上方同步）</label><input id="saHostName" placeholder="姓名" value="${esc(r.host)}"></div><button type="button" class="sasig" id="saHostSig"></button></div>
     ${attBlock("附加檔案（危害告知單、教育訓練資料等）")}
+    ${svDoneRow()}
     <div class="row"><button class="sec" id="saPrint">👁 預覽／列印（A4）</button></div>
     <div class="row"><button class="danger" id="saDel">刪除這筆紀錄</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = () => { r[el.dataset.f] = el.value; save(); });
@@ -160,6 +159,7 @@ async function renderSafetyForm(id) {
   const hb = $("#saHostSig"); sigBtn(hb, r.hostSig);
   hb.onclick = () => askSign(r.host ? `主持人 ${r.host}` : "主持人", r.hostSig, sig => { r.hostSig = sig; sigBtn(hb, sig); save(); });
   attBind(view, id);
+  svBindDone(sv, "#/safety");
   $("#saPrint").onclick = async () => { await flush(); location.hash = `#/safety/${id}/print`; };
   $("#saDel").onclick = async () => {
     if (!confirm("確定刪除這筆勤前教育紀錄？含合照、簽名與附加檔案，無法復原。")) return;
@@ -262,8 +262,8 @@ async function renderSafetySet() {
     <div class="panel"><b>危害告知項目</b><textarea id="ssHaz" rows="10" style="width:100%;margin-top:6px">${esc(cfg.hazards.join("\n"))}</textarea></div>
     <div class="panel"><b>簽到聲明文字</b><textarea id="ssSt" rows="3" style="width:100%;margin-top:6px">${esc(cfg.statement)}</textarea></div>
     <div class="row"><button class="sec" id="ssReset">還原為預設</button></div>`;
-  let t; const lines = v => v.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 40).map(x => x.slice(0, 60));
-  const save = () => { clearTimeout(t); t = setTimeout(() => DB.put("matcats", { id: "__safety", risks: lines($("#ssRisks").value), hazards: lines($("#ssHaz").value), statement: $("#ssSt").value.trim().slice(0, 300), updated: Date.now() }), 400); };
+  const lines = v => v.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 40).map(x => x.slice(0, 60));
+  const sv = svAuto(() => DB.put("matcats", { id: "__safety", risks: lines($("#ssRisks").value), hazards: lines($("#ssHaz").value), statement: $("#ssSt").value.trim().slice(0, 300), updated: Date.now() }), 400), save = sv.save;
   ["#ssRisks", "#ssHaz", "#ssSt"].forEach(s => $(s).oninput = save);
   $("#ssReset").onclick = async () => { if (!confirm("還原成內建的預設項目與聲明？")) return; await DB.del("matcats", "__safety"); renderSafetySet(); };
 }

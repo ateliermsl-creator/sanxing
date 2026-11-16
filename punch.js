@@ -158,17 +158,15 @@ async function renderPunchForm(id) {
   if (!it) { goReplace("#/punch"); return; }
   it.log = it.log || [];
   const site = sites.find(s => s.id === it.siteId);
-  let photos = await pPhotosOf(it.id), timer;
-  const mark = t => { const el = $("#pSaved"); if (el) el.textContent = t; };
-  const flush = async () => { clearTimeout(timer); it.updated = Date.now(); await DB.put("punch", it); mark(`✓ 已暫存 ${new Date().toTimeString().slice(0, 5)}`); };
-  const save = () => { clearTimeout(timer); mark("儲存中…"); timer = setTimeout(flush, 300); };
+  let photos = await pPhotosOf(it.id);
+  const sv = svAuto(async () => { it.updated = Date.now(); await DB.put("punch", it); }), save = sv.save, flush = sv.flush;
   const trades = await pTrades(), locs = [...new Set((await DB.all("punch")).filter(x => x.siteId === it.siteId).map(x => x.location).filter(Boolean))];
   const photoBlock = (slot, label) => `<div class="panel"><b>${label}</b><div class="phrow"><button type="button" class="phbtn" data-pcam="${slot}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-pfile="${slot}"></label><div class="thumbs" data-pth="${slot}"></div></div></div>`;
   const badge = `<span class="st st-${it.status === "closed" ? "已完成" : it.status === "fixed" ? "填寫中" : "未填"}" style="${it.status === "open" ? "color:var(--bad)" : ""};font-size:15px">${PUNCH_STATUS[it.status]}</span>`;
   const hasAfter = photos.some(p => p.itemIdx === 1), open = it.status === "open";
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">缺失 <small style="color:var(--mut);font-weight:400">${esc(it.no)}</small> ${badge}</h2>
-    <div id="pSaved" class="saved">✓ 內容會自動暫存，不需要另外按儲存</div>
+    <div id="pSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
     ${pOver(it) ? `<div class="legend" style="color:var(--bad)">⚠ 已逾期 ${pLate(it)} 天（期限 ${pRoc(it.due)}）</div>` : ""}
     <div class="panel">
       <div class="field"><label>位置（樓層／區域／軸線）</label><input data-f="location" list="pLocs" placeholder="例：3F A~C 軸 北側牆" value="${esc(it.location)}"><datalist id="pLocs">${locs.map(l => `<option value="${esc(l)}">`).join("")}</datalist></div>
@@ -179,7 +177,7 @@ async function renderPunchForm(id) {
       <div class="field" style="margin-bottom:6px"><label>改善期限</label><input type="date" data-f="due" value="${esc(it.due)}"></div>
       <div class="chips" style="margin:0"><button class="chip" data-d="3">+3 天</button><button class="chip" data-d="7">+7 天</button><button class="chip" data-d="14">+14 天</button></div>
       <details style="margin-top:8px"><summary>登記日期與登記人</summary><div class="grid2" style="margin-top:6px"><div class="field" style="margin:0"><label>登記日期</label><input type="date" data-f="foundDate" value="${esc(it.foundDate)}"></div><div class="field" style="margin:0"><label>登記人</label><input data-f="foundBy" value="${esc(it.foundBy)}"></div></div></details></div>
-    <div class="row"><button id="pDone">${open ? "✔ 完成登記" : "← 回列表"}</button></div>
+    <div class="row"><button id="pDone">💾 ${open ? "儲存登記並返回" : "儲存並返回"}</button></div>
     <div class="row"><button class="sec" id="pNext">＋ 再新增一筆（沿用位置、工班、期限）</button></div>
     ${open ? `<details class="pfix" ${it.fixedNote || hasAfter ? "open" : ""}><summary>🔧 改善回報（工班改善後再填）</summary>
       <div class="panel"><div class="field" style="margin:0"><label>改善說明（可空白）</label><input data-f="fixedNote" placeholder="例：已打磨修補" value="${esc(it.fixedNote)}"></div></div>${photoBlock(1, "改善後照片")}
@@ -225,7 +223,7 @@ async function renderPunchForm(id) {
     it.status = "open"; it.rejects = (it.rejects || 0) + 1; it.fixedAt = ""; logAdd("複驗不合格・退回" + (why.trim() ? "：" + why.trim() : "")); await flush(); renderPunchForm(id);
   });
   $("#pReopen")?.addEventListener("click", async () => { if (!confirm("重新開啟這筆缺失？")) return; it.status = "open"; it.closedAt = ""; it.closedBy = ""; logAdd("重新開啟"); await flush(); renderPunchForm(id); });
-  $("#pDone").onclick = async () => { await flush(); goBack("#/punch"); };
+  svBindDone(sv, "#/punch", "pDone");
   $("#pNext").onclick = async () => { await flush(); const n = pNew({ no: await pNextNo(), location: it.location, seedLoc: it.location, trade: it.trade, due: it.due, foundDate: it.foundDate, foundBy: it.foundBy }); await DB.put("punch", n); goReplace("#/punch/" + n.id); };
   $("#pDel").onclick = async () => { if (!confirm("確定刪除這筆缺失？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("punch", id); goBack("#/punch"); };
 }

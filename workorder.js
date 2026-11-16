@@ -74,9 +74,7 @@ async function renderWorkorderForm(id) {
   const locked = rec.status === "signed";
   const dis = locked ? "disabled" : "";
   const vendors = [...new Set((await DB.all("workorders")).map(o => o.vendor).filter(Boolean))];
-  let timer;
-  const flush = () => { clearTimeout(timer); rec.updated = Date.now(); return DB.put("workorders", rec); };
-  const save = () => { clearTimeout(timer); timer = setTimeout(flush, 300); };
+  const sv = svAuto(async () => { rec.updated = Date.now(); await DB.put("workorders", rec); }), save = sv.save, flush = sv.flush;
   const lineHtml = (l, i) => {
     const mac = l.kind === "機械", list = woList(l.kind), other = l.other || (l.name && !list.includes(l.name));
     return `<div class="panel wol" data-i="${i}">
@@ -95,6 +93,7 @@ async function renderWorkorderForm(id) {
   };
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">點工單／機械出工簽認</h2>
+    <div class="saved svnote">內容一改就自動儲存在這支手機</div>
     <div style="margin:0 12px;color:var(--mut);font-size:14px">${locked ? `<span style="color:var(--ok);font-weight:700">✔ 已簽認並鎖定</span>・${esc(woStamp(rec.signedAt))}` : "未簽認（可編輯）"}</div>
     <datalist id="woVendors">${vendors.map(v => `<option value="${esc(v)}">`).join("")}</datalist>
     <div class="panel">
@@ -114,6 +113,7 @@ async function renderWorkorderForm(id) {
     <div class="row">${locked ? `<button class="danger" id="woUnlock">🔓 解除鎖定</button>` : `<button id="woLock">✔ 完成簽認並鎖定</button>`}</div>
     <div class="row"><button class="sec" id="woPreview">👁 預覽／存成 PDF</button><button class="sec" id="woShare">📤 分享文字摘要</button></div>
     ${rec.log.length ? `<div class="panel"><small style="color:var(--mut)">異動紀錄<br>${rec.log.map(x => `${esc(woStamp(x.at))}　${esc(x.text)}`).join("<br>")}</small></div>` : ""}
+    ${svDoneRow()}
     <div class="row"><button class="danger" id="woDel">刪除這張點工單</button></div>`;
 
   const refresh = () => {
@@ -173,6 +173,7 @@ async function renderWorkorderForm(id) {
     };
   }
   attBind(view, rec.id, { readonly: locked });
+  svBindDone(sv, "#/workorder");
   $("#woPreview").onclick = async () => { await flush(); location.hash = "#/workorder/" + id + "/preview"; };
   $("#woShare").onclick = async () => {
     const text = woSummaryText(rec);

@@ -151,7 +151,8 @@ function tabVolume(box) {
     $("#vCurName").textContent = rec ? rec.name : (st.cfg.title.trim() || "新計算");
     const c = $("#vCurSt"); c.textContent = rec ? `已存檔・${volStamp(rec.updated)}` : volHasData(st) ? "尚未存檔" : ""; c.classList.toggle("bad", !rec && volHasData(st));
   };
-  const status = () => { head(); mark(!siteId ? "要存檔請先建立或選擇工地（右上角＋）。目前的輸入仍會暫存在這支手機。"
+  const tip = () => { if (!live()) return; if (rec) svShow("saved", `✓ 已存檔 ${volStamp(rec.updated)}`); else if (volHasData(st)) svShow("unsaved", siteId ? "尚未存檔・按最下方「存檔」" : "輸入已保留在這支手機・尚未存檔"); else svHide(); };
+  const status = () => { head(); tip(); mark(!siteId ? "要存檔請先建立或選擇工地（右上角＋）。目前的輸入仍會暫存在這支手機。"
     : rec ? `✓ 已存檔 ${volStamp(rec.updated)}，之後的修改會自動更新這筆紀錄` : volHasData(st) ? "尚未存檔：填紀錄名稱後按「存檔」，之後可從頁首「方數紀錄」開啟" : ""); };
   const list = async () => {
     const all = siteId ? (await DB.all("vols")).filter(x => x.siteId === siteId).sort((a, b) => (b.updated || 0) - (a.updated || 0)) : [];
@@ -168,7 +169,7 @@ function tabVolume(box) {
     clearTimeout(timer); timer = 0;
     rec = volRec(st, rec); await DB.put("vols", rec); status(); list();
   };
-  function autoSave() { if (!rec) { status(); return; } mark("存檔中…"); clearTimeout(timer); timer = setTimeout(doSave, 400); }
+  function autoSave() { if (!rec) { status(); return; } mark("存檔中…"); if (live()) svShow("saving"); clearTimeout(timer); timer = setTimeout(doSave, 400); }
   $("#vTitle").oninput = e => { st.cfg.title = e.target.value; volSave(st); if (rec && st.cfg.title.trim()) autoSave(); else head(); };
   $("#vTitle").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("#vSave").click(); } };
   $("#vOpen").onclick = () => { const l = $("#vList"), open = l.hidden; l.hidden = !open; $("#vOpen").setAttribute("aria-expanded", String(open)); $("#vOpen").classList.toggle("on", open); };

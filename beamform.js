@@ -41,7 +41,7 @@ function bfLoad() {
   if (!BF_LMODES.some(([k]) => k === d.lmode)) d.lmode = "net";
   return d;
 }
-const bfSave = st => ls.set("calcBeamForm", JSON.stringify(st));
+const bfSave = st => { ls.set("calcBeamForm", JSON.stringify(st)); svKept(); };
 
 /* ---------- 計算 ---------- */
 // 由距梁底的第一支距離與其後間距算出各支位置；不合理（≤ 0、超過梁頂）時回傳錯誤
