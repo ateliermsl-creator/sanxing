@@ -45,7 +45,7 @@ function attBlock(title = "附加檔案", top = "") {
 async function attBind(root, recId, opt = {}) {
   const box = root.querySelector("#attBox"); if (!box) return;
   const list = box.querySelector("#attList"), input = box.querySelector("#attInput");
-  if (opt.readonly) box.querySelector("label.phbtn").hidden = true;
+  if (opt.readonly) box.querySelector("label.phbtn").style.display = "none";   // 行內 display:inline-flex 會蓋過 hidden
   const draw = async () => {
     const fs = await attFilesOf(recId);
     list.innerHTML = fs.length ? fs.map(f => `<div class="att" data-id="${esc(f.id)}"><span class="aic">${attIcon(f)}</span><div class="ainf"><b>${esc(f.name)}</b><small>${attMB(f.size)}</small></div>

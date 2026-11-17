@@ -389,7 +389,8 @@ const SYM = { ok: "○", ng: "✕", na: "／" };
 const doneCount = r => Object.values(r.items || {}).filter(i => i.r).length;
 const ngCount = r => Object.values(r.items || {}).filter(i => i.r === "ng").length;
 const tplShort = t => t ? t.name.replace("施工自主檢查表", "").replace("自主檢查表", "") || t.name : "";
-const clStatus = (r, t) => t && doneCount(r) >= t.items.length ? "已完成" : "填寫中";
+const clStatus = (r, t) => r.locked || (t && doneCount(r) >= t.items.length) ? "已完成" : "填寫中";
+const clStamp = ms => { const d = new Date(ms), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
 const clNewRec = (templateId, from) => ({ id: uid(), siteId, templateId, docNo: "", contractor: from?.contractor ?? ls.get("contractor", ""), subcontractor: from?.subcontractor || "", date: today(), location: "", timing: {}, items: {}, sigs: {}, updated: Date.now() });
 // 按了新增卻什麼都沒填就離開的空白紀錄，回到列表時清掉（廠商、日期是自動帶入的，不算）
 let clDirty = null;   // 表單裡還沒寫進資料庫的那一份（剛輸入就按返回），清空白紀錄前先存
@@ -398,7 +399,7 @@ async function clPurgeBlank() {
   const recs = (await DB.all("records")).filter(r => r.siteId === siteId);
   const ph = new Set((await DB.all("photos")).map(p => p.recId)), fl = new Set((await DB.all("files")).map(f => f.recId));
   for (const r of recs) {
-    const blank = !String(r.location || "").trim() && !String(r.docNo || "").trim() && !String(r.subcontractor || "").trim()
+    const blank = !r.locked && !String(r.location || "").trim() && !String(r.docNo || "").trim() && !String(r.subcontractor || "").trim()
       && !Object.values(r.timing || {}).some(Boolean) && !Object.keys(r.sigs || {}).length
       && !Object.values(r.items || {}).some(i => i && (i.r || String(i.actual ?? i.note ?? "").trim())) && !ph.has(r.id) && !fl.has(r.id);
     if (blank) await DB.del("records", r.id);
@@ -434,7 +435,7 @@ async function renderChecklist() {
       <small style="color:var(--mut)">所在專案共 ${all.length} 筆，顯示 ${list.length} 筆</small></div>` : ""}
     ${list.length ? list.map(r => {
       const t = tOf(r), ng = ngCount(r), st = clStatus(r, t);
-      return `<a class="rec" href="#/checklist/${esc(r.id)}"><div class="ptop"><b>${esc(t ? tplShort(t) : r.templateId)}</b><span class="st st-${st}">${st}</span></div>
+      return `<a class="rec" href="#/checklist/${esc(r.id)}"><div class="ptop"><b>${esc(t ? tplShort(t) : r.templateId)}</b><span class="st st-${st}">${r.locked ? "🔒 " : ""}${st}</span></div>
         <small><span class="tag">${esc(t?.cat || "其他")}</span>${esc(r.date)}・${r.location ? esc(r.location) : "未填位置"}${r.docNo ? "・編號 " + esc(r.docNo) : ""}</small><br>
         <small>已標記 ${doneCount(r)}/${t?.items.length ?? "?"} 項${pc[r.id] ? `・📷${pc[r.id]}` : ""}${ng ? `・<span style="color:var(--bad)">有缺失 ${ng} 項</span>` : ""}</small></a>`;
     }).join("")
@@ -499,35 +500,42 @@ async function loadRec(id) {
 async function renderForm(id) {
   const [rec, tpl] = await loadRec(id);
   if (!rec) return;
-  let timer;
   let photos = await photosOf(rec.id);
-  const save = () => { clDirty = rec; clearTimeout(timer); timer = setTimeout(flush, 300); };
-  const flush = () => { clearTimeout(timer); if (clDirty === rec) clDirty = null; rec.updated = Date.now(); return DB.put("records", rec); };
+  const locked = !!rec.locked, dis = locked ? "disabled" : "", reo = Array.isArray(rec.reopened) ? rec.reopened : [];   // 填寫完畢鎖定：欄位、勾選、照片、簽名都不能改，要先解除鎖定
+  const sv = svAuto(() => { if (clDirty === rec) clDirty = null; rec.updated = Date.now(); return DB.put("records", rec); });
+  const save = () => { if (locked) return; clDirty = rec; sv.save(); };
+  const flush = () => sv.flush();
   const prog = () => `已標記 ${doneCount(rec)}/${tpl.items.length} 項`;
-  const inp = (k, lab, ph) => `<div class="field"><label>${lab}</label><input data-f="${k}" value="${esc(rec[k])}" placeholder="${ph || ""}"></div>`;
+  const inp = (k, lab, ph) => `<div class="field"><label>${lab}</label><input data-f="${k}" value="${esc(rec[k])}" placeholder="${ph || ""}" ${dis}></div>`;
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">${esc(tpl.name)}</h2>
     <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#7a5418;font-weight:700">${prog()}</span></div>
+    ${locked ? `<div class="cllock">✔ 已完成檢查・${esc(clStamp(rec.locked))}<small>內容只能查看、預覽與列印；要改請按最下方「✎ 修改」。${reo.length ? `<br>完成後曾修改：${reo.map(x => esc(clStamp(x))).join("、")}` : ""}</small></div>`
+      : reo.length ? `<div class="cllock reopen">✎ 修改中（這份曾完成過）<small>${esc(clStamp(reo[reo.length - 1]))} 開啟修改，改好請按最下方「✔ 完成檢查」。</small></div>` : ""}
     <div class="panel">
       ${inp("contractor", "承攬廠商", "廠商名稱")}${inp("subcontractor", "協力廠商", "協力廠商（如有）")}
       ${inp("location", "檢查位置", "例如：2F、B1 東側")}
-      <div class="field"><label>檢查日期</label><input type="date" data-f="date" value="${esc(rec.date)}"></div>
+      <div class="field"><label>檢查日期</label><input type="date" data-f="date" value="${esc(rec.date)}" ${dis}></div>
       ${inp("docNo", "編號", "表單編號（可空白）")}
-      <div class="field"><label>檢查時機</label><div class="timing">${TIMING.map(([k, l]) => `<label><input type="checkbox" data-t="${k}" ${rec.timing[k] ? "checked" : ""}> ${l}</label>`).join("")}</div></div>
+      <div class="field"><label>檢查時機</label><div class="timing">${TIMING.map(([k, l]) => `<label><input type="checkbox" data-t="${k}" ${rec.timing[k] ? "checked" : ""} ${dis}> ${l}</label>`).join("")}</div></div>
     </div>
     <div class="legend">結果標記：<b style="color:var(--ok)">○ 合格</b>　<b style="color:var(--bad)">✕ 不合格</b>　<b style="color:var(--mut)">／ 不適用</b></div>
     ${tpl.items.map((it, i) => {
       const v = rec.items[i] || {};
       return `<div class="item" data-i="${i}"><div class="top"><div><div class="t"><span class="n">${i + 1}.</span> ${esc(it.t)}${it.note ? ` <button type="button" class="tipbtn" data-tip="${i}" aria-label="解說" aria-expanded="false">ⓘ</button>` : ""}</div>${it.std ? `<div class="m">規定標準：${esc(it.std)}</div>` : ""}${it.note ? `<div class="tipbox" data-tipbox="${i}" hidden>💡 ${esc(it.note)}</div>` : ""}</div>
-        <div class="sym">${["ok", "ng", "na"].map(k => `<button class="${v.r === k ? "on" : ""}" data-r="${k}" aria-label="${k}">${SYM[k]}</button>`).join("")}</div></div>
-        <input class="note" placeholder="實際檢查情形（可空白）" value="${esc(v.actual ?? v.note)}">
-        <div class="phrow"><button type="button" class="phbtn" data-cam="${i}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-ph="${i}"></label><div class="thumbs" data-th="${i}"></div></div></div>`;
+        <div class="sym">${["ok", "ng", "na"].map(k => `<button class="${v.r === k ? "on" : ""}" data-r="${k}" aria-label="${k}" ${dis}>${SYM[k]}</button>`).join("")}</div></div>
+        <input class="note" placeholder="${locked ? "" : "實際檢查情形（可空白）"}" value="${esc(v.actual ?? v.note)}" ${dis}>
+        <div class="phrow">${locked ? "" : `<button type="button" class="phbtn" data-cam="${i}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-ph="${i}"></label>`}<div class="thumbs" data-th="${i}"></div></div></div>`;
     }).join("")}
     ${attBlock()}
     ${[["worker", "檢查人員簽名"], ["manager", "工地主任簽名"]].map(([k, l]) => `
-      <div class="sigbox"><div class="bar"><b>${l}</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div>`).join("")}
-    <div class="row"><button id="previewBtn">👁 預覽／列印</button></div>
+      <div class="sigbox"><div class="bar"><b>${l}</b>${locked ? "" : `<button class="sec" data-clear="${k}">清除</button>`}</div>${locked
+        ? (rec.sigs[k] ? `<img class="sigimg" src="${safeImg(rec.sigs[k])}" alt="${l}">` : `<div class="sigimg signo">未簽名</div>`)
+        : `<canvas data-sig="${k}"></canvas>`}</div>`).join("")}
+    ${locked ? "" : `<div class="row"><button class="sec" id="svDone">💾 儲存並返回</button><button id="lockBtn">✔ 完成檢查</button></div>`}
+    <div class="row"><button class="${locked ? "" : "sec"}" id="previewBtn">👁 預覽／列印</button></div>
     <div class="row"><button class="sec" id="againBtn">＋ 同一張表再填一份</button></div>
+    ${locked ? `<div class="row"><button class="sec" id="unlockBtn">✎ 修改這份紀錄</button></div>` : ""}
     <div class="row"><button class="danger" id="delBtn">刪除這份紀錄</button></div>`;
 
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => {
@@ -549,7 +557,7 @@ async function renderForm(id) {
   });
   const drawThumbs = i => {
     $(`[data-th="${i}"]`).innerHTML = photos.filter(p => p.itemIdx === i).map(p =>
-      `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-delph="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join("");
+      `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-delph="${esc(p.id)}" aria-label="刪除照片" ${locked ? "hidden" : ""}>✕</button></span>`).join("");
   };
   tpl.items.forEach((_, i) => drawThumbs(i));
   view.onclick = async e => {
@@ -564,7 +572,7 @@ async function renderForm(id) {
       const cur = photos.find(x => x.id === id0), same = photos.filter(x => x.itemIdx === cur.itemIdx);
       openLightbox(same, same.indexOf(cur)); return;
     }
-    const id = e.target.dataset?.delph; if (!id) return;
+    const id = e.target.dataset?.delph; if (!id || locked) return;
     if (!confirm("刪除這張照片？")) return;
     const p = photos.find(x => x.id === id); await DB.del("photos", id);
     photos = photos.filter(x => x.id !== id); drawThumbs(p.itemIdx);
@@ -584,7 +592,20 @@ async function renderForm(id) {
       async files => { for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請重新拍攝"); } } });
   });
   view.querySelectorAll("canvas").forEach(c => setupSig(c, rec, save));
-  attBind(view, rec.id);
+  attBind(view, rec.id, { readonly: locked });
+  svBindDone(sv, "#/checklist");
+  $("#lockBtn")?.addEventListener("click", async () => {
+    const left = tpl.items.length - doneCount(rec), noSig = [["worker", "檢查人員"], ["manager", "工地主任"]].filter(([k]) => !rec.sigs[k]).map(([, l]) => l);
+    const warn = [left > 0 ? `還有 ${left} 項沒有標記結果` : "", noSig.length ? `${noSig.join("、")}尚未簽名` : ""].filter(Boolean);
+    if (!confirm(`${warn.length ? "⚠ " + warn.join("；") + "。\n\n" : ""}確定完成檢查？\n完成後內容只能查看與列印，要改時可以按「修改」。`)) return;
+    rec.locked = Date.now(); clDirty = rec;
+    try { await flush(); } catch { delete rec.locked; alert("儲存失敗，可能是手機儲存空間不足，還沒有完成。"); return; }
+    renderForm(id);
+  });
+  $("#unlockBtn")?.addEventListener("click", async () => {
+    if (!confirm("這份已完成檢查。要修改內容嗎？\n簽名會保留，並記下修改時間；改好請再按一次「完成檢查」。")) return;
+    delete rec.locked; rec.reopened = [...reo, Date.now()].slice(-20); clDirty = rec; await flush(); renderForm(id);
+  });
   view.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => {
     const c = $(`canvas[data-sig=${b.dataset.clear}]`);
     c.getContext("2d").clearRect(0, 0, c.width, c.height);
@@ -597,6 +618,7 @@ async function renderForm(id) {
     await DB.put("records", nr); goReplace("#/checklist/" + nr.id);
   };
   $("#delBtn").onclick = async () => {
+    if (locked) { alert("已完成的紀錄不能直接刪除，請先按「修改」。"); return; }
     if (!confirm("確定刪除這份紀錄？")) return;
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(rec.id); await DB.del("records", rec.id); goBack("#/checklist");

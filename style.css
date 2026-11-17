@@ -509,3 +509,12 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 body.svon #view{padding-bottom:44px}
 body:has(#calcBar:not([hidden])) #saveTip{bottom:calc(env(safe-area-inset-bottom) + 72px)}
 @media print{#saveTip{display:none!important}}
+/* 自主檢查表：填寫完畢鎖定（只看不改；已選的結果維持原色，其他變淡） */
+.cllock{margin:8px 12px 0;padding:8px 12px;border:1px solid var(--line);border-left:3px solid var(--g);border-radius:10px;background:var(--card);font-size:14px;color:var(--g);font-weight:700}
+.cllock small{display:block;font-weight:400;color:var(--mut);margin-top:2px}
+.sym button:disabled{opacity:.35;cursor:default}.sym button.on:disabled{opacity:1}
+#view .field input:disabled,#view .item .note:disabled{background:transparent;color:var(--tx);-webkit-text-fill-color:currentColor;opacity:1;border-style:dashed}
+.timing input:disabled{opacity:.7}
+.sigbox .sigimg{display:block;width:100%;height:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:12px}
+.sigbox .signo{display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:14px}
+.cllock.reopen{color:#7a5418;border-left-color:#a8782e}
