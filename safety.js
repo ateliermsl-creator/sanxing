@@ -49,7 +49,7 @@ async function renderSafetyList() {
   view.innerHTML = `
     <h2 class="t">職安衛勤前教育／危害告知</h2>
     <div class="row" style="margin-top:0"><button id="saAdd">＋ 新增今日勤前教育</button><a class="btnlink sm" href="#/safety/set" aria-label="設定">⚙</a></div>
-    ${all.length ? all.map(x => `<a class="rec" href="#/safety/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(pRoc(x.date))} ${esc(x.time)}</b><span style="color:var(--mut)">簽到 ${saSigned(x)}／${saListed(x)} 人</span></div>
+    ${all.length ? all.map(x => `<a class="rec" href="#/safety/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(pRoc(x.date))} ${esc(x.time)}</b><span style="color:var(--mut)">${x.locked ? "🔒 " : ""}簽到 ${saSigned(x)}／${saListed(x)} 人</span></div>
       <small>${x.risks.length ? "⚠️ " + esc(x.risks.join("、")) : "未勾高風險作業"}${x.place ? "・" + esc(x.place) : ""}</small></a>`).join("")
       : `<div class="panel">還沒有紀錄。每天早上工具箱會議按「新增今日勤前教育」：拍合照、勾今日高風險作業與危害告知、傳閱手機簽名。</div>`}`;
   $("#saAdd").onclick = async () => { location.hash = "#/safety/" + await saNew(); };
@@ -62,10 +62,10 @@ async function renderSafetyForm(id) {
   const cfg = await saCfg(), all = (await DB.all("safety")).filter(x => x.siteId === r.siteId && x.id !== id).sort((a, b) => b.created - a.created);
   const known = k => [...new Set([...all.flatMap(x => x.people.map(p => p[k])), ...r.people.map(p => p[k])].filter(Boolean))].slice(0, 200);
   let photos = await photosOf(id);
-  const sv = svAuto(async () => { r.updated = Date.now(); await DB.put("safety", r); ls.set("saHost", r.host); }), save = sv.save, flush = sv.flush;
+  const sv = dnSv(r, svAuto(async () => { r.updated = Date.now(); await DB.put("safety", r); ls.set("saHost", r.host); })), save = sv.save, flush = sv.flush;
   const f = (k, lab, ph, type = "text") => `<div class="field"><label>${lab}</label><input data-f="${k}" type="${type}" placeholder="${ph}" value="${esc(r[k])}"></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">勤前教育／危害告知</h2><div id="saSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
+    <h2 class="t" style="margin-bottom:0">勤前教育／危害告知</h2><div id="saSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>${dnBanner(r)}
     <div class="panel"><div class="grid2">${f("date", "日期", "", "date")}${f("time", "時間", "", "time")}</div>
       ${f("place", "地點／作業區域", "例：3F 樓板、地下室開挖區")}${f("host", "主持人（工地負責人）", "姓名")}${f("content", "今日工作內容", "例：3F 柱鋼筋綁紮、模板組立")}</div>
     <div class="panel"><b>今日高風險作業</b> <small style="color:var(--mut)">有就勾，會自動勾下方相關的危害告知（工具預設，非法規原文，可自行增減）</small>
@@ -81,7 +81,7 @@ async function renderSafetyForm(id) {
     <datalist id="saNames">${known("name").map(x => `<option value="${esc(x)}">`).join("")}</datalist><datalist id="saCos">${known("co").map(x => `<option value="${esc(x)}">`).join("")}</datalist>
     <div class="panel"><b>主持人簽名</b><div class="field" style="margin-top:8px"><label>主持人姓名（與上方同步）</label><input id="saHostName" placeholder="姓名" value="${esc(r.host)}"></div><button type="button" class="sasig" id="saHostSig"></button></div>
     ${attBlock("附加檔案（危害告知單、教育訓練資料等）")}
-    ${svDoneRow()}
+    ${dnRow(r, "svDone", "✔ 完成簽到")}
     <div class="row"><button class="sec" id="saPrint">👁 預覽／列印（A4）</button></div>
     <div class="row"><button class="danger" id="saDel">刪除這筆紀錄</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = () => { r[el.dataset.f] = el.value; save(); });
@@ -166,6 +166,7 @@ async function renderSafetyForm(id) {
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(id); await DB.del("safety", id); goBack("#/safety");
   };
+  dnBind(r, sv, { label: "完成簽到", del: "#saDel", keep: "#saPrint", rerender: () => renderSafetyForm(id), check: () => [!r.hostSig && "主持人尚未簽名"] });
 }
 
 /* ---------- 大簽名框 ----------

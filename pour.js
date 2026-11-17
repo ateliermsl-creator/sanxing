@@ -63,7 +63,7 @@ async function renderPourList() {
     <h2 class="t">混凝土澆置抽驗</h2>
     <div class="row" style="margin-top:0"><button id="pjAdd">＋ 新增澆置</button><a class="btnlink" href="#/pour/summary">📊 統計總表</a></div>
     ${all.length ? `<div class="panel"><div class="kpis">${[["澆置次數", tot.batches], ["車數", tot.trucks], ["總方量 m³", pourVol(tot.vol)], ["合格率", pourRate(tot)]].map(([l, v]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("")}</div></div>` : ""}
-    ${all.length ? all.map(x => { const s = pourStats([x]); return `<a class="rec" href="#/pour/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(pourTitle(x))}</b><span style="color:var(--mut)">${esc(pRoc(x.date))}</span></div>
+    ${all.length ? all.map(x => { const s = pourStats([x]); return `<a class="rec" href="#/pour/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(pourTitle(x))}</b><span style="color:var(--mut)">${x.locked ? "🔒 " : ""}${esc(pRoc(x.date))}</span></div>
       <small>${esc(x.supplier || "（未填預拌廠）")}${x.fc ? "・fc' " + esc(x.fc) : ""}<br>${s.trucks} 車・${pourVol(s.vol)} m³${s.rej ? `（退料 ${pourVol(s.rej)}）` : ""}・合格率 ${pourRate(s)}${s.ng ? `・<span style="color:var(--bad)">不合格 ${s.ng} 車</span>` : ""}</small></a>`; }).join("")
       : `<div class="panel" style="color:var(--mut)">還沒有澆置紀錄。預拌混凝土車進場時，按「新增澆置」，一車一筆記錄車號、時間、坍度、氯離子與試體編號，並請試驗人員與司機簽名。</div>`}`;
   $("#pjAdd").onclick = async () => { location.hash = "#/pour/" + await pourNew(); };
@@ -74,14 +74,14 @@ async function renderPourBatch(id) {
   const bt = await DB.get("pours", id);
   if (!bt) { goReplace("#/pour"); return; }
   bt.trucks = bt.trucks || [];
-  const sv = svAuto(async () => { bt.updated = Date.now(); await DB.put("pours", bt); pourSaveSpec(bt); }), save = sv.save, flush = sv.flush;
+  const sv = dnSv(bt, svAuto(async () => { bt.updated = Date.now(); await DB.put("pours", bt); pourSaveSpec(bt); })), save = sv.save, flush = sv.flush;
   const all = (await DB.all("pours")).filter(x => x.siteId === bt.siteId);
   const floors = [...new Set(all.map(x => x.floor).filter(Boolean))].sort(pourFloorSort), sups = [...new Set(all.map(x => x.supplier).filter(Boolean))];
   const f = (k, lab, ph, extra = "") => `<div class="field"><label>${lab}</label><input data-f="${k}" ${extra} placeholder="${ph}" value="${esc(bt[k])}"></div>`;
   const noSpec = !(bt.slumpMin || bt.slumpMax || bt.clMax);   // 坍度、氯離子標準都還沒填 → 預設展開
   const stat = pourStats([bt]);
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">澆置抽驗紀錄</h2><div id="pjSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
+    <h2 class="t" style="margin-bottom:0">澆置抽驗紀錄</h2><div id="pjSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>${dnBanner(bt, "要改請按最下方「✎ 修改這份紀錄」（拆模追蹤仍可勾選）。")}
     <div class="panel"><div class="grid2"><div class="field"><label>日期</label><input type="date" data-f="date" value="${esc(bt.date)}"></div>
         <div class="field"><label>樓層</label><input data-f="floor" list="pjFloors" placeholder="例：3F、B1" value="${esc(bt.floor)}"><datalist id="pjFloors">${floors.map(x => `<option value="${esc(x)}">`).join("")}</datalist></div></div>
       ${f("part", "澆置部位", "例：柱牆、梁板、基礎")}
@@ -99,7 +99,7 @@ async function renderPourBatch(id) {
       <small>到場 ${esc(t.arrive || "—")}・${esc(t.volume || "—")} m³${t.slump ? "・坍度 " + esc(t.slump) : ""}${t.chloride ? "・Cl⁻ " + esc(t.chloride) : ""}${t.sampled ? "・試體 " + esc(t.specimen || "✓") : ""}${t.disp === "reject" ? `・<span style="color:var(--bad)">退料</span>` : ""}${t.sigs?.tester && t.sigs?.driver ? "・✔簽名" : ""}</small></a>`; }).join("")}
     <div class="row"><button id="pjTruck">＋ 新增一車</button></div>
     ${attBlock("檢附文件／照片", `<div class="phrow" style="margin-top:8px"><button type="button" class="phbtn" id="bjCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="bjFile"></label><div class="thumbs" id="bjTh"></div></div>`)}
-    ${svDoneRow()}
+    ${dnRow(bt, "svDone", "✔ 完成抽驗")}
     <div class="row"><button class="sec" id="pjPrint">👁 預覽／列印（A4 橫式）</button><button class="sec" id="pjShare">📤 分享摘要</button></div>
     <div class="row"><button class="danger" id="pjDel">刪除這次澆置（含全部車次）</button></div>`;
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => { bt[el.dataset.f] = el.value; save(); });
@@ -108,7 +108,7 @@ async function renderPourBatch(id) {
     const t = { id: uid(), plate: "", ticket: "", leave: "", arrive: pourNow(), volume: prev?.volume || "", slump: "", chloride: "", temp: "", sampled: false, specimen: "", disp: "use", note: "", names: { tester: ls.get("pourTester", ""), driver: "" }, sigs: {}, created: Date.now() };
     bt.trucks.push(t); await flush(); location.hash = `#/pour/${bt.id}/truck/${t.id}`;
   };
-  attBind(view, bt.id); cuFormsBind(view, bt, save);
+  attBind(view, bt.id); cuFormsBind(view, bt, bt.locked ? () => sv.flush() : save);   // 完成後拆模追蹤仍可勾選
   { // 從拆模天數設定回來：捲回拆模追蹤
     let back = null; try { back = sessionStorage.getItem("cuBackPour"); sessionStorage.removeItem("cuBackPour"); } catch { }
     if (back === bt.id) $("#cuForms")?.scrollIntoView({ block: "start" });
@@ -142,6 +142,8 @@ async function renderPourBatch(id) {
     const ph = await DB.all("photos"); for (const p of ph) if (p.recId === bt.id || bt.trucks.some(t => t.id === p.recId)) await DB.del("photos", p.id);
     await attPurge([id, ...bt.trucks.map(t => t.id)]); await DB.del("pours", id); goBack("#/pour");
   };
+  dnBind(bt, sv, { label: "完成抽驗", del: "#pjDel", keep: "#pjPrint, #pjShare, #cuForms *", rerender: () => renderPourBatch(id),
+    check: () => [!bt.trucks.length && "還沒有任何車次", bt.trucks.some(t => !t.sigs?.tester) && `有 ${bt.trucks.filter(t => !t.sigs?.tester).length} 車試驗人員尚未簽名`] });
 }
 
 /* ---------- 一車 ---------- */
@@ -151,11 +153,11 @@ async function renderPourTruck(id, tid) {
   t.names = t.names || {}; t.sigs = t.sigs || {};
   const site = sites.find(s => s.id === bt.siteId), idx = bt.trucks.indexOf(t) + 1;
   let photos = (await DB.all("photos")).filter(p => p.recId === t.id).sort((a, b) => a.created - b.created);
-  const sv = svAuto(async () => { bt.updated = Date.now(); await DB.put("pours", bt); }), save = sv.save, flush = sv.flush;
+  const sv = dnSv(bt, svAuto(async () => { bt.updated = Date.now(); await DB.put("pours", bt); })), save = sv.save, flush = sv.flush;
   const inp = (k, lab, ph, extra = "") => `<div class="field"><label>${lab}</label><input data-t="${k}" ${extra} placeholder="${ph}" value="${esc(t[k])}"></div>`;
   const timeInp = (k, lab) => `<div class="field"><label>${lab}</label><div style="display:flex;gap:6px"><input type="time" data-t="${k}" value="${esc(t[k])}" style="flex:1;min-width:0"><button type="button" class="sec" data-now="${k}" style="min-height:46px;padding:0 10px">現在</button></div></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">第 ${idx} 車　<small style="color:var(--mut);font-weight:400">${esc(pourTitle(bt))}</small></h2><div id="ptSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
+    <h2 class="t" style="margin-bottom:0">第 ${idx} 車　<small style="color:var(--mut);font-weight:400">${esc(pourTitle(bt))}</small></h2><div id="ptSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>${dnBanner(bt, "這次澆置已完成，要改請回澆置表按「✎ 修改這份紀錄」。")}
     <div class="panel"><div class="grid2">${inp("plate", "車號", "例：ABC-1234")}${inp("ticket", "送貨單號（可空白）", "")}</div>
       <div class="grid2">${timeInp("leave", "出廠時間")}${timeInp("arrive", "到場時間")}</div><div id="ptEl" class="cnote" style="margin:0"></div></div>
     <div class="panel"><b>檢測與方量</b><div class="grid2" style="margin-top:8px">${inp("volume", "方量（m³）", "例：6", 'inputmode="decimal"')}${inp("slump", "坍度（cm）", "", 'inputmode="decimal"')}${inp("chloride", "氯離子（kg/m³）", "", 'inputmode="decimal"')}${inp("temp", "混凝土溫度（℃，可空白）", "", 'inputmode="decimal"')}</div>
@@ -209,6 +211,7 @@ async function renderPourTruck(id, tid) {
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(tid); bt.trucks = bt.trucks.filter(x => x.id !== tid); await flush(); goBack("#/pour/" + id);
   };
+  dnBind(bt, sv, { del: "#ptDel", keep: "#ptDone" });   // 一車跟著整次澆置完成；完成／修改按鈕在澆置表
 }
 
 /* ---------- 預覽／列印（A4 橫式） ---------- */

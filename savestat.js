@@ -60,3 +60,60 @@ const svLeave = () => { if (svCur?.pending) svCur.flush().catch(() => {}); };
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") svLeave(); });
 window.addEventListener("pagehide", svLeave);
 window.addEventListener("beforeunload", e => { if (svCur?.pending) { svLeave(); e.preventDefault(); e.returnValue = ""; } });
+
+/* ---------- 完成／修改（全站共用） ----------
+   2026-11-17 使用者選定用語：「✔ 完成…」與「✎ 修改這份紀錄」（不叫鎖定／解除鎖定）。
+   完成：r.locked = 完成時間，整份唯讀（欄位、勾選、照片、附件、簽名都不能改，不能直接刪除），預覽／列印照常。
+   修改：確認後解除，時間記進 r.reopened，畫面顯示「完成後曾修改」（單據不印）。
+   用法：const sv = dnSv(r, svAuto(...))；頁首放 dnBanner(r)；底部放 dnRow(r, 儲存鈕 id)；最後 dnBind(r, sv, {label, del, rerender, check})。
+   自主檢查表（app.js renderForm）是最早的版本，用自己的寫法，資料欄位相同。 */
+const dnStamp = ms => { const d = new Date(ms), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
+const dnReo = r => Array.isArray(r.reopened) ? r.reopened : [];
+function dnSv(r, sv) { if (r.locked) sv.save = () => {}; return sv; }   // 已完成：畫面上的自動帶入等不寫回
+function dnBanner(r, hint = "要改請按最下方「✎ 修改這份紀錄」。") {
+  const reo = dnReo(r);
+  if (r.locked) return `<div class="cllock">✔ 已完成・${esc(dnStamp(r.locked))}<small>內容只能查看、預覽與列印；${esc(hint)}${reo.length ? `<br>完成後曾修改：${reo.map(x => esc(dnStamp(x))).join("、")}` : ""}</small></div>`;
+  return reo.length ? `<div class="cllock reopen">✎ 修改中（這份曾完成過）<small>${esc(dnStamp(reo[reo.length - 1]))} 開啟修改，改好請再按一次最下方的完成按鈕。</small></div>` : "";
+}
+function dnRow(r, doneId = "svDone", label = "✔ 完成") {
+  return r.locked ? `<div class="row"><button class="sec" id="dnEdit">✎ 修改這份紀錄</button></div>`
+    : `<div class="row"><button class="sec" id="${doneId}">💾 儲存並返回</button><button id="dnDone">${esc(label)}</button></div>`;
+}
+function dnBind(r, sv, o = {}) {
+  const root = document.getElementById("view");
+  root.classList.toggle("dnlock", !!r.locked);
+  if (r.locked) {
+    const keep = ["#dnEdit", o.del, o.keep, ".tipbtn", "[data-a=open]", "[data-a=share]", ".dn-keep *"].filter(Boolean).join(",");
+    root.querySelectorAll("input, select, textarea, button").forEach(el => {
+      if (el.matches(keep)) return;
+      el.disabled = true;
+      if (el.tagName === "BUTTON" && !el.matches(".sym button, .chip, .sasig")) el.style.display = "none";   // 新增、清除、✕ 這類按鈕直接藏起
+    });
+    root.querySelectorAll("label.phbtn, [data-dnhide]").forEach(el => { el.style.display = "none"; });
+    if (o.del) root.querySelector(o.del)?.setAttribute("data-dndel", "");
+  }
+  const done = document.getElementById("dnDone");
+  if (done) done.onclick = async () => {
+    const warn = (o.check ? o.check() : []).filter(Boolean), label = (o.label || "完成").replace(/^✔\s*/, "");
+    if (!confirm(`${warn.length ? "⚠ " + warn.join("；") + "。\n\n" : ""}確定${label}？\n完成後內容只能查看與列印，要改時可以按「修改」。`)) return;
+    r.locked = Date.now();
+    try { await sv.flush(); } catch { delete r.locked; alert("儲存失敗，可能是手機儲存空間不足，還沒有完成。"); return; }
+    o.rerender();
+  };
+  const edit = document.getElementById("dnEdit");
+  if (edit) edit.onclick = async () => {
+    if (!confirm("這份已完成。要修改內容嗎？\n簽名會保留，並記下修改時間；改好請再按一次「完成」。")) return;
+    delete r.locked; r.reopened = [...dnReo(r), Date.now()].slice(-20);
+    try { await sv.flush(); } catch { r.locked = Date.now(); alert("儲存失敗，可能是手機儲存空間不足。"); return; }
+    o.rerender();
+  };
+}
+// 已完成的紀錄按「刪除」：先攔下（捕獲階段，比各表單自己的刪除先執行）
+document.addEventListener("click", e => {
+  const b = e.target.closest?.("[data-dndel]");
+  if (!b || !document.getElementById("view")?.classList.contains("dnlock")) return;
+  e.preventDefault(); e.stopImmediatePropagation();
+  alert("已完成的紀錄不能直接刪除，請先按「✎ 修改這份紀錄」。");
+}, true);
+// 換頁時拿掉唯讀樣式（#view 是共用的容器）
+window.addEventListener("hashchange", () => document.getElementById("view")?.classList.remove("dnlock"));

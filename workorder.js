@@ -1,6 +1,6 @@
 "use strict";
 /* 點工單／零星機械出工簽認
-   流程：現場建立單據 → 填工種／機械與起訖時間 → 下包商代表簽名 → 完成簽認並鎖定 → 存成 PDF／分享文字
+   流程：現場建立單據 → 填工種／機械與起訖時間 → 下包商代表簽名 → 完成簽認（之後唯讀，可按「修改」）→ 存成 PDF／分享文字
    資料：IndexedDB「workorders」，每張單一筆（含兩個手寫簽名圖片） */
 
 const WO_HOURS_PER_DAY = 8;                         // 1 工日 = 8 工時（換算工日用）
@@ -94,7 +94,7 @@ async function renderWorkorderForm(id) {
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">點工單／機械出工簽認</h2>
     <div class="saved svnote">內容一改就自動儲存在這支手機</div>
-    <div style="margin:0 12px;color:var(--mut);font-size:14px">${locked ? `<span style="color:var(--ok);font-weight:700">✔ 已簽認並鎖定</span>・${esc(woStamp(rec.signedAt))}` : "未簽認（可編輯）"}</div>
+    <div style="margin:0 12px;color:var(--mut);font-size:14px">${locked ? `<span style="color:var(--ok);font-weight:700">✔ 已簽認</span>・${esc(woStamp(rec.signedAt))}` : "未簽認（可編輯）"}</div>
     <datalist id="woVendors">${vendors.map(v => `<option value="${esc(v)}">`).join("")}</datalist>
     <div class="panel">
       <div class="grid2"><div class="field"><label>日期</label><input type="date" data-f="date" value="${esc(rec.date)}" ${dis}></div><div class="field"><label>單號</label><input data-f="docNo" value="${esc(rec.docNo)}" ${dis}></div></div>
@@ -110,7 +110,7 @@ async function renderWorkorderForm(id) {
       <div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(rec.names[k])}" ${dis}></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l}簽名</b>${locked ? "" : `<button class="sec" data-clear="${k}">清除</button>`}</div>
       ${locked ? (rec.sigs[k] ? `<img src="${safeImg(rec.sigs[k])}" style="width:100%;height:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:12px">` : `<div class="panel" style="color:var(--mut)">未簽名</div>`) : `<canvas data-sig="${k}"></canvas>`}</div></div>`).join("")}
-    <div class="row">${locked ? `<button class="danger" id="woUnlock">🔓 解除鎖定</button>` : `<button id="woLock">✔ 完成簽認並鎖定</button>`}</div>
+    <div class="row">${locked ? `<button class="sec" id="woUnlock">✎ 修改這份紀錄</button>` : `<button id="woLock">✔ 完成簽認</button>`}</div>
     <div class="row"><button class="sec" id="woPreview">👁 預覽／存成 PDF</button><button class="sec" id="woShare">📤 分享文字摘要</button></div>
     ${rec.log.length ? `<div class="panel"><small style="color:var(--mut)">異動紀錄<br>${rec.log.map(x => `${esc(woStamp(x.at))}　${esc(x.text)}`).join("<br>")}</small></div>` : ""}
     ${svDoneRow()}
@@ -121,7 +121,7 @@ async function renderWorkorderForm(id) {
     const t = woTotals(rec), amt = woAmount(rec);
     $("#woTot").innerHTML = `<div class="big"><span>人力合計</span><b>${woH(t.man)} 工時（${fmt(t.days, 2)} 工日）</b></div><div class="big"><span>機械合計</span><b>${woH(t.mac)} 台時</b></div>
       ${amt ? `<div class="big"><span>金額合計（未稅）</span><b>${woMoney(amt)}</b></div>` : ""}
-      <p class="cnote">工時 = 結束 − 開始 − 休息，再乘以數量；1 工（1 台班）以 ${WO_HOURS_PER_DAY} 工時換算。<br>單價不在簽認範圍內，簽認鎖定後仍可補填（會留下異動紀錄）。</p>`;
+      <p class="cnote">工時 = 結束 − 開始 − 休息，再乘以數量；1 工（1 台班）以 ${WO_HOURS_PER_DAY} 工時換算。<br>單價不在簽認範圍內，簽認後仍可補填（會留下異動紀錄）。</p>`;
   };
   refresh();
   let priceLogged = false;
@@ -162,14 +162,14 @@ async function renderWorkorderForm(id) {
       if (!rec.names.vendor?.trim()) miss.push("廠商代表姓名");
       if (!rec.sigs.vendor) miss.push("廠商代表簽名");
       if (miss.length) { alert("還缺少：" + miss.join("、")); return; }
-      if (!confirm(`確定簽認並鎖定？\n廠商：${rec.vendor}\n人力 ${woH(t.man)} 工時／機械 ${woH(t.mac)} 台時\n鎖定後不能直接修改。`)) return;
-      rec.status = "signed"; rec.signedAt = new Date().toISOString(); rec.log.push({ at: rec.signedAt, text: "完成簽認並鎖定" });
+      if (!confirm(`確定完成簽認？\n廠商：${rec.vendor}\n人力 ${woH(t.man)} 工時／機械 ${woH(t.mac)} 台時\n簽認後內容只能查看與列印，要改時可以按「修改」。`)) return;
+      rec.status = "signed"; rec.signedAt = new Date().toISOString(); rec.log.push({ at: rec.signedAt, text: "完成簽認" });
       await flush(); renderWorkorderForm(id);
     };
   } else {
     $("#woUnlock").onclick = async () => {
-      if (!confirm("解除鎖定後可以修改，原簽名仍保留，且會留下異動紀錄。確定解除？")) return;
-      rec.status = "draft"; rec.log.push({ at: new Date().toISOString(), text: "解除鎖定" }); await flush(); renderWorkorderForm(id);
+      if (!confirm("這張已簽認。要修改內容嗎？\n原簽名仍保留，且會留下異動紀錄；改好請再按一次「完成簽認」。")) return;
+      rec.status = "draft"; rec.log.push({ at: new Date().toISOString(), text: "簽認後修改" }); await flush(); renderWorkorderForm(id);
     };
   }
   attBind(view, rec.id, { readonly: locked });
@@ -181,7 +181,7 @@ async function renderWorkorderForm(id) {
     try { await navigator.clipboard.writeText(text); alert("已複製摘要，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下摘要", text); }
   };
   $("#woDel").onclick = async () => {
-    if (locked) { alert("已簽認的單據不能直接刪除，請先解除鎖定。"); return; }
+    if (locked) { alert("已簽認的單據不能直接刪除，請先按「✎ 修改這份紀錄」。"); return; }
     if (!confirm("確定刪除這張點工單？")) return;
     await attPurge(id); await DB.del("workorders", id); goBack("#/workorder");
   };

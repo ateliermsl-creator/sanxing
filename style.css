@@ -518,3 +518,10 @@ body:has(#calcBar:not([hidden])) #saveTip{bottom:calc(env(safe-area-inset-bottom
 .sigbox .sigimg{display:block;width:100%;height:140px;object-fit:contain;background:#fff;border:1px solid var(--line);border-radius:12px}
 .sigbox .signo{display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:14px}
 .cllock.reopen{color:#7a5418;border-left-color:#a8782e}
+/* 完成／修改（savestat.js dnBind）：已完成的表單唯讀；已選的結果、簽名維持原樣，其他變淡 */
+#view.dnlock .th button,#view.dnlock [data-a=del],#view.dnlock label.phbtn{display:none!important}
+#view.dnlock .chip:disabled{opacity:.4}#view.dnlock .chip.on:disabled{opacity:1}
+#view.dnlock .sasig:disabled{opacity:1;cursor:default}
+#view.dnlock canvas{pointer-events:none}
+#view.dnlock input:disabled,#view.dnlock textarea:disabled,#view.dnlock select:disabled{background:transparent;color:var(--tx);-webkit-text-fill-color:currentColor;opacity:1;border-style:dashed}
+#view.dnlock input[type=checkbox]:disabled,#view.dnlock input[type=radio]:disabled{opacity:.7}
