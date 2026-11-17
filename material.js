@@ -90,7 +90,7 @@ async function renderMatList() {
   const seq = renderMatList.seq = (renderMatList.seq || 0) + 1;
   const cats = await matCats();
   // 清掉按了新增卻沒填任何內容的空白紀錄
-  for (const x of (await DB.all("matrecs")).filter(x => x.siteId === siteId && !x.name.trim() && !x.spec.trim() && !x.vendor.trim() && !x.qty && !(x.checks || []).some(c => c.r) && !x.sigs?.inspector)) {
+  for (const x of (await DB.all("matrecs")).filter(x => x.siteId === siteId && !x.name.trim() && !x.spec.trim() && !x.vendor.trim() && !x.qty && !(x.checks || []).some(c => c.r) && !x.sigs?.inspector && !x.locked)) {
     if (!(await DB.all("photos")).some(p => p.recId === x.id) && !(await attFilesOf(x.id)).length) await DB.del("matrecs", x.id);
   }
   const all = (await DB.all("matrecs")).filter(x => x.siteId === siteId).sort((p, q) => q.date.localeCompare(p.date) || (q.time || "").localeCompare(p.time || "") || q.created - p.created);
@@ -107,7 +107,7 @@ async function renderMatList() {
     <div class="panel" style="padding:10px 12px"><div class="grid2" style="gap:0 8px"><div class="field" style="margin:0"><input id="mQ" placeholder="搜尋品名／廠商／單號" value="${esc(matQuery)}"></div>
       <div class="field" style="margin:0"><select id="mS"><option value="">全部結果</option>${["ng", "reject", "pending", "ok", "na"].map(k => `<option value="${k}" ${matStFilter === k ? "selected" : ""}>${MAT_LABEL[k]}（${cnt(k)}）</option>`).join("")}</select></div></div>
       <small style="color:var(--mut)">共 ${list.length} 筆</small></div>
-    <div id="mList">${list.length ? list.map(x => `<a class="rec" href="#/material/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(matName(x))}</b>${matBadge(x)}</div>
+    <div id="mList">${list.length ? list.map(x => `<a class="rec" href="#/material/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(matName(x))}</b><span>${x.locked ? `<span class="st" title="已完成">🔒</span> ` : ""}${matBadge(x)}</span></div>
       <small>${esc(pRoc(x.date))} ${esc(x.time || "")}・${esc(x.catName)}・${esc(matQty(x))}${x.vendor ? "・" + esc(x.vendor) : ""}${x.ticket ? "・單號 " + esc(x.ticket) : ""}</small></a>`).join("")
       : `<div class="panel" style="color:var(--mut)">${all.length ? "這個條件下沒有紀錄" : "還沒有進場紀錄。材料進場時按「新增進場」，選材料類別，逐項檢查並請送貨人與驗收人員簽名。"}</div>`}</div>`;
   $("#mAdd").onclick = async () => { const r = await matNew({ catId: matCatFilter || undefined }); location.hash = "#/material/" + r.id; };
@@ -124,13 +124,13 @@ async function renderMatForm(id) {
   const site = sites.find(s => s.id === r.siteId), cats = await matCats(), all = (await DB.all("matrecs")).filter(x => x.siteId === r.siteId);
   const vendors = [...new Set(all.map(x => x.vendor).filter(Boolean))];
   let photos = (await DB.all("photos")).filter(p => p.recId === r.id).sort((a, b) => a.created - b.created);
-  const sv = svAuto(async () => { r.updated = Date.now(); await DB.put("matrecs", r); }), save = sv.save, flush = sv.flush;
+  const sv = dnSv(r, svAuto(async () => { r.updated = Date.now(); await DB.put("matrecs", r); })), save = sv.save, flush = sv.flush;
   const inp = (k, lab, ph, extra = "") => `<div class="field"><label>${lab}</label><input data-f="${k}" ${extra} placeholder="${ph}" value="${esc(r[k])}"></div>`;
   const chk = (c, i) => `<div class="item" data-i="${i}"><div class="top"><div class="t" style="font-weight:600">${i + 1}. ${esc(c.t)}${c.extra ? ` <small style="color:var(--mut)">（本次增加）</small>` : ""}</div>
       <div class="sym">${["ok", "ng", "na"].map(k => `<button class="${c.r === k ? "on" : ""}" data-r="${k}" aria-label="${k}">${SYM[k]}</button>`).join("")}</div></div>
       <input class="note" placeholder="備註（可空白）" value="${esc(c.note)}" style="${c.r === "ng" || c.note ? "" : "display:none"}"></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">材料進場驗收</h2><div id="mrSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
+    <h2 class="t" style="margin-bottom:0">材料進場驗收</h2><div id="mrSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>${dnBanner(r)}
     <div class="panel"><div class="grid2"><div class="field"><label>日期</label><input type="date" data-f="date" value="${esc(r.date)}"></div>
         <div class="field"><label>進場時間</label><div style="display:flex;gap:6px"><input type="time" data-f="time" value="${esc(r.time)}" style="flex:1;min-width:0"><button type="button" class="sec" id="mNow" style="min-height:46px;padding:0 10px">現在</button></div></div></div>
       <div class="field"><label>材料類別</label><select id="mCat">${cats.map(c => `<option value="${c.id}" ${c.id === r.catId ? "selected" : ""}>${esc(c.name)}</option>`).join("")}${cats.some(c => c.id === r.catId) ? "" : `<option value="${esc(r.catId)}" selected>${esc(r.catName)}（已刪除）</option>`}</select></div>
@@ -145,13 +145,13 @@ async function renderMatForm(id) {
     <h2 class="t" style="font-size:17px;margin-bottom:0">檢查項目</h2>
     <div class="legend" style="margin-top:6px">結果標記：<b style="color:var(--ok)">○ 合格</b>　<b style="color:var(--bad)">✕ 不合格</b>　<b style="color:var(--mut)">／ 不適用</b></div>
     <div id="mChecks">${r.checks.length ? r.checks.map(chk).join("") : `<div class="panel" style="color:var(--mut)">這個類別還沒有設定檢查項目。可到「類別與檢查項目設定」新增，或在下方增加本次要檢查的項目。</div>`}</div>
-    <div class="panel"><div style="display:flex;gap:8px"><input id="mExtra" placeholder="增加本次檢查項目（例：外箱破損）" style="flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px"><button id="mExtraBtn" class="sec" style="min-height:44px;padding:0 14px">＋</button></div></div>
+    <div class="panel" data-dnhide><div style="display:flex;gap:8px"><input id="mExtra" placeholder="增加本次檢查項目（例：外箱破損）" style="flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px"><button id="mExtraBtn" class="sec" style="min-height:44px;padding:0 14px">＋</button></div></div>
     <div class="panel"><div id="mResult"></div>
       <div class="field" style="margin:10px 0 0"><label>處置</label><select data-f="disp">${Object.entries(MAT_DISP).map(([k, l]) => `<option value="${k}" ${r.disp === k ? "selected" : ""}>${l}</option>`).join("")}</select></div>
       <div class="field" style="margin:10px 0 0"><label>備註</label><input data-f="note" placeholder="例：外箱破損 2 箱，已退貨" value="${esc(r.note)}"></div></div>
     ${[["deliver", "送貨人（可空白）"], ["inspector", "驗收人員"]].map(([k, l]) => `<div class="panel"><div class="field" style="margin-bottom:6px"><label>${l}姓名</label><input data-n="${k}" value="${esc(r.names[k])}"></div>
       <div class="sigbox" style="margin:0"><div class="bar"><b>${l.replace("（可空白）", "")}簽名</b><button class="sec" data-clear="${k}">清除</button></div><canvas data-sig="${k}"></canvas></div></div>`).join("")}
-    <div class="row"><button id="mDone">💾 儲存並返回</button></div>
+    ${dnRow(r, "mDone", "✔ 完成驗收")}
     <div class="row"><button class="sec" id="mPrint">👁 預覽／列印驗收單</button><button class="sec" id="mNext">＋ 再新增一筆</button></div>
     <div class="row"><button class="danger" id="mDel">刪除這筆進場紀錄</button></div>`;
 
@@ -201,6 +201,8 @@ async function renderMatForm(id) {
   $("#mPrint").onclick = async () => { await flush(); location.hash = "#/material/" + id + "/print"; };
   $("#mNext").onclick = async () => { await flush(); const n = await matNew({ catId: r.catId, vendor: r.vendor, date: r.date, location: r.location, names: { deliver: "", inspector: r.names.inspector || "" } }); goReplace("#/material/" + n.id); };
   $("#mDel").onclick = async () => { if (!confirm("確定刪除這筆進場紀錄？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("matrecs", id); goBack("#/material"); };
+  dnBind(r, sv, { label: "完成驗收", del: "#mDel", keep: "#mPrint, #mNext", rerender: () => renderMatForm(id),
+    check: () => [r.checks.some(c => !c.r) && `還有 ${r.checks.filter(c => !c.r).length} 項沒有檢查`, !r.sigs.inspector && "驗收人員尚未簽名"] });
 }
 
 /* ---------- 驗收單預覽／列印（A4） ---------- */

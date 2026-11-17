@@ -48,7 +48,7 @@ async function renderLogList() {
   view.innerHTML = `
     <h2 class="t">施工日誌</h2>
     <div class="row" style="margin-top:0"><button id="lgAdd">＋ 新增日誌</button></div>
-    ${all.length ? all.map(x => `<a class="rec" href="#/log/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(pRoc(x.date))}（星期${lgWeek(x.date)}）</b><span class="st ${x.sig ? "st-已完成" : "st-填寫中"}">${x.sig ? "✔ 已簽章" : "填寫中"}</span></div>
+    ${all.length ? all.map(x => `<a class="rec" href="#/log/${esc(x.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(pRoc(x.date))}（星期${lgWeek(x.date)}）</b><span class="st ${x.locked || x.sig ? "st-已完成" : "st-填寫中"}">${x.locked ? "🔒 已完成" : x.sig ? "✔ 已簽章" : "填寫中"}</span></div>
       <small>${esc([x.wxAm && "上午" + x.wxAm, x.wxPm && "下午" + x.wxPm].filter(Boolean).join("　"))}${x.actualPct ? `　實際進度 ${esc(x.actualPct)}%` : ""}</small></a>`).join("")
       : `<div class="panel">還沒有日誌。按「新增日誌」會自動帶入上一張的工程資料與累計，每天只要補今日內容。</div>`}`;
   $("#lgAdd").onclick = async () => { location.hash = "#/log/" + await lgNew(); };
@@ -59,13 +59,13 @@ async function renderLogForm(id) {
   const r = await DB.get("logs", id);
   if (!r) { goReplace("#/log"); return; }
   r.techRows = r.techRows || [];
-  const sv = svAuto(async () => { r.updated = Date.now(); await DB.put("logs", r); }), save = sv.save, flush = sv.flush;
+  const sv = dnSv(r, svAuto(async () => { r.updated = Date.now(); await DB.put("logs", r); })), save = sv.save, flush = sv.flush;
   const f = (k, lab, ph = "", type = "text", extra = "") => `<div class="field"><label>${lab}</label><input data-f="${k}" type="${type}" ${extra} placeholder="${ph}" value="${esc(r[k])}"></div>`;
   const wx = k => `<div class="field"><label>${k === "wxAm" ? "上午天氣" : "下午天氣"}</label><input data-f="${k}" list="lgWx" value="${esc(r[k])}" placeholder="例：晴"></div>`;
   const tri = (k, opts) => `<div class="timing" data-tri="${k}">${opts.map(([v, l]) => `<label><input type="radio" name="${k}" value="${v}" ${r[k] === v ? "checked" : ""}> ${l}</label>`).join("")}</div>`;
   const sec = (key, title, hint = "") => `<div class="panel"><b>${title}</b>${hint ? ` <small style="color:var(--mut)">${hint}</small>` : ""}<div id="lg_${key}"></div><div class="row"><button class="sec" data-add="${key}">＋ 增加一列</button>${key === "items" ? `<button class="sec" id="lgCarry">📋 重新帶入上次</button>` : ""}${key === "mats" ? `<button class="sec" id="lgMat">📥 帶入今日進場材料</button>` : ""}</div></div>`;
   view.innerHTML = `
-    <h2 class="t" style="margin-bottom:0">施工日誌</h2><div id="lgSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>
+    <h2 class="t" style="margin-bottom:0">施工日誌</h2><div id="lgSaved" class="saved svnote">內容一改就自動儲存在這支手機</div>${dnBanner(r)}
     <datalist id="lgWx">${LG_WX.map(x => `<option value="${x}">`).join("")}</datalist>
     <div class="panel"><div class="grid2">${f("date", "填表日期", "", "date")}${f("no", "表報編號")}</div><div id="lgWeek" class="cnote" style="margin:0"></div>
       <div class="grid2">${wx("wxAm")}${wx("wxPm")}</div></div>
@@ -96,7 +96,7 @@ async function renderLogForm(id) {
     <div class="panel"><div class="field"><label>工地主任姓名</label><input data-f="signer" value="${esc(r.signer)}"></div>
       <div style="display:flex;justify-content:space-between;align-items:center"><b>簽章：【工地主任】</b><button class="sec" id="lgClr" style="min-height:36px">清除</button></div><div class="sigbox"><canvas data-sig="boss"></canvas></div></div>
     ${attBlock("附加檔案")}
-    ${svDoneRow()}
+    ${dnRow(r, "svDone", "✔ 完成日誌")}
     <div class="row"><button class="sec" id="lgPrint">👁 預覽／列印（A4）</button></div>
     <div class="row"><button class="danger" id="lgDel">刪除這張日誌</button></div>`;
 
@@ -174,6 +174,7 @@ async function renderLogForm(id) {
   svBindDone(sv, "#/log");
   $("#lgPrint").onclick = async () => { await flush(); location.hash = `#/log/${id}/print`; };
   $("#lgDel").onclick = async () => { if (!confirm("確定刪除這張施工日誌？含附加檔案，無法復原。")) return; await attPurge(id); await DB.del("logs", id); goBack("#/log"); };
+  dnBind(r, sv, { label: "完成日誌", del: "#lgDel", keep: "#lgPrint", rerender: () => renderLogForm(id), check: () => [!r.sig && "工地主任尚未簽章"] });
 }
 
 /* ---------- 預覽／列印（B14-4 版面） ---------- */
