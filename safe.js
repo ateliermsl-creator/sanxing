@@ -36,7 +36,8 @@ const CLEAN = {
     id: x.id, siteId: x.siteId, templateId: cs(x.templateId, 64), docNo: cs(x.docNo, 100), contractor: cs(x.contractor, 200), subcontractor: cs(x.subcontractor, 200),
     date: cdate(x.date), location: cs(x.location, 200), timing: { before: cb(obj(x.timing).before), during: cb(obj(x.timing).during), after: cb(obj(x.timing).after) },
     items: Object.fromEntries(Object.entries(obj(x.items)).filter(([k]) => /^\d{1,3}$/.test(k)).map(([k, v]) => [k, { r: ce(obj(v).r, ["ok", "ng", "na", ""], ""), actual: cs(obj(v).actual), note: cs(obj(v).note) }])),
-    sigs: csigs(x.sigs, ["worker", "manager"]), updated: cn(x.updated) },
+    sigs: csigs(x.sigs, ["worker", "manager"]), updated: cn(x.updated), ...(cn(x.locked) > 0 ? { locked: cn(x.locked) } : {}),
+    ...(Array.isArray(x.reopened) && x.reopened.length ? { reopened: x.reopened.slice(-20).map(cn).filter(n => n > 0) } : {}) },
   templates: x => safeId(x.id) && x.custom === true && {
     id: x.id, custom: true, cat: cs(x.cat, 100), name: cs(x.name, 200), sub: cs(x.sub, 200),
     items: arr(x.items, 300).map(i => ({ t: cs(obj(i).t, 300), std: cs(obj(i).std, 300) })), created: cn(x.created), updated: cn(x.updated) },
