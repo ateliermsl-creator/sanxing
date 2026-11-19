@@ -13,4 +13,4 @@ not_found_handling = "none"
 [[d1_databases]]
 binding = "DB"
 database_name = "sanxing"
-database_id = "00000000-0000-0000-0000-000000000000"   # 建立資料庫後換成實際的 id
+database_id = "1c5cbf6e-0bc0-4c92-ab26-caab9b53c922"   # 建立資料庫後換成實際的 id
