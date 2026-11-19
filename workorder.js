@@ -199,7 +199,7 @@ function woSummaryText(rec) {
 async function renderWorkorderPreview(id) {
   const rec = await DB.get("workorders", id);
   if (!rec) { goReplace("#/workorder"); return; }
-  const site = sites.find(s => s.id === rec.siteId), company = ls.get("company", ""), t = woTotals(rec), signed = rec.status === "signed";
+  const site = sites.find(s => s.id === rec.siteId), company = siteCompany(rec.siteId), t = woTotals(rec), signed = rec.status === "signed";
   const showPrice = ls.get("woShowPrice", "") === "1", amt = woAmount(rec), cols = showPrice ? 10 : 8;
   const d = rec.date ? rec.date.replace(/^(\d+)-(\d+)-(\d+)$/, "$1 年 $2 月 $3 日") : "";
   view.innerHTML = `
@@ -250,7 +250,7 @@ async function renderWorkorderSummary() {
         ${unsigned ? `<div class="legend" style="margin:0">⚠ 這個月有 <b>${unsigned}</b> 張點工單尚未簽認，請先補簽再請款。</div>` : ""}</div>
       <div class="row"><button id="sPrint">🖨 列印／存成 PDF</button><button class="sec" id="sCsv">⬇ 下載 CSV</button></div></div>
     <div class="paper">
-      ${ls.get("company", "") ? `<div class="pcomp">${esc(ls.get("company", ""))}</div>` : ""}
+      ${siteCompany(siteId) ? `<div class="pcomp">${esc(siteCompany(siteId))}</div>` : ""}
       <div class="ptitle">點工單月結彙總（${esc(woMonth)}）</div>
       <div style="margin:2mm 0 4mm;font-size:13px">工程：${esc(site?.name)}${woVendor ? "　廠商：" + esc(woVendor) : ""}</div>
       ${list.length ? Object.entries(groups).map(([v, os]) => {

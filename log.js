@@ -26,7 +26,7 @@ async function lgNew() {
   const last = (await DB.all("logs")).filter(x => x.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.created - a.created)[0];
   const carry = k => (last?.[k] || []).map(r => lgRow({ ...r, id: uid(), prev: lgSum(r.prev, r.today), today: "" }));
   const r = {
-    id: uid(), siteId, no: "", date: shotLocalDate(new Date()), wxAm: "", wxPm: "", contractor: last?.contractor || ls.get("company", ""),
+    id: uid(), siteId, no: "", date: shotLocalDate(new Date()), wxAm: "", wxPm: "", contractor: last?.contractor || siteCompany(siteId),
     approved: last?.approved || "", extend: last?.extend || "", start: last?.start || "", finish: last?.finish || "", planPct: "", actualPct: "",
     items: carry("items"), specials: carry("specials"), mats: carry("mats"), labor: carry("labor"), machines: carry("machines"),
     tech: "", techItem: "", techNeed: "", techRows: [], pre: "", newLabor: "", ppe: "", other: "", sampling: "", notify: "", important: "", sig: "", signer: last?.signer || "",

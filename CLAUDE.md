@@ -6,7 +6,7 @@
 ## 技術概況
 - 純前端、無框架、無建置步驟。直接編輯檔案即可。第三方只有 `lib/html2canvas`、`lib/jspdf`（皆 MIT，授權檔在 `lib/`）。
 - 資料只存在使用者手機瀏覽器的 IndexedDB（庫名 `avocado-toolbox`，歷史原因沒改名，**不要改**，會讓既有資料消失）。目前版本 **12**，資料表：`sites records templates photos workorders punch pours matrecs matcats files shots safety logs vols`。
-- 沒有伺服器、沒有帳號。`localStorage` 只放個人偏好（公司名、上次選的工地等）。
+- 沒有伺服器、沒有帳號。`localStorage` 只放個人偏好（上次選的工地等）。**公司名稱（各表單抬頭）存在每個工地的 `sites.company`**，用 `siteCompany(siteId)` 取（2026-11-19 使用者反映切換專案後抬頭沒換）；`localStorage` 的 `company` 只當新增工地的預設值，舊工地第一次載入時由 `loadSites` 帶入。新單據抬頭一律用 `siteCompany(紀錄的 siteId)`。
 - 路由是 hash（`#/頁面/id/子頁`），在 `app.js` 的 `route()` 分派，各功能一支檔案：
 
 | 檔案 | 內容 |

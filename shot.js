@@ -221,7 +221,7 @@ async function renderShotAlbum() {
   const all = (await DB.all("shots")).filter(x => x.siteId === siteId), set = new Set(shotAlbumIds);
   const items = all.filter(x => set.has(x.id)).sort((p, q) => p.date.localeCompare(q.date) || p.created - q.created);
   if (!items.length) { goReplace("#/shot"); return; }
-  const company = ls.get("company", ""), d0 = items[0].date, d1 = items.at(-1).date, N = shotAlbumN, pages = [];
+  const company = siteCompany(siteId), d0 = items[0].date, d1 = items.at(-1).date, N = shotAlbumN, pages = [];
   for (let i = 0; i < items.length; i += N) pages.push(items.slice(i, i + N));
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>

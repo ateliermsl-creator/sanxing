@@ -223,7 +223,7 @@ let pourPrintPhoto = true;
 async function renderPourPrint(id) {
   const bt = await DB.get("pours", id);
   if (!bt) { goReplace("#/pour"); return; }
-  const site = sites.find(s => s.id === bt.siteId), company = ls.get("company", ""), s = pourStats([bt]);
+  const site = sites.find(s => s.id === bt.siteId), company = siteCompany(bt.siteId), s = pourStats([bt]);
   const photos = (await DB.all("photos")).filter(p => p.recId === bt.id || bt.trucks.some(t => t.id === p.recId)).sort((a, b) => a.created - b.created);
   const aimgs = await attImages([bt.id, ...bt.trucks.map(t => t.id)]), nImg = photos.length + aimgs.length;
   const std = [pourNum(bt.slumpMin) !== null || pourNum(bt.slumpMax) !== null ? `坍度 ${bt.slumpMin || "—"}～${bt.slumpMax || "—"} cm` : "", pourNum(bt.clMax) !== null ? `氯離子 ≤ ${bt.clMax} kg/m³` : "", pourNum(bt.limitMin) !== null ? `出廠→到場 ≤ ${bt.limitMin} 分` : ""].filter(Boolean).join("　");
@@ -252,7 +252,7 @@ async function renderPourPrint(id) {
 let pourFrom = "", pourTo = "";
 async function renderPourSummary() {
   if (!siteId) { goReplace("#/pour"); return; }
-  const site = sites.find(s => s.id === siteId), company = ls.get("company", "");
+  const site = sites.find(s => s.id === siteId), company = siteCompany(siteId);
   const all = (await DB.all("pours")).filter(x => x.siteId === siteId && (!pourFrom || x.date >= pourFrom) && (!pourTo || x.date <= pourTo)).sort((a, b) => a.date.localeCompare(b.date));
   const floors = [...new Set(all.map(x => x.floor || "（未填樓層）"))].sort((m, n) => m === "（未填樓層）" ? 1 : n === "（未填樓層）" ? -1 : pourFloorSort(m, n));
   const rows = floors.map(fl => ({ fl, r: pourStats(all.filter(x => (x.floor || "（未填樓層）") === fl)) })), tot = pourStats(all);

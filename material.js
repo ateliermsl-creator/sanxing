@@ -210,7 +210,7 @@ let matPrintPhoto = true;
 async function renderMatPrint(id) {
   const r = await DB.get("matrecs", id);
   if (!r) { goReplace("#/material"); return; }
-  const site = sites.find(s => s.id === r.siteId), company = ls.get("company", "");
+  const site = sites.find(s => s.id === r.siteId), company = siteCompany(r.siteId);
   const photos = (await DB.all("photos")).filter(p => p.recId === r.id).sort((a, b) => a.created - b.created);
   const aimgs = await attImages(r.id), nImg = photos.length + aimgs.length;
   const sig = k => `<div>${r.sigs?.[k] ? `<img src="${safeImg(r.sigs[k])}">` : "<br><br>"}${k === "deliver" ? "送貨人" : "驗收人員"}${r.names?.[k] ? "：" + esc(r.names[k]) : ""}</div>`;
@@ -276,7 +276,7 @@ async function renderMatCfg() {
 let matFrom = "", matTo = "", matGroup = "cat";
 async function renderMatSummary() {
   if (!siteId) { goReplace("#/material"); return; }
-  const site = sites.find(s => s.id === siteId), company = ls.get("company", "");
+  const site = sites.find(s => s.id === siteId), company = siteCompany(siteId);
   const all = (await DB.all("matrecs")).filter(x => x.siteId === siteId && (!matFrom || x.date >= matFrom) && (!matTo || x.date <= matTo)).sort((p, q) => p.date.localeCompare(q.date) || (p.time || "").localeCompare(q.time || ""));
   const keyOf = x => matGroup === "vendor" ? (x.vendor || "（未填廠商）") : (x.catName || "（未分類）");
   const keys = [...new Set(all.map(keyOf))].sort((m, n) => m.localeCompare(n, "zh-Hant"));
