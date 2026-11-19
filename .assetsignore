@@ -1,0 +1,10 @@
+# 雲端版（Cloudflare）不需要放上網的檔案
+.git
+.github
+cloud
+tests
+tools
+node_modules
+*.md
+.assetsignore
+.wrangler

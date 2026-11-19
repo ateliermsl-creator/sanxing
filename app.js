@@ -87,9 +87,9 @@ new MutationObserver(() => bindLabels()).observe(view, { childList: true, subtre
 
 /* ---------- IndexedDB ---------- */
 const dbp = new Promise((res, rej) => {
-  const r = indexedDB.open("avocado-toolbox", 12);
-  r.onupgradeneeded = () => {
-    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats", "files", "shots", "safety", "logs", "vols"])
+  const r = indexedDB.open("avocado-toolbox", 13);
+  r.onupgradeneeded = () => {   // sync：雲端同步記錄哪一份改過（cloud.js），不是使用者資料，不放進備份
+    for (const n of ["sites", "records", "templates", "photos", "workorders", "punch", "pours", "matrecs", "matcats", "files", "shots", "safety", "logs", "vols", "sync"])
       if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: "id" });
   };
   r.onsuccess = () => res(r.result);
@@ -141,6 +141,8 @@ $("#siteSelect").onchange = e => { siteId = e.target.value; ls.set("siteId", sit
 /* mode: "first" 第一次使用（不可取消）／"add" 新增工地／"edit" 修改目前工地與公司 */
 function openSetup(mode) {
   const d = $("#setup"), cur = sites.find(x => x.id === siteId);
+  const blk = mode === "edit" && cur && window.cloudSiteBlock?.(cur.id, "edit");
+  if (blk) { alert(blk); return; }
   $("#setupTitle").textContent = { first: "開始使用：先填寫工地", add: "新增工地", edit: "工地與公司設定" }[mode];
   $("#setupHint").hidden = mode !== "first";
   $("#sName").value = mode === "edit" && cur ? cur.name : "";
@@ -171,6 +173,7 @@ $("#setupForm").addEventListener("submit", async e => {
 // 刪除工地：連同底下所有檢查表、點工單、缺失、澆置、材料進場、照片與附加檔案一併刪除
 $("#sDel").onclick = async () => {
   const cur = sites.find(x => x.id === siteId); if (!cur) return;
+  const blk = window.cloudSiteBlock?.(cur.id, "del"); if (blk) { alert(blk); return; }
   const stores = ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs", "vols"], mine = {}, ids = new Set();
   for (const st of stores) {
     mine[st] = (await DB.all(st)).filter(x => x.siteId === cur.id);
@@ -220,7 +223,7 @@ function parentHash() {
   if (page === "calc") return b ? "#/calc/" + a : "#/";
   if (page === "struct") return b ? "#/struct/" + a : a ? "#/struct" : "#/";
   if (page === "template") return "#/checklist/new";
-  return "#/";
+  return "#/";   // cloud 等
 }
 $("#homeBtn").onclick = () => {
   const toHome = () => { if (location.hash.replace(/^#\/?/, "")) location.hash = "#/"; };
@@ -239,7 +242,7 @@ async function route() {
   const [, page, a, b2, c2] = location.hash.split("/");
   $("#topbar").hidden = !page;
   // 第一次使用要先建立工地；但安裝教學、計算機、備份不需要工地，不要擋住
-  if (!sites.length && !["install", "calc", "struct", "backup"].includes(page || "") && !$("#setup").open) openSetup("first");
+  if (!sites.length && !["install", "calc", "struct", "backup", "cloud"].includes(page || "") && !$("#setup").open && !window.cloudFirst?.()) openSetup("first");
   window.scrollTo(0, 0);
   if (page === "checklist") {
     if (!a) return renderChecklist();
@@ -259,6 +262,7 @@ async function route() {
   if (page === "struct") return renderStruct(a, b2);
   if (page === "template") return renderTemplateEditor(a);
   if (page === "backup") return renderBackup();
+  if (page === "cloud" && window.renderCloud) return renderCloud();
   return renderHome();
 }
 
@@ -296,6 +300,7 @@ async function renderHome() {
   $("#hEdit")?.addEventListener("click", () => openSetup("edit"));
   $("#instHide")?.addEventListener("click", () => { try { localStorage.setItem("installHint", "1"); } catch {} $("#instHint").remove(); });
   checkBackup();
+  window.cloudHome?.();
 }
 function checkBackup() {
   const last = ls.get("lastBackup", "");
@@ -407,6 +412,7 @@ async function clPurgeBlank() {
   const recs = (await DB.all("records")).filter(r => r.siteId === siteId);
   const ph = new Set((await DB.all("photos")).map(p => p.recId)), fl = new Set((await DB.all("files")).map(f => f.recId));
   for (const r of recs) {
+    if (window.cloudMine && !cloudMine("records", r.id)) continue;   // 雲端專案：只清自己建立的
     const blank = !r.locked && !String(r.location || "").trim() && !String(r.docNo || "").trim() && !String(r.subcontractor || "").trim()
       && !Object.values(r.timing || {}).some(Boolean) && !Object.keys(r.sigs || {}).length
       && !Object.values(r.items || {}).some(i => i && (i.r || String(i.actual ?? i.note ?? "").trim())) && !ph.has(r.id) && !fl.has(r.id);
@@ -419,7 +425,7 @@ async function renderChecklist() {
   await clPurgeBlank();
   const all = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
   const pc = {}; for (const p of await DB.all("photos")) pc[p.recId] = (pc[p.recId] || 0) + 1;
-  if (seq !== renderChecklist.seq) return;
+  if (seq !== renderChecklist.seq || !/^#\/checklist\/?$/.test(location.hash)) return;   // 讀取期間已切到別頁（例如點開一份），不要蓋掉
   const tOf = r => TEMPLATES.find(x => x.id === r.templateId);
   const used = [...new Set(all.map(r => r.templateId))].map(id => TEMPLATES.find(t => t.id === id) || { id, name: id, cat: "其他", items: [] });
   const ucats = [...new Set(used.map(t => t.cat))];
@@ -509,7 +515,8 @@ async function renderForm(id) {
   const [rec, tpl] = await loadRec(id);
   if (!rec) return;
   let photos = await photosOf(rec.id);
-  const locked = !!rec.locked, dis = locked ? "disabled" : "", reo = Array.isArray(rec.reopened) ? rec.reopened : [];   // 填寫完畢鎖定：欄位、勾選、照片、簽名都不能改，要先解除鎖定
+  const ro = window.cloudRO ? await cloudRO("records", rec) : "", canReopen = !window.cloudCanReopen || cloudCanReopen(rec);   // 雲端專案：沒有權限的只能查看
+  const locked = !!rec.locked || !!ro, dis = locked ? "disabled" : "", reo = Array.isArray(rec.reopened) ? rec.reopened : [];   // 填寫完畢鎖定：欄位、勾選、照片、簽名都不能改，要先解除鎖定
   const sv = svAuto(() => { if (clDirty === rec) clDirty = null; rec.updated = Date.now(); return DB.put("records", rec); });
   const save = () => { if (locked) return; clDirty = rec; sv.save(); };
   const flush = () => sv.flush();
@@ -518,7 +525,7 @@ async function renderForm(id) {
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">${esc(tpl.name)}</h2>
     <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#7a5418;font-weight:700">${prog()}</span></div>
-    ${locked ? `<div class="cllock">✔ 已完成檢查・${esc(clStamp(rec.locked))}<small>內容只能查看、預覽與列印；要改請按最下方「✎ 修改」。${reo.length ? `<br>完成後曾修改：${reo.map(x => esc(clStamp(x))).join("、")}` : ""}</small></div>`
+    ${ro ? `<div class="cllock reopen">👁 ${esc(ro)}<small>${rec.locked ? `已完成檢查・${esc(clStamp(rec.locked))}` : "填寫中"}</small></div>` : locked ? `<div class="cllock">✔ 已完成檢查・${esc(clStamp(rec.locked))}<small>內容只能查看、預覽與列印；${canReopen ? "要改請按最下方「✎ 修改」" : "要修改請找工程主管或管理員"}。${reo.length ? `<br>完成後曾修改：${reo.map(x => esc(clStamp(x))).join("、")}` : ""}</small></div>`
       : reo.length ? `<div class="cllock reopen">✎ 修改中（這份曾完成過）<small>${esc(clStamp(reo[reo.length - 1]))} 開啟修改，改好請按最下方「✔ 完成檢查」。</small></div>` : ""}
     <div class="panel">
       ${inp("contractor", "承攬廠商", "廠商名稱")}${inp("subcontractor", "協力廠商", "協力廠商（如有）")}
@@ -543,8 +550,8 @@ async function renderForm(id) {
     ${locked ? "" : `<div class="row"><button class="sec" id="svDone">💾 儲存並返回</button><button id="lockBtn">✔ 完成檢查</button></div>`}
     <div class="row"><button class="${locked ? "" : "sec"}" id="previewBtn">👁 預覽／列印</button></div>
     <div class="row"><button class="sec" id="againBtn">＋ 同一張表再填一份</button></div>
-    ${locked ? `<div class="row"><button class="sec" id="unlockBtn">✎ 修改這份紀錄</button></div>` : ""}
-    <div class="row"><button class="danger" id="delBtn">刪除這份紀錄</button></div>`;
+    ${locked && !ro && canReopen ? `<div class="row"><button class="sec" id="unlockBtn">✎ 修改這份紀錄</button></div>` : ""}
+    ${ro ? "" : `<div class="row"><button class="danger" id="delBtn">刪除這份紀錄</button></div>`}`;
 
   view.querySelectorAll("[data-f]").forEach(el => el.oninput = el.onchange = () => {
     rec[el.dataset.f] = el.value;
@@ -625,12 +632,12 @@ async function renderForm(id) {
     const nr = clNewRec(rec.templateId, rec); nr.siteId = rec.siteId;
     await DB.put("records", nr); goReplace("#/checklist/" + nr.id);
   };
-  $("#delBtn").onclick = async () => {
+  $("#delBtn")?.addEventListener("click", async () => {
     if (locked) { alert("已完成的紀錄不能直接刪除，請先按「修改」。"); return; }
     if (!confirm("確定刪除這份紀錄？")) return;
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(rec.id); await DB.del("records", rec.id); goBack("#/checklist");
-  };
+  });
 }
 
 function setupSig(c, rec, save) {
@@ -743,6 +750,16 @@ async function renderTemplateEditor(id) {
 }
 
 /* ---------- 備份 ---------- */
+// 下載備份檔（備份頁、雲端「上傳舊資料」前共用）
+async function downloadBackup(withFiles = true, withRaw = false) {
+  const files = []; if (withFiles) for (const f of await DB.all("files")) files.push({ id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, data: await blobToDataURL(f.blob) });
+  const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), shots: (await DB.all("shots")).map(({ thumb, raw, ...x }) => (withRaw ? { ...x, raw } : x)), safety: await DB.all("safety"), logs: await DB.all("logs"), vols: await DB.all("vols"), sites: await DB.all("sites"), records: await DB.all("records") };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
+  a.download = `三星蔥工具箱備份_${today()}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  ls.set("lastBackup", new Date().toISOString());
+}
 async function renderBackup() {
   const last = ls.get("lastBackup", "");
   view.innerHTML = `
@@ -766,14 +783,7 @@ async function renderBackup() {
   attTotal().then(({ n, size }) => { if (!n) return; const box = $("#bkFilesBox"); if (!box) return; box.hidden = false;
     box.innerHTML = `<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="bkFiles" checked style="width:22px;height:22px"> 備份包含附加檔案（${n} 個、${attMB(size)}）</label>${size > 50 * 1048576 ? `<p class="cnote" style="color:var(--bad)">附加檔案很大，備份檔會很大、匯出匯入會比較慢。可以取消勾選，只備份紀錄。</p>` : `<p class="cnote">取消勾選的話，備份檔只含紀錄與照片，不含附加的電子檔。</p>`}`; });
   $("#expBtn").onclick = async () => {
-    const withFiles = $("#bkFiles") ? $("#bkFiles").checked : true;
-    const files = []; if (withFiles) for (const f of await DB.all("files")) files.push({ id: f.id, recId: f.recId, name: f.name, type: f.type, size: f.size, created: f.created, data: await blobToDataURL(f.blob) });
-    const data = { files, app: "avocado-toolbox", v: 1, company: ls.get("company", ""), templates: await DB.all("templates"), photos: await DB.all("photos"), workorders: await DB.all("workorders"), punch: await DB.all("punch"), pours: await DB.all("pours"), matrecs: await DB.all("matrecs"), matcats: await DB.all("matcats"), shots: (await DB.all("shots")).map(({ thumb, raw, ...x }) => ($("#bkRaw")?.checked ? { ...x, raw } : x)), safety: await DB.all("safety"), logs: await DB.all("logs"), vols: await DB.all("vols"), sites: await DB.all("sites"), records: await DB.all("records") };
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(data)], { type: "application/json" }));
-    a.download = `三星蔥工具箱備份_${today()}.json`;
-    document.body.appendChild(a); a.click(); a.remove();
-    ls.set("lastBackup", new Date().toISOString());
+    await downloadBackup($("#bkFiles") ? $("#bkFiles").checked : true, !!$("#bkRaw")?.checked);
     renderBackup(); checkBackup();
   };
   $("#impBtn").onclick = () => $("#impFile").click();
@@ -863,6 +873,8 @@ async function renderBackup() {
 /* ---------- 啟動 ---------- */
 $("#camErrClose").onclick = () => $("#camErr").close();
 (async () => {
+  // 等後面的程式（cloud.js、sidenav.js…）都載入完再開始：資料庫的回應可能比下一支程式下載得快
+  if (document.readyState === "loading") await new Promise(r => document.addEventListener("DOMContentLoaded", r, { once: true }));
   await loadTemplates();
   await loadSites();
   route();

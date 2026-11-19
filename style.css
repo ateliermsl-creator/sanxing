@@ -525,3 +525,15 @@ body:has(#calcBar:not([hidden])) #saveTip{bottom:calc(env(safe-area-inset-bottom
 #view.dnlock canvas{pointer-events:none}
 #view.dnlock input:disabled,#view.dnlock textarea:disabled,#view.dnlock select:disabled{background:transparent;color:var(--tx);-webkit-text-fill-color:currentColor;opacity:1;border-style:dashed}
 #view.dnlock input[type=checkbox]:disabled,#view.dnlock input[type=radio]:disabled{opacity:.7}
+
+/* ---------- 雲端同步（cloud.js，只在公司雲端網址出現） ---------- */
+.hcl{text-decoration:none;color:#6a5a33;margin-right:6px}
+.clrow{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.clrow:last-child{border-bottom:0}
+.clrow small{color:var(--mut)}
+.clrow select{min-height:36px;font-size:14px;width:auto;max-width:100%}
+.clrow button.lnk{background:none;border:0;color:var(--g);text-decoration:underline;font-size:14px;min-height:36px;padding:0 6px}
+.climp{padding:8px 0;border-top:1px solid var(--line)}
+.climp small{color:var(--mut)}
+#clToast{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 56px);z-index:30;max-width:520px;margin:0 auto;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:inherit;font-size:14px;line-height:1.5;white-space:pre-line;box-shadow:0 4px 14px rgba(55,51,43,.18)}
+#clToast[hidden]{display:none}

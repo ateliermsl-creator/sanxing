@@ -5,8 +5,9 @@
 
 ## 技術概況
 - 純前端、無框架、無建置步驟。直接編輯檔案即可。第三方只有 `lib/html2canvas`、`lib/jspdf`（皆 MIT，授權檔在 `lib/`）。
-- 資料只存在使用者手機瀏覽器的 IndexedDB（庫名 `avocado-toolbox`，歷史原因沒改名，**不要改**，會讓既有資料消失）。目前版本 **12**，資料表：`sites records templates photos workorders punch pours matrecs matcats files shots safety logs vols`。
-- 沒有伺服器、沒有帳號。`localStorage` 只放個人偏好（上次選的工地等）。**公司名稱（各表單抬頭）存在每個工地的 `sites.company`**，用 `siteCompany(siteId)` 取（2026-11-19 使用者反映切換專案後抬頭沒換）；`localStorage` 的 `company` 只當新增工地的預設值，舊工地第一次載入時由 `loadSites` 帶入。新單據抬頭一律用 `siteCompany(紀錄的 siteId)`。
+- 資料只存在使用者手機瀏覽器的 IndexedDB（庫名 `avocado-toolbox`，歷史原因沒改名，**不要改**，會讓既有資料消失）。目前版本 **13**，資料表：`sites records templates photos workorders punch pours matrecs matcats files shots safety logs vols sync`（`sync` 是雲端同步記錄哪一份改過，不是使用者資料，**不放進備份**）。
+- **雲端版（同事共用，2026-11-20 使用者同意，分三期）**：同一套程式另部署到 Cloudflare（Workers＋D1＋Access），`cloud.js` 只在非 `github.io`、非 localhost 的網址啟用（本機測試設 localStorage `cloudDev=1`），GitHub Pages 版仍是單機版、行為不變。伺服器在 `cloud/`，設定步驟、權限表、衝突規則見 `cloud/README.md`。第一期同步 `sites`（＝雲端專案）、`records`、`templates`；第二、三期要同步的表加到 `cloud.js` 的 `CLOUD.stores` 與 `worker.js` 的 `SYNC_KINDS`。
+- GitHub Pages 單機版沒有伺服器、沒有帳號。`localStorage` 只放個人偏好（上次選的工地等）。**公司名稱（各表單抬頭）存在每個工地的 `sites.company`**，用 `siteCompany(siteId)` 取（2026-11-19 使用者反映切換專案後抬頭沒換）；`localStorage` 的 `company` 只當新增工地的預設值，舊工地第一次載入時由 `loadSites` 帶入。新單據抬頭一律用 `siteCompany(紀錄的 siteId)`。
 - 路由是 hash（`#/頁面/id/子頁`），在 `app.js` 的 `route()` 分派，各功能一支檔案：
 
 | 檔案 | 內容 |
@@ -35,7 +36,9 @@
 | `calcbar.js` | 計算機底部「結果摘要列」：只讀畫面上的「總結」列與 `.cfres` 的 `td.ok／td.bad`，不碰計算；新計算機沿用同樣結構就自動套用。沒有 OK／NG 的計算機在 `.big` 加 `data-bar="摘要"` 只顯示文字。結果區在畫面上時自動隱藏 |
 | `sidenav.js` | 電腦版左側導覽列（≥ 1200px 才顯示，**首頁不顯示**，避免和首頁卡片重複，使用者要求）；新增首頁功能時這裡也加一筆。結構計算區自動讀 `STRUCT_CATS`，目前分類會展開並標目前頁 |
 | `savestat.js` | **表單儲存狀態（全站共用）**：`svAuto(write)` 回傳 `{save, flush}`，右下角低調小標籤 `#saveTip`（儲存中… → ✓ 已自動儲存 hh:mm、⚠ 儲存失敗）；換頁（hashchange，所以要在 `app.js` 前載入）、切 App、關網頁時立刻寫入未寫的修改；`svDoneRow()`＋`svBindDone(sv, 列表網址)` 是表單底部「💾 儲存並返回」；結構計算的 `xxSave` 呼叫 `svKept()` 顯示「輸入已自動保留」。2026-11-17 使用者反映填完不知道有沒有存而加。**新表單一律用 `svAuto`，不要再自己寫 timer**。同檔「完成／修改」共用功能（2026-11-17 使用者要求各表單都納入）：`dnSv`、`dnBanner`、`dnRow`、`dnBind`，資料欄位 `locked`（完成時間）、`reopened`（完成後修改時間），`safe.js` 的 `cdone` 統一清理。已套用：施工日誌（完成日誌）、材料進場（完成驗收）、勤前教育（完成簽到）、混凝土澆置（完成抽驗，整次澆置連同各車；拆模追蹤完成後仍可勾）。完成後 `dnBind` 停用所有輸入與按鈕（保留 `keep` 指定的預覽／分享等、刪除鈕改成提醒）。點工單沿用自己的簽認流程（`status: signed`），只把用語改成「完成簽認／修改這份紀錄」。缺失改善有自己的結案流程，未套用。新表單要完成功能就用這組函式 |
-| `sw.js` | Service Worker（網路優先、離線備援） |
+| `cloud.js` | 雲端同步（只在雲端網址）：包住 `DB.put/DB.del` 記下改過的（`sync` 表）、背景上傳下載（`cloudSync`）、收到的資料一律經 `CLEAN` 清理；`#/cloud` 頁（登入、上傳舊資料、專案成員、人員管理）；首頁 `#hCloud` 小標籤。權限：`cloudRO`（只能看的原因）、`cloudCanReopen`、`cloudMine`、`cloudSiteBlock`；給 app.js 用的都要是 `function` 宣告（`const` 不會掛在 window 上）。開著的表單收到別人修改會先存畫面輸入再重畫（`clQuiesce`），避免舊畫面蓋掉新資料。app.js 啟動會等 DOMContentLoaded，確保 cloud.js 先包住 DB |
+| `cloud/` | 雲端伺服器：`worker.js`（API、Access 通行證驗證、權限、三方合併 `merge3`）、`schema.sql`（D1）、`wrangler.toml`、`README.md`（設定步驟） |
+| `sw.js` | Service Worker（網路優先、離線備援；`/api/` 不經快取） |
 
 ## 每次修改一定要做的事
 1. **`sw.js` 的 `VERSION` 加 1**（例如 `"v135"` → `"v136"`）。不加的話，已安裝的手機不會換新版。
@@ -51,7 +54,7 @@
 - **不內建、不估算任何法規數值**：拆模天數、搭接／錨定長度、坍度與氯離子標準、判定標準、穿樑規則等，一律由使用者依契約與規範填寫；工具只做日期提醒與數值計算。使用者曾明確要求，也曾要求拿掉搭接長度功能。使用者貼來的規則（如穿樑套管 1/3）只當成可修改的預設值並註明「非規範原文」。
 - 單據（`.paper`）永遠白底黑字，不受配色影響；簽名圖要限制在欄位內（`.psigs img`）。
 - 不要加版本號顯示與「檢查更新」按鈕（使用者說先不用）。
-- 使用者資料不離開手機。不要加任何會把資料送到外部的功能，除非使用者明確同意。
+- 使用者資料不離開手機，**唯一例外是雲端版送到公司自己的 Cloudflare**（2026-11-20 使用者同意）。不要加任何其他會把資料送到外部的功能，除非使用者明確同意。雲端版的權限一律在 `worker.js` 檢查，手機畫面只是先擋。
 - 備份檔沒有加密（已告知風險），GitHub Pages 同帳號下的專案共用同源——不要在同一個 GitHub 帳號下放其他會讀取 IndexedDB 的網站。
 
 ## 視覺與版面
@@ -69,7 +72,8 @@ bash tests/run.sh backup_roundtrip    # 備份往返，找被清理器丟掉的�
 bash tests/run.sh print_overflow narrow_overflow pdf_all_outputs   # 版面
 ```
 結構計算另有**第三方獨立驗證**（anaStruct、PyNite、sectionproperties，Python）：`python3 tools/verify/verify.py`，產生 `tools/verify/REPORT.md`。改了任何結構計算檔（`colform.js`～`secprop.js`）都重跑一次，看有沒有新增不一致；新增結構計算時在 `tools/verify/` 補案例（說明見該資料夾 README）。
-改 `safe.js`、資料庫、備份：至少跑 `backup_roundtrip`、`db_upgrade_delete_site`、`xss_render`。改版面：跑 `print_overflow`、`narrow_overflow`。
+改 `safe.js`、資料庫、備份：至少跑 `backup_roundtrip`、`db_upgrade_delete_site`、`xss_render`。
+改 `cloud.js`、`cloud/`：跑 `node tests/cloud_jwt.mjs`，並照 `cloud/README.md`「本機測試」啟動 wrangler dev 後跑 `node tests/cloud_api.js`、`node tests/cloud_e2e.js`（`run.sh` 不含這兩支，因為要另外開伺服器）。改版面：跑 `print_overflow`、`narrow_overflow`。
 
 ## 還沒做、等使用者決定
 - App 鎖（PIN／生物辨識）與備份檔加密——使用者說先暫緩。要做之前先問：密碼位數、忘記密碼怎麼處理、備份密碼忘記打不開是否可接受。
