@@ -23,6 +23,8 @@
 3. **部署程式**：Workers & Pages → 建立 → 匯入 GitHub 專案 `sanxing`，
    - 部署指令：`npx wrangler deploy -c cloud/wrangler.toml`
    - 之後推送到 `main` 就會自動更新。
+   - 「啟用預覽建置」關掉（預覽網址不受登入保護，也用不到）。
+   - 目前（2026-11-20）生產分支暫設為雲端版開發分支，PR 合併後改回 `main`。
 4. **設定變數**（Worker → 設定 → 變數與密碼，不要寫進 GitHub）：
    - `ADMIN_EMAILS`：管理員 Email，多位用逗號分開（建議兩位，避免只有一個人進得去）
    - `TEAM_DOMAIN`：Zero Trust 的團隊網域，例如 `sanxing.cloudflareaccess.com`
