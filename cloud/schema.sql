@@ -64,6 +64,17 @@ CREATE TABLE IF NOT EXISTS history (
 );
 CREATE INDEX IF NOT EXISTS history_doc ON history(doc_id, version);
 
+-- 加入申請：不在名單的人登入後送出，管理員核准才加入 users（worker.js 也會自動補建這張表）
+CREATE TABLE IF NOT EXISTS requests (
+  email      TEXT PRIMARY KEY,
+  name       TEXT NOT NULL,
+  note       TEXT NOT NULL DEFAULT '',          -- 申請人自己填的說明（哪個工地、職稱）
+  status     TEXT NOT NULL DEFAULT 'pending',   -- pending 等待核准／rejected 不核准（不能再送）
+  created    INTEGER NOT NULL,
+  decided    INTEGER NOT NULL DEFAULT 0,
+  decided_by TEXT NOT NULL DEFAULT ''
+);
+
 -- 流水號
 CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v INTEGER NOT NULL);
 INSERT OR IGNORE INTO meta (k, v) VALUES ('rev', 0);

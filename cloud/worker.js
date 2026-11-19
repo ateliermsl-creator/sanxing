@@ -216,6 +216,37 @@ async function upsertProject(db, me, p) {
   return { id: p.id, status: "ok" };
 }
 
+/* ---------- 加入申請：不在名單的人登入後可以送申請，管理員核准才會加入人員名單 ---------- */
+let reqReady = false;
+async function reqTable(db) {   // 舊資料庫沒有這張表時自動補上（schema.sql 也有）
+  if (reqReady) return;
+  await db.prepare(`CREATE TABLE IF NOT EXISTS requests (email TEXT PRIMARY KEY, name TEXT NOT NULL, note TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending', created INTEGER NOT NULL, decided INTEGER NOT NULL DEFAULT 0, decided_by TEXT NOT NULL DEFAULT '')`).run();
+  reqReady = true;
+}
+const REQ_MAX = 100;   // 同時等待核准的申請上限，避免被灌爆
+async function reqCount(db, me) {
+  if (!me.admin) return 0;
+  await reqTable(db);
+  return (await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE status = 'pending'").first()).n;
+}
+async function notMember(req, db, url, email, body) {
+  await reqTable(db);
+  const path = url.pathname.replace(/^.*?\/api\//, "");
+  let row = await db.prepare("SELECT name, note, status FROM requests WHERE email = ?").bind(email).first();
+  if (path === "apply" && req.method === "POST") {
+    if (row?.status === "rejected") return json({ error: "not_member", email, applied: "rejected" }, 403);
+    const name = str(body.name, 30).trim(), note = str(body.note, 100).trim();
+    if (!name) return json({ error: "bad_name", msg: "請填姓名" }, 400);
+    if (!row && (await db.prepare("SELECT COUNT(*) AS n FROM requests WHERE status = 'pending'").first()).n >= REQ_MAX)
+      return json({ error: "too_many", msg: "目前申請太多，請直接聯絡管理員" }, 429);
+    await db.prepare(`INSERT INTO requests (email, name, note, status, created) VALUES (?, ?, ?, 'pending', ?)
+      ON CONFLICT(email) DO UPDATE SET name = excluded.name, note = excluded.note`).bind(email, name, note, now()).run();
+    row = { name, note, status: "pending" };
+  }
+  return json({ error: "not_member", email, applied: row?.status || "", name: row?.name || "", note: row?.note || "" }, 403);
+}
+
 /* ---------- API ---------- */
 async function api(req, env, url) {
   const db = env.DB, path = url.pathname.replace(/^.*?\/api\//, "");
@@ -223,11 +254,11 @@ async function api(req, env, url) {
   const email = await whoIs(req, env);
   if (!email) return json({ error: "login" }, 401);
   const me = await loadMe(db, env, email);
-  if (me.missing) return json({ error: "not_member", email }, 403);
-  if (me.disabled) return json({ error: "disabled", email }, 403);
   const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+  if (me.missing) return notMember(req, db, url, email, body);
+  if (me.disabled) return json({ error: "disabled", email }, 403);
 
-  if (path === "me") return json({ me, projects: await visibleProjects(db, me) });
+  if (path === "me") return json({ me, projects: await visibleProjects(db, me), reqs: await reqCount(db, me) });
 
   if (path === "sync" && req.method === "POST") {
     const results = [], projResults = [];
@@ -249,7 +280,7 @@ async function api(req, env, url) {
     if (fresh.length && cursor > 0) extra = (await db.prepare(`SELECT id, kind, project_id, data, version, rev, created_by, deleted FROM docs WHERE rev <= ? AND kind IN (${kinds}) AND project_id IN (${fresh.map(() => "?").join(",")})`)
       .bind(cursor, ...SYNC_KINDS, ...fresh).all()).results;
     const pull = [...extra, ...rows].map(r => ({ id: r.id, kind: r.kind, project: r.project_id, version: r.version, by: r.created_by, deleted: !!r.deleted, data: r.deleted ? null : JSON.parse(r.data) }));
-    return json({ me: me2, projects, results, projResults, pull, cursor: newCursor, more });
+    return json({ me: me2, projects, results, projResults, pull, cursor: newCursor, more, reqs: await reqCount(db, me2) });
   }
 
   // 人員管理（管理員）
@@ -263,10 +294,32 @@ async function api(req, env, url) {
       await db.prepare(`INSERT INTO users (email, name, admin, disabled, created, updated) VALUES (?, ?, ?, ?, ?, ?)
         ON CONFLICT(email) DO UPDATE SET name = excluded.name, admin = excluded.admin, disabled = excluded.disabled, updated = excluded.updated`)
         .bind(e, str(body.name, 50), body.admin ? 1 : 0, body.disabled ? 1 : 0, t, t).run();
+      await reqTable(db);
+      await db.prepare("DELETE FROM requests WHERE email = ?").bind(e).run();   // 直接加入的人，之前的申請（含不核准）一併清掉
     }
     const users = (await db.prepare("SELECT email, name, admin, disabled FROM users ORDER BY disabled, name, email").all()).results;
     const boot = adminList(env);
     return json({ users: users.map(u => ({ ...u, admin: !!u.admin || boot.includes(u.email), disabled: !!u.disabled, boot: boot.includes(u.email) })) });
+  }
+  // 加入申請（管理員）：核准 → 加進人員名單（之後再到「專案成員」指派專案）；不核准 → 標記，對方不能再送
+  if (path === "requests") {
+    if (!me.admin) return json({ error: "denied" }, 403);
+    await reqTable(db);
+    if (req.method === "POST") {
+      const e = lower(body.email), t = now();
+      const r = await db.prepare("SELECT * FROM requests WHERE email = ? AND status = 'pending'").bind(e).first();
+      if (!r) return json({ error: "no_request", msg: "找不到這筆申請，可能已處理過" }, 400);
+      if (body.action === "approve") {
+        await db.batch([
+          db.prepare("INSERT INTO users (email, name, admin, disabled, created, updated) VALUES (?, ?, 0, 0, ?, ?) ON CONFLICT(email) DO NOTHING").bind(e, str(body.name ?? r.name, 50).trim() || r.name, t, t),
+          db.prepare("DELETE FROM requests WHERE email = ?").bind(e)
+        ]);
+      } else if (body.action === "reject") {
+        await db.prepare("UPDATE requests SET status = 'rejected', decided = ?, decided_by = ? WHERE email = ?").bind(t, me.email, e).run();
+      } else return json({ error: "bad_action" }, 400);
+    }
+    const list = (await db.prepare("SELECT email, name, note, created FROM requests WHERE status = 'pending' ORDER BY created").all()).results;
+    return json({ requests: list });
   }
   // 專案成員（管理員、該專案的工程主管）
   const m = path.match(/^projects\/([A-Za-z0-9_-]{1,64})\/members$/);

@@ -36,7 +36,7 @@
 | `calcbar.js` | 計算機底部「結果摘要列」：只讀畫面上的「總結」列與 `.cfres` 的 `td.ok／td.bad`，不碰計算；新計算機沿用同樣結構就自動套用。沒有 OK／NG 的計算機在 `.big` 加 `data-bar="摘要"` 只顯示文字。結果區在畫面上時自動隱藏 |
 | `sidenav.js` | 電腦版左側導覽列（≥ 1200px 才顯示，**首頁不顯示**，避免和首頁卡片重複，使用者要求）；新增首頁功能時這裡也加一筆。結構計算區自動讀 `STRUCT_CATS`，目前分類會展開並標目前頁 |
 | `savestat.js` | **表單儲存狀態（全站共用）**：`svAuto(write)` 回傳 `{save, flush}`，右下角低調小標籤 `#saveTip`（儲存中… → ✓ 已自動儲存 hh:mm、⚠ 儲存失敗）；換頁（hashchange，所以要在 `app.js` 前載入）、切 App、關網頁時立刻寫入未寫的修改；`svDoneRow()`＋`svBindDone(sv, 列表網址)` 是表單底部「💾 儲存並返回」；結構計算的 `xxSave` 呼叫 `svKept()` 顯示「輸入已自動保留」。2026-11-17 使用者反映填完不知道有沒有存而加。**新表單一律用 `svAuto`，不要再自己寫 timer**。同檔「完成／修改」共用功能（2026-11-17 使用者要求各表單都納入）：`dnSv`、`dnBanner`、`dnRow`、`dnBind`，資料欄位 `locked`（完成時間）、`reopened`（完成後修改時間），`safe.js` 的 `cdone` 統一清理。已套用：施工日誌（完成日誌）、材料進場（完成驗收）、勤前教育（完成簽到）、混凝土澆置（完成抽驗，整次澆置連同各車；拆模追蹤完成後仍可勾）。完成後 `dnBind` 停用所有輸入與按鈕（保留 `keep` 指定的預覽／分享等、刪除鈕改成提醒）。點工單沿用自己的簽認流程（`status: signed`），只把用語改成「完成簽認／修改這份紀錄」。缺失改善有自己的結案流程，未套用。新表單要完成功能就用這組函式 |
-| `cloud.js` | 雲端同步（只在雲端網址）：包住 `DB.put/DB.del` 記下改過的（`sync` 表）、背景上傳下載（`cloudSync`）、收到的資料一律經 `CLEAN` 清理；`#/cloud` 頁（登入、上傳舊資料、專案成員、人員管理）；首頁 `#hCloud` 小標籤。權限：`cloudRO`（只能看的原因）、`cloudCanReopen`、`cloudMine`、`cloudSiteBlock`；給 app.js 用的都要是 `function` 宣告（`const` 不會掛在 window 上）。開著的表單收到別人修改會先存畫面輸入再重畫（`clQuiesce`），避免舊畫面蓋掉新資料。app.js 啟動會等 DOMContentLoaded，確保 cloud.js 先包住 DB |
+| `cloud.js` | 雲端同步（只在雲端網址）：包住 `DB.put/DB.del` 記下改過的（`sync` 表）、背景上傳下載（`cloudSync`）、收到的資料一律經 `CLEAN` 清理；`#/cloud` 頁（登入、上傳舊資料、專案成員、人員管理、加入申請）。不在名單的人登入後可送「加入申請」（`api/apply`，雲端 `requests` 表，worker 會自動補建），管理員核准才進人員名單，不核准的不能再送（2026-11-20 使用者要求）；首頁 `#hCloud` 小標籤。權限：`cloudRO`（只能看的原因）、`cloudCanReopen`、`cloudMine`、`cloudSiteBlock`；給 app.js 用的都要是 `function` 宣告（`const` 不會掛在 window 上）。開著的表單收到別人修改會先存畫面輸入再重畫（`clQuiesce`），避免舊畫面蓋掉新資料。app.js 啟動會等 DOMContentLoaded，確保 cloud.js 先包住 DB |
 | `cloud/` | 雲端伺服器：`worker.js`（API、Access 通行證驗證、權限、三方合併 `merge3`）、`schema.sql`（D1）、`wrangler.toml`、`README.md`（設定步驟） |
 | `sw.js` | Service Worker（網路優先、離線備援；`/api/` 不經快取） |
 
@@ -73,7 +73,7 @@ bash tests/run.sh print_overflow narrow_overflow pdf_all_outputs   # 版面
 ```
 結構計算另有**第三方獨立驗證**（anaStruct、PyNite、sectionproperties，Python）：`python3 tools/verify/verify.py`，產生 `tools/verify/REPORT.md`。改了任何結構計算檔（`colform.js`～`secprop.js`）都重跑一次，看有沒有新增不一致；新增結構計算時在 `tools/verify/` 補案例（說明見該資料夾 README）。
 改 `safe.js`、資料庫、備份：至少跑 `backup_roundtrip`、`db_upgrade_delete_site`、`xss_render`。
-改 `cloud.js`、`cloud/`：跑 `node tests/cloud_jwt.mjs`，並照 `cloud/README.md`「本機測試」啟動 wrangler dev 後跑 `node tests/cloud_api.js`、`node tests/cloud_e2e.js`（`run.sh` 不含這兩支，因為要另外開伺服器）。改版面：跑 `print_overflow`、`narrow_overflow`。
+改 `cloud.js`、`cloud/`：跑 `node tests/cloud_jwt.mjs`，並照 `cloud/README.md`「本機測試」啟動 wrangler dev 後跑 `node tests/cloud_api.js`、`node tests/cloud_e2e.js`、`node tests/cloud_apply.js`（`run.sh` 不含這幾支，因為要另外開伺服器）。改版面：跑 `print_overflow`、`narrow_overflow`。
 
 ## 還沒做、等使用者決定
 - App 鎖（PIN／生物辨識）與備份檔加密——使用者說先暫緩。要做之前先問：密碼位數、忘記密碼怎麼處理、備份密碼忘記打不開是否可接受。

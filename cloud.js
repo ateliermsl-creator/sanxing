@@ -10,7 +10,8 @@ const CLOUD = {
   on: !/github\.io$/i.test(location.hostname) && (!["localhost", "127.0.0.1", ""].includes(location.hostname) || ls.get("cloudDev", "") === "1"),
   stores: ["sites", "records", "templates"],   // 第一期同步的資料表；之後各期在這裡和 worker.js 的 SYNC_KINDS 加
   me: null, projects: [], meta: new Map(),       // meta：`${store}:${id}` → { v 雲端版次, dirty, n 改了幾次, del, by 建立人, cloud（專案）, local（只在這支手機） }
-  state: "idle", msg: "", last: 0, busy: false, again: false, timer: null, notes: [], applied: new Set()
+  state: "idle", msg: "", last: 0, busy: false, again: false, timer: null, notes: [], applied: new Set(),
+  deny: null, reqs: 0   // deny：不在名單時雲端回的資料（applied 申請狀態）；reqs：管理員看到的待核准申請數
 };
 function cloudOn() { return CLOUD.on; }
 try { CLOUD.me = JSON.parse(ls.get("cloudMe", "null")); CLOUD.projects = JSON.parse(ls.get("cloudProjects", "[]")); CLOUD.last = +ls.get("cloudLast", "0") || 0; } catch {}
@@ -95,10 +96,10 @@ async function cloudSync() {
       const r = await fetch("api/sync", { method: "POST", redirect: "manual", credentials: "same-origin", cache: "no-store",
         headers: { "content-type": "application/json" }, body: JSON.stringify({ cursor: +ls.get("cloudCur", "0") || 0, known: [...cs], projects, push: push.map(({ n, ...x }) => x) }) });
       if (r.type === "opaqueredirect" || r.status === 401 || r.status === 302) { clSet("login"); return; }
-      if (r.status === 403) { const j = await r.json().catch(() => ({})); clSet("denied", j.error === "disabled" ? "這個帳號已停權，請洽管理員" : `${j.email || ""} 還不在公司人員名單，請管理員先加入`); return; }
+      if (r.status === 403) { clDenied(await r.json().catch(() => ({}))); return; }
       if (!r.ok) { clSet("error", "雲端暫時無法連線（" + r.status + "）"); return; }
       const j = await r.json();
-      CLOUD.me = j.me; ls.set("cloudMe", JSON.stringify(j.me));
+      CLOUD.me = j.me; ls.set("cloudMe", JSON.stringify(j.me)); CLOUD.deny = null; CLOUD.reqs = +j.reqs || 0;
       // 第一次登入：這支手機原有的工地都標成「只在這支手機」，要用「上傳舊資料」決定放到哪個專案
       if (!ls.get("cloudInit", "")) {
         const ids = new Set(j.projects.map(p => p.id));
@@ -160,7 +161,7 @@ async function cloudSync() {
   } catch (e) {
     clSet(navigator.onLine ? "error" : "offline", navigator.onLine ? "同步失敗，稍後會自動再試" : "");
   } finally {
-    CLOUD.busy = false;
+    CLOUD.busy = false; clPaint();   // 同步中途的狀態（例如不在名單）在這裡才畫上雲端頁
     if (tplChanged) await loadTemplates();
     // 畫面上正開著的那一份剛收到別人的修改：重新顯示，避免用舊內容蓋掉
     const open = location.hash.split("/").slice(2).find(x => CLOUD.applied.has(x));
@@ -170,6 +171,13 @@ async function cloudSync() {
     if (CLOUD.notes.length) { clToast(CLOUD.notes.join("\n")); CLOUD.notes = []; }
     if (CLOUD.again) { CLOUD.again = false; clSoon(500); }
   }
+}
+
+// 雲端說不能同步：不在名單（可以送加入申請）或已停權
+function clDenied(j) {
+  CLOUD.deny = j || {};
+  if (j?.error === "not_member") { CLOUD.me = null; ls.set("cloudMe", "null"); }
+  clSet("denied", j?.error === "disabled" ? "這個帳號已停權，請洽管理員" : "還不在公司人員名單");
 }
 
 /* ---------- 權限（畫面上先擋，雲端也會再檢查一次） ---------- */
@@ -207,11 +215,12 @@ function cloudFirst() {
 /* ---------- 畫面：首頁小標籤、提示 ---------- */
 function clLabel() {
   const n = clPending();
+  if (CLOUD.state === "denied") return CLOUD.deny?.applied === "pending" ? "☁ 等待核准" : "☁ 無法同步";
   if (!CLOUD.me || CLOUD.state === "login") return "☁ 登入同步";
-  if (CLOUD.state === "denied") return "☁ 無法同步";
   if (CLOUD.state === "syncing") return "☁ 同步中…";
   if (CLOUD.state === "offline" || !navigator.onLine) return n ? `☁ 離線・待上傳 ${n} 筆` : "☁ 離線";
   if (CLOUD.state === "error") return n ? `☁ 待上傳 ${n} 筆` : "☁ 稍後再試";
+  if (CLOUD.me?.admin && CLOUD.reqs && !n) return `☁ ${CLOUD.reqs} 人申請加入`;
   return n ? `☁ 待上傳 ${n} 筆` : "☁ 已同步";
 }
 function clPaint() {
@@ -233,8 +242,21 @@ function clToast(text) {
 
 /* ---------- 雲端同步頁 #/cloud ---------- */
 const clRoleName = { admin: "管理員", lead: "工程主管", member: "一般同事", viewer: "唯讀" };
+function clDenyHtml() {
+  const d = CLOUD.deny || {}, out = `<button class="sec" id="clOut">換 Email 登入</button>`;
+  if (d.error === "disabled") return `<b>這個帳號已停權</b>　<small>${esc(d.email || "")}</small><br><small style="color:var(--bad)">請洽管理員。</small><div class="row" style="margin:10px 0 0">${out}</div>`;
+  const head = `<b>還不在公司人員名單</b>　<small>${esc(d.email || "")}</small><br>`;
+  if (d.applied === "pending") return head + `<small style="color:var(--mut)">已送出加入申請（${esc(d.name || "")}${d.note ? "・" + esc(d.note) : ""}），等管理員核准。核准後按「重新檢查」就能開始同步。</small>
+    <div class="row" style="margin:10px 0 0"><button class="sec" id="clNow">⟳ 重新檢查</button>${out}</div>`;
+  if (d.applied === "rejected") return head + `<small style="color:var(--bad)">管理員沒有核准這個 Email 的申請，如有疑問請直接洽管理員。</small><div class="row" style="margin:10px 0 0">${out}</div>`;
+  return head + `<small style="color:var(--mut)">填姓名送出申請，管理員核准後就能同步。沒核准前，這支手機照樣可以填表，資料只存在手機。</small>
+    <div class="grid2" style="gap:0 8px;margin-top:8px"><div class="field"><label>姓名</label><input id="clAName" maxlength="30" autocomplete="name" placeholder="例如：王小明"></div>
+    <div class="field"><label>說明（選填）</label><input id="clANote" maxlength="100" placeholder="例如：○○工地 現場工程師"></div></div>
+    <div class="row" style="margin:0"><button id="clApply">送出加入申請</button>${out}</div>`;
+}
 function clStateHtml() {
   const me = CLOUD.me, n = clPending();
+  if (CLOUD.state === "denied" && CLOUD.deny) return clDenyHtml();
   if (!me || CLOUD.state === "login") return `<b>尚未登入</b><br><small style="color:var(--mut)">輸入公司給你的 Email，收信填驗證碼就能登入，不用設密碼。沒有網路時照樣可以填表，登入後會自動上傳。</small>
     <div class="row" style="margin:10px 0 0"><button id="clLogin">✉ 用 Email 登入</button></div>`;
   return `<b>${esc(me.name || me.email)}</b>　<small>${esc(me.email)}${me.admin ? "・管理員" : ""}</small><br>
@@ -263,6 +285,8 @@ async function renderCloud() {
       <div class="grid2" style="gap:0 8px"><div class="field"><label>Email</label><input id="clMEmail" type="email" autocomplete="off" placeholder="同事的 Email"></div>
       <div class="field"><label>角色</label><select id="clMRole">${me.admin ? `<option value="lead">工程主管</option>` : ""}<option value="member" selected>一般同事</option><option value="viewer">唯讀</option></select></div></div>
       <div class="row" style="margin:0"><button class="sec" id="clMAdd">＋ 加入專案</button></div></div>` : ""}
+    ${me?.admin ? `<div class="panel"><b>加入申請</b><p class="cnote">同事用自己的 Email 登入後可以送出申請。核准後會加進人員名單，再到上方「專案成員」把他加進專案。</p>
+      <div id="clReqs"><small style="color:var(--mut)">讀取中…</small></div></div>` : ""}
     ${me?.admin ? `<div class="panel"><b>人員管理（管理員）</b><p class="cnote">只有名單上的 Email 能登入。離職或手機遺失請按「停權」，立刻不能同步。</p>
       <div id="clUsers"><small style="color:var(--mut)">讀取中…</small></div>
       <div class="grid2" style="gap:0 8px"><div class="field"><label>Email</label><input id="clUEmail" type="email" autocomplete="off" placeholder="name@公司.com"></div>
@@ -273,13 +297,26 @@ async function renderCloud() {
   const api = async (path, body) => {
     const r = await fetch("api/" + path, { method: body ? "POST" : "GET", redirect: "manual", credentials: "same-origin", cache: "no-store", headers: { "content-type": "application/json" }, body: body && JSON.stringify(body) });
     if (r.type === "opaqueredirect" || r.status === 401) { clSet("login"); throw new Error("請先登入"); }
-    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.msg || ({ no_user: "這個 Email 還不在人員名單", bad_email: "Email 格式不正確", boot_admin: "設定裡的管理員不能停權或取消管理員", denied: "沒有權限" }[j.error]) || "操作失敗");
+    const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.msg || ({ no_user: "這個 Email 還不在人員名單", no_request: "找不到這筆申請，可能已處理過", bad_email: "Email 格式不正確", boot_admin: "設定裡的管理員不能停權或取消管理員", denied: "沒有權限" }[j.error]) || "操作失敗");
     return j;
   };
   const bindState = () => {
     $("#clLogin")?.addEventListener("click", () => { if (!navigator.onLine) { alert("登入需要網路。"); return; } location.href = "api/login"; });
     $("#clNow")?.addEventListener("click", () => cloudSync());
     $("#clOut")?.addEventListener("click", () => { if (confirm("要登出嗎？這支手機上已下載的資料會保留，下次登入繼續同步。")) { ls.set("cloudMe", "null"); CLOUD.me = null; location.href = "/cdn-cgi/access/logout"; } });
+    $("#clApply")?.addEventListener("click", async e => {
+      const name = $("#clAName").value.trim(), note = $("#clANote").value.trim();
+      if (!name) { alert("請填姓名，管理員才認得出你。"); $("#clAName").focus(); return; }
+      e.target.disabled = true;
+      try {
+        const r = await fetch("api/apply", { method: "POST", redirect: "manual", credentials: "same-origin", cache: "no-store", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, note }) });
+        if (r.type === "opaqueredirect" || r.status === 401) { clSet("login"); return; }
+        const j = await r.json().catch(() => ({}));
+        if (r.status === 403) { clDenied(j); clToast(j.applied === "pending" ? "已送出申請，等管理員核准" : "沒有送出"); return; }
+        if (r.ok) { cloudSync(); return; }   // 送出時剛好已被加入名單
+        alert(j.msg || "送出失敗，請稍後再試"); e.target.disabled = false;
+      } catch { alert("送出失敗，請確認網路後再試"); e.target.disabled = false; }
+    });
   };
   bindState();
   new MutationObserver(bindState).observe($("#clState"), { childList: true });
@@ -340,6 +377,26 @@ async function renderCloud() {
       };
     } catch (e) { box.innerHTML = `<p class="cnote">${esc(e.message)}</p>`; }
   };
+  // 加入申請
+  const drawReqs = async () => {
+    const box = $("#clReqs"); if (!box) return;
+    try {
+      const { requests } = await api("requests");
+      CLOUD.reqs = requests.length; clPaint();
+      box.innerHTML = requests.length ? requests.map(q => `<div class="clrow"><span>${esc(q.name)}<small> ${esc(q.email)}${q.note ? "・" + esc(q.note) : ""}・${esc(clStamp(q.created))}</small></span>
+        <span><button class="lnk" data-rok="${esc(q.email)}">核准</button><button class="lnk" data-rno="${esc(q.email)}">不核准</button></span></div>`).join("") : `<p class="cnote">目前沒有待核准的申請。</p>`;
+    } catch (e) { box.innerHTML = `<p class="cnote">${esc(e.message)}</p>`; }
+  };
+  if ($("#clReqs")) {
+    drawReqs();
+    $("#clReqs").onclick = async e => {
+      const b = e.target.closest("[data-rok],[data-rno]"); if (!b) return;
+      const email = b.dataset.rok || b.dataset.rno, ok = !!b.dataset.rok;
+      if (!ok && !confirm(`不核准 ${email}？之後這個 Email 不能再送申請，要加入請你在下方「人員管理」直接加。`)) return;
+      try { await api("requests", { email, action: ok ? "approve" : "reject" }); if (ok) clToast(`已加入人員名單。請到「專案成員」把 ${email} 加進專案。`); } catch (er) { alert(er.message); }
+      drawReqs(); drawUsers();
+    };
+  }
   if ($("#clUsers")) {
     drawUsers();
     $("#clUAdd").onclick = async () => { try { await api("users", { email: $("#clUEmail").value.trim(), name: $("#clUName").value.trim(), admin: $("#clUAdmin").checked }); $("#clUEmail").value = $("#clUName").value = ""; $("#clUAdmin").checked = false; } catch (er) { alert(er.message); } drawUsers(); };
