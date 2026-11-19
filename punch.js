@@ -245,7 +245,7 @@ async function renderPunchReport() {
   const photoMap = {};
   if (pRepPhoto) for (const p of await DB.all("photos")) if (p.itemIdx === 0 && items.some(x => x.id === p.recId) && !photoMap[p.recId]) photoMap[p.recId] = p.data;
   if (seq !== renderPunchReport.seq) return;
-  const site = sites.find(s => s.id === siteId), company = ls.get("company", "");
+  const site = sites.find(s => s.id === siteId), company = siteCompany(siteId);
   const cnt = { open: all.filter(x => x.status === "open").length, fixed: all.filter(x => x.status === "fixed").length, closed: all.filter(x => x.status === "closed").length };
   view.innerHTML = `
     <div class="noprint"><h2 class="t">缺失改善通知單</h2>
@@ -292,7 +292,7 @@ async function renderPunchSummary() {
   if (seq !== renderPunchSummary.seq) return;
   const trades = [...new Set(all.map(x => x.trade).filter(Boolean))];
   if (pSumTrade && pSumTrade !== "__none" && !trades.includes(pSumTrade)) pSumTrade = "";
-  const site = sites.find(s => s.id === siteId), company = ls.get("company", "");
+  const site = sites.find(s => s.id === siteId), company = siteCompany(siteId);
   const tot = pStats(all);
   const days = all.filter(x => x.fixedAt && x.foundDate).map(x => pDays(x.foundDate, x.fixedAt)).filter(d => d >= 0);
   const avg = days.length ? (days.reduce((a, b) => a + b, 0) / days.length).toFixed(1) : "—";

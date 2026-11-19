@@ -264,7 +264,7 @@ function tabAnchor(box) {
 
 /* ---------- 計算書（A4） ---------- */
 function renderAncSheet() {
-  const st = ancLoad(), r = ancCalc(st), company = ls.get("company", "");
+  const st = ancLoad(), r = ancCalc(st), company = siteCompany(siteId);
   const v = (x, d) => Number.isFinite(x) ? fmt(x, d) : "—";
   const conds = [["light", "輕質混凝土"], ["uncr", "未開裂"], ["supp", "設補強筋"], ["duct", "鋼材韌性"], ["grout", "注漿墊層"]].filter(([k]) => st[k] === "1").map(([, l]) => l);
   view.innerHTML = `

@@ -123,12 +123,19 @@ let sites = [];
 let siteId = ls.get("siteId", "");
 async function loadSites() {
   sites = (await DB.all("sites")).sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
+  // 公司名稱改成每個工地各自一份：舊工地第一次載入時帶入原本的全站公司名稱
+  for (const s of sites) if (typeof s.company !== "string") { s.company = ls.get("company", ""); await DB.put("sites", s); }
   if (!sites.find(s => s.id === siteId)) siteId = sites[0]?.id || "";
   ls.set("siteId", siteId);
   const sel = $("#siteSelect");
   sel.innerHTML = sites.length
     ? sites.map(s => `<option value="${s.id}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")
     : `<option value="">尚未建立工地</option>`;
+}
+/* 公司名稱跟著工地（專案）走；舊工地沒有這個欄位時沿用以前的全站設定 */
+function siteCompany(sid = siteId) {
+  const s = sites.find(x => x.id === sid);
+  return s && typeof s.company === "string" ? s.company : ls.get("company", "");
 }
 $("#siteSelect").onchange = e => { siteId = e.target.value; ls.set("siteId", siteId); route(); };
 /* mode: "first" 第一次使用（不可取消）／"add" 新增工地／"edit" 修改目前工地與公司 */
@@ -137,7 +144,7 @@ function openSetup(mode) {
   $("#setupTitle").textContent = { first: "開始使用：先填寫工地", add: "新增工地", edit: "工地與公司設定" }[mode];
   $("#setupHint").hidden = mode !== "first";
   $("#sName").value = mode === "edit" && cur ? cur.name : "";
-  $("#sCompany").value = ls.get("company", "");
+  $("#sCompany").value = mode === "edit" && cur ? siteCompany(cur.id) : ls.get("company", "");
   $("#sOk").textContent = mode === "first" ? "開始填表" : "儲存";
   $("#sCancel").hidden = mode === "first";
   $("#sDel").hidden = !(mode === "edit" && cur);
@@ -150,12 +157,13 @@ $("#setupForm").addEventListener("submit", async e => {
   const name = $("#sName").value.trim();
   if (!name) { e.preventDefault(); return; }
   const mode = $("#setup").dataset.mode;
-  ls.set("company", $("#sCompany").value.trim());
+  const company = $("#sCompany").value.trim();
+  ls.set("company", company); // 當作下次新增工地的預設值
   if (mode === "edit" && siteId) {
-    const s = sites.find(x => x.id === siteId); s.name = name; await DB.put("sites", s);
+    const s = sites.find(x => x.id === siteId); s.name = name; s.company = company; await DB.put("sites", s);
   } else {
     let s = sites.find(x => x.name === name);
-    if (!s) { s = { id: uid(), name }; await DB.put("sites", s); }
+    if (!s) { s = { id: uid(), name, company }; await DB.put("sites", s); }
     siteId = s.id; ls.set("siteId", siteId);
   }
   await loadSites(); route();
@@ -644,7 +652,7 @@ async function renderPreview(id) {
   const [rec, tpl] = await loadRec(id);
   if (!rec) return;
   const site = sites.find(s => s.id === rec.siteId);
-  const company = ls.get("company", "");
+  const company = siteCompany(rec.siteId);
   const d = rec.date ? rec.date.replace(/^(\d+)-(\d+)-(\d+)$/, "$1 年 $2 月 $3 日") : "";
   const box = k => (rec.timing[k] ? "☑" : "□");
   const photos = await photosOf(rec.id);
@@ -777,7 +785,7 @@ async function renderBackup() {
       const local = await DB.all("sites"), map = Object.create(null);
       for (const s of d.sites) {
         const same = local.find(x => x.name === s.name);
-        if (same) map[s.id] = same.id; else { await DB.put("sites", s); map[s.id] = s.id; local.push(s); }
+        if (same) map[s.id] = same.id; else { if (typeof s.company !== "string" && d.company) s.company = d.company; await DB.put("sites", s); map[s.id] = s.id; local.push(s); }
       }
       if (d.company && !ls.get("company", "")) ls.set("company", d.company);
       for (const t of d.templates || []) {

@@ -319,7 +319,7 @@ function tabSection(box) {
 
 /* ---------- 計算書（A4） ---------- */
 function renderSecSheet() {
-  const st = secLoad(), r = secCalc(st), company = ls.get("company", ""), u = esc(st.unit);
+  const st = secLoad(), r = secCalc(st), company = siteCompany(siteId), u = esc(st.unit);
   const pts = p => p.map(([x, y]) => `(${+x.toFixed(6)}, ${+y.toFixed(6)})`).join("、");
   const rows = r.ok ? secRows(r, st) : null;
   const sec = (t, rs) => `<tr><th colspan="3">${t}</th></tr>${rs.map(([a, b, c]) => `<tr><td>${a}</td><td class="c">${b}</td><td class="c">${c}</td></tr>`).join("")}`;

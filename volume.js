@@ -231,7 +231,7 @@ function tabVolume(box) {
 }
 
 function renderVolSheet() {
-  const st = volLoad(), T = volTotals(st), company = ls.get("company", "");
+  const st = volLoad(), T = volTotals(st), company = siteCompany(siteId);
   const list = st.rows.map((r, i) => ({ r, x: T.res[i] })).filter(o => Number.isFinite(o.x.v));
   const cats = VOL_TYPES.filter(t => T.by[t.k] != null);
   view.innerHTML = `

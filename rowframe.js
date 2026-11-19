@@ -182,7 +182,7 @@ function tabRowFrame(box) {
 }
 
 function renderRowSheet() {
-  const st = rfLoad(), r = rfCalc(st), company = ls.get("company", "");
+  const st = rfLoad(), r = rfCalc(st), company = siteCompany(siteId);
   const v = (x, d) => Number.isFinite(x) ? fmt(x, d) : "—", c = r.check, [j] = colJudge(c);
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="rfBack">← 返回修改</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>

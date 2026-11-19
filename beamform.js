@@ -356,7 +356,7 @@ function tabBeamForm(box) {
 
 /* ---------- 計算書（A4） ---------- */
 function renderBeamSheet() {
-  const st = bfLoad(), r = bfCalc(st), company = ls.get("company", "");
+  const st = bfLoad(), r = bfCalc(st), company = siteCompany(siteId);
   const v = (x, d) => Number.isFinite(x) ? fmt(x, d) : "—";
   const crow = c => { const [j] = colJudge(c); return `<tr><td>${c.t}</td><td class="c">${v(c.v, c.d)}</td><td class="c">${c.a > 0 ? v(c.a, c.d) : "—"}</td><td class="c">${c.u}</td><td class="c">${c.a > 0 && Number.isFinite(c.v) ? v(c.v / c.a, 2) : "—"}</td><td class="c">${j}</td></tr>`; };
   const matRow = (label, m) => `<tr><td>${label}</td><td colspan="3">${m ? esc(m.n || "未命名") + (colSectText(m) ? "：" + esc(colSectText(m)) : "") + (m.kind === "tie" ? `；容許拉力 ${esc(m.ta) || "—"} kgf${m.bolt ? `（Ft ${esc(st.tieFt)} kgf/cm² × 斷面積）` : ""}` : `${m.wood ? `；${esc(m.spn)}` : ""}；fb ${esc(m.fb) || "—"}、fv ${esc(m.fv) || "—"}、E ${esc(m.E) || "—"} kgf/cm²`) : "未選擇"}</td></tr>`;

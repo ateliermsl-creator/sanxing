@@ -31,7 +31,7 @@ const cnames = (v, keys) => Object.fromEntries(keys.map(k => [k, cs(obj(v)[k], 1
 const clog = v => arr(v, 200).map(l => ({ at: ciso(obj(l).at), text: cs(obj(l).text, 500) }));
 
 const CLEAN = {
-  sites: x => safeId(x.id) && { id: x.id, name: cs(x.name, 200) },
+  sites: x => safeId(x.id) && { id: x.id, name: cs(x.name, 200), ...(typeof x.company === "string" ? { company: cs(x.company, 200) } : {}) },
   records: x => safeId(x.id) && safeId(x.siteId) && {
     id: x.id, siteId: x.siteId, templateId: cs(x.templateId, 64), docNo: cs(x.docNo, 100), contractor: cs(x.contractor, 200), subcontractor: cs(x.subcontractor, 200),
     date: cdate(x.date), location: cs(x.location, 200), timing: { before: cb(obj(x.timing).before), during: cb(obj(x.timing).during), after: cb(obj(x.timing).after) },

@@ -154,7 +154,7 @@ async function renderCureTest(truckId, ageStr) {
 /* ---------- 強度台帳 ---------- */
 async function renderCureLedger() {
   const { cfg, tests } = await cuBuild();
-  const files = await DB.all("files"), company = ls.get("company", ""), site = sites.find(s => s.id === siteId);
+  const files = await DB.all("files"), company = siteCompany(siteId), site = sites.find(s => s.id === siteId);
   const rows = tests.slice().sort((p, q) => cuDay(p.b.date) - cuDay(q.b.date) || p.b.created - q.b.created || p.age - q.age);
   const body = rows.map(x => {
     const nums = (x.res?.vals || []).map(cuNum).filter(v => v !== null), avg = nums.length ? nums.reduce((a, v) => a + v, 0) / nums.length : null, fc = cuNum(x.b.fc);

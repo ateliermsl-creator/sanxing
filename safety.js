@@ -230,7 +230,7 @@ function saSigPad(title, cur, done) {
 async function renderSafetyPrint(id) {
   const r = await DB.get("safety", id);
   if (!r) { goReplace("#/safety"); return; }
-  const cfg = await saCfg(), site = sites.find(s => s.id === r.siteId), company = ls.get("company", ""), photos = await photosOf(id);
+  const cfg = await saCfg(), site = sites.find(s => s.id === r.siteId), company = siteCompany(r.siteId), photos = await photosOf(id);
   const ppl = r.people.filter(p => p.name || p.sig), rows = Math.ceil(Math.max(ppl.length, 10) / 2);
   const hz = [...cfg.hazards, ...r.hazards.filter(x => !cfg.hazards.includes(x))], rk = [...cfg.risks, ...r.risks.filter(x => !cfg.risks.includes(x))];
   const cell = (p, n) => p ? `<td class="c">${n}</td><td>${esc(p.name)}</td><td><small>${esc(p.co)}</small></td><td class="c sgc">${p.sig ? `<img src="${safeImg(p.sig)}" style="max-height:8mm;max-width:30mm;display:block;margin:0 auto">` : ""}</td>` : `<td class="c">${n}</td><td></td><td></td><td class="sgc"></td>`;
