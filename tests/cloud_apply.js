@@ -13,11 +13,20 @@ const T = Date.now().toString(36), boss = 'boss@test.tw', nb = `new${T}@test.tw`
     return p;
   };
   const shot = async (p, n) => { if (SHOTS) await p.screenshot({ path: `${SHOTS}/${n}.png` }); };
+  // 還沒登入：登入畫面同時有「申請帳號」
+  const L = await phone('');
+  await L.goto(B + '/#/cloud'); await L.waitForTimeout(2500);
+  ok('沒登入時有「申請帳號」', !!(await L.$('#clLogin')) && !!(await L.$('#clSignup')), await L.textContent('#clState'));
+  await shot(L, '申請加入_登入畫面');
+  await L.setViewportSize({ width: 320, height: 640 }); await L.waitForTimeout(300);
+  ok('登入畫面 320 寬沒有橫向捲動', await L.evaluate(() => document.documentElement.scrollWidth <= 320));
   const N = await phone(nb);
+  await N.addInitScript(() => localStorage.setItem('cloudSignup', '1'));
   await N.goto(B + '/#/cloud'); await N.waitForTimeout(2500);
   let t = await N.textContent('#clState');
-  ok('不在名單：顯示申請表，不是「尚未登入」', t.includes('還不在公司人員名單') && !t.includes('尚未登入') && await N.$('#clApply'), t);
+  ok('不在名單：顯示申請表，不是「尚未登入」', (t.includes('還不在公司人員名單') || t.includes('申請帳號')) && !t.includes('尚未登入') && await N.$('#clApply'), t);
   ok('首頁標籤', (await N.evaluate(() => clLabel())) === '☁ 無法同步');
+  ok('按「申請帳號」進來時標題是申請帳號', (await N.textContent('#clState')).includes('申請帳號'));
   await N.click('#clApply'); await N.waitForTimeout(300);
   ok('沒填姓名不送出', !!(await N.$('#clApply')));
   await N.fill('#clAName', '新同事'); await N.fill('#clANote', '○○工地 現場工程師');
