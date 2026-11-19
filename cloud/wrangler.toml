@@ -4,6 +4,8 @@
 name = "sanxing"
 main = "worker.js"
 compatibility_date = "2026-11-01"
+# 保留後台設定的變數（TEAM_DOMAIN、POLICY_AUD、ADMIN_EMAILS），部署時不要清掉
+keep_vars = true
 
 [assets]
 directory = "../"
