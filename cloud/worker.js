@@ -283,6 +283,13 @@ async function api(req, env, url) {
     return json({ me: me2, projects, results, projResults, pull, cursor: newCursor, more, reqs: await reqCount(db, me2) });
   }
 
+  // 自己的姓名（每個人都可以改自己的）
+  if (path === "profile" && req.method === "POST") {
+    const name = str(body.name, 50).trim();
+    if (!name) return json({ error: "bad_name", msg: "姓名不能空白" }, 400);
+    await db.prepare("UPDATE users SET name = ?, updated = ? WHERE email = ?").bind(name, now(), me.email).run();
+    return json({ name });
+  }
   // 人員管理（管理員）
   if (path === "users") {
     if (!me.admin) return json({ error: "denied" }, 403);

@@ -31,6 +31,8 @@ const P = 'p' + Date.now().toString(36);
   ok('重複處理同一筆申請', (await call(boss, 'requests', { email: rj, action: 'approve' })).error === 'no_request');
   await call(boss, 'users', { email: rj, name: '後來直接加' });
   ok('管理員直接加入後可以登入', !(await call(rj, 'me')).error);
+  ok('本人改自己的姓名', (await call(nb, 'profile', { name: '新同事改名' })).name === '新同事改名' && (await call(nb, 'me')).me.name === '新同事改名');
+  ok('姓名不能空白', (await call(nb, 'profile', { name: '  ' })).error === 'bad_name');
   let s = await call(amy, 'sync', { cursor: 0, projects: [{ id: P, name: '同事不能建專案' }] });
   ok('一般人不能建專案', s.projResults[0].status === 'denied', s.projResults);
   s = await call(boss, 'sync', { cursor: 0, projects: [{ id: P, name: '測試案', company: '順風營造' }] });

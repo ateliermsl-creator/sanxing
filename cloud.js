@@ -99,7 +99,7 @@ async function cloudSync() {
       if (r.status === 403) { clDenied(await r.json().catch(() => ({}))); return; }
       if (!r.ok) { clSet("error", "雲端暫時無法連線（" + r.status + "）"); return; }
       const j = await r.json();
-      CLOUD.me = j.me; ls.set("cloudMe", JSON.stringify(j.me)); CLOUD.deny = null; CLOUD.reqs = +j.reqs || 0; ls.set("cloudSignup", "");
+      CLOUD.me = j.me; ls.set("cloudMe", JSON.stringify(j.me)); CLOUD.deny = null; CLOUD.reqs = +j.reqs || 0;
       // 第一次登入：這支手機原有的工地都標成「只在這支手機」，要用「上傳舊資料」決定放到哪個專案
       if (!ls.get("cloudInit", "")) {
         const ids = new Set(j.projects.map(p => p.id));
@@ -245,7 +245,7 @@ const clRoleName = { admin: "管理員", lead: "工程主管", member: "一般�
 function clDenyHtml() {
   const d = CLOUD.deny || {}, out = `<button class="sec" id="clOut">換 Email 登入</button>`;
   if (d.error === "disabled") return `<b>這個帳號已停權</b>　<small>${esc(d.email || "")}</small><br><small style="color:var(--bad)">請洽管理員。</small><div class="row" style="margin:10px 0 0">${out}</div>`;
-  const head = d.applied || !ls.get("cloudSignup", "") ? `<b>還不在公司人員名單</b>　<small>${esc(d.email || "")}</small><br>` : `<b>申請帳號</b>　<small>${esc(d.email || "")}</small><br>`;
+  const head = d.applied ? `<b>還不在公司人員名單</b>　<small>${esc(d.email || "")}</small><br>` : `<b>申請帳號</b>　<small>${esc(d.email || "")}</small><br><small style="color:var(--mut)">這個 Email 還不在公司人員名單。</small>`;
   if (d.applied === "pending") return head + `<small style="color:var(--mut)">已送出加入申請（${esc(d.name || "")}${d.note ? "・" + esc(d.note) : ""}），等管理員核准。核准後按「重新檢查」就能開始同步。</small>
     <div class="row" style="margin:10px 0 0"><button class="sec" id="clNow">⟳ 重新檢查</button>${out}</div>`;
   if (d.applied === "rejected") return head + `<small style="color:var(--bad)">管理員沒有核准這個 Email 的申請，如有疑問請直接洽管理員。</small><div class="row" style="margin:10px 0 0">${out}</div>`;
@@ -257,10 +257,11 @@ function clDenyHtml() {
 function clStateHtml() {
   const me = CLOUD.me, n = clPending();
   if (CLOUD.state === "denied" && CLOUD.deny) return clDenyHtml();
-  if (!me || CLOUD.state === "login") return `<b>尚未登入</b><br><small style="color:var(--mut)">輸入你的 Email，收信填驗證碼就能登入，不用設密碼。沒有網路時照樣可以填表，登入後會自動上傳。</small>
-    <div class="row" style="margin:10px 0 0"><button id="clLogin">✉ 用 Email 登入</button><button class="sec" id="clSignup">📝 申請帳號</button></div>
-    <small style="color:var(--mut)">第一次使用請按「申請帳號」：也要先收一次驗證碼，確認信箱是你本人的，接著填姓名送出，管理員核准後就能使用。</small>`;
-  return `<b>${esc(me.name || me.email)}</b>　<small>${esc(me.email)}${me.admin ? "・管理員" : ""}</small><br>
+  if (!me || CLOUD.state === "login") return `<b>尚未登入</b><br><small style="color:var(--mut)">不用設密碼：輸入你的 Email，收信把驗證碼填回去就好。第一次使用也按這裡，確認是本人後填姓名申請，管理員核准就能同步。</small>
+    <div class="row" style="margin:10px 0 0"><button id="clLogin">✉ 用 Email 登入／申請</button></div>
+    <div class="cnote" style="margin:0">📮 驗證碼信由 <b>Cloudflare</b> 寄出、內容是英文。幾分鐘內沒收到，請看「垃圾郵件」或「促銷內容」。登入一次可用一個月，沒網路時照樣能填表。</div>`;
+  return `<b>${esc(me.name || me.email)}</b>　<small>${me.name ? esc(me.email) : ""}${me.admin ? (me.name ? "・" : "") + "管理員" : ""}</small> <button class="lnk" id="clMyName">${me.name ? "改姓名" : "＋ 填姓名"}</button><br>
+    ${me.name ? "" : `<small style="color:var(--bad)">還沒填姓名，填了同事才認得出是誰填的表。</small><br>`}
     <small style="color:${CLOUD.state === "denied" || CLOUD.state === "error" ? "var(--bad)" : "var(--mut)"}">${esc(CLOUD.msg || clLabel())}${CLOUD.last ? `・上次同步 ${esc(clStamp(CLOUD.last))}` : ""}${n ? `・還有 ${n} 筆在這支手機等上傳` : ""}</small>
     <div class="row" style="margin:10px 0 0"><button class="sec" id="clNow">⟳ 立即同步</button><button class="sec" id="clOut">登出</button></div>`;
 }
@@ -302,10 +303,12 @@ async function renderCloud() {
     return j;
   };
   const bindState = () => {
-    const go = signup => { if (!navigator.onLine) { alert(signup ? "申請需要網路。" : "登入需要網路。"); return; } ls.set("cloudSignup", signup ? "1" : ""); location.href = "api/login"; };
-    $("#clLogin")?.addEventListener("click", () => go(false));
-    $("#clSignup")?.addEventListener("click", () => go(true));
-    if ($("#clAName") && ls.get("cloudSignup", "")) $("#clAName").focus({ preventScroll: true });
+    $("#clLogin")?.addEventListener("click", () => { if (!navigator.onLine) { alert("登入需要網路。"); return; } location.href = "api/login"; });
+    $("#clMyName")?.addEventListener("click", async () => {
+      const n = prompt("你的姓名（同事看到的名字）", CLOUD.me?.name || ""); if (n === null) return;
+      if (!n.trim()) { alert("姓名不能空白。"); return; }
+      try { const j = await api("profile", { name: n.trim() }); CLOUD.me = { ...CLOUD.me, name: j.name }; ls.set("cloudMe", JSON.stringify(CLOUD.me)); clPaint(); $("#clUsers") && drawUsers(); } catch (er) { alert(er.message); }
+    });
     $("#clNow")?.addEventListener("click", () => cloudSync());
     $("#clOut")?.addEventListener("click", () => { if (confirm("要登出嗎？這支手機上已下載的資料會保留，下次登入繼續同步。")) { ls.set("cloudMe", "null"); CLOUD.me = null; location.href = "/cdn-cgi/access/logout"; } });
     $("#clApply")?.addEventListener("click", async e => {
@@ -354,7 +357,7 @@ async function renderCloud() {
     const box = $("#clMem"); if (!box) return;
     try {
       const pid = $("#clMP").value, { members } = await api(`projects/${encodeURIComponent(pid)}/members`);
-      box.innerHTML = members.length ? members.map(m => `<div class="clrow"><span>${esc(m.name || m.email)}<small> ${esc(m.email)}${m.disabled ? "・已停權" : ""}</small></span>
+      box.innerHTML = members.length ? members.map(m => `<div class="clrow"><span>${esc(m.name || m.email)}<small> ${m.name ? esc(m.email) : ""}${m.disabled ? "・已停權" : ""}</small></span>
         <span><select data-mrole="${esc(m.email)}" aria-label="角色" ${m.role === "lead" && !me.admin ? "disabled" : ""}>${["lead", "member", "viewer"].map(r => `<option value="${r}" ${r === m.role ? "selected" : ""} ${r === "lead" && !me.admin ? "disabled" : ""}>${clRoleName[r]}</option>`).join("")}</select>
         <button class="lnk" data-mdel="${esc(m.email)}" ${m.role === "lead" && !me.admin ? "disabled" : ""}>移出</button></span></div>`).join("") : `<p class="cnote">還沒有成員。</p>`;
     } catch (e) { box.innerHTML = `<p class="cnote">${esc(e.message)}</p>`; }
@@ -370,7 +373,7 @@ async function renderCloud() {
     const box = $("#clUsers"); if (!box) return;
     try {
       const { users } = await api("users");
-      box.innerHTML = users.map(u => `<div class="clrow"><span>${esc(u.name || u.email)}<small> ${esc(u.email)}${u.admin ? "・管理員" : ""}${u.disabled ? "・<b style='color:var(--bad)'>已停權</b>" : ""}</small></span>
+      box.innerHTML = users.map(u => `<div class="clrow"><span>${esc(u.name || u.email)}<small> ${u.name ? esc(u.email) + (u.admin ? "・" : "") : ""}${u.admin ? "管理員" : ""}${u.disabled ? "・<b style='color:var(--bad)'>已停權</b>" : ""}</small></span>
         ${u.boot ? `<small style="color:var(--mut)">設定指定</small>` : `<span><button class="lnk" data-uadm="${esc(u.email)}">${u.admin ? "取消管理員" : "設為管理員"}</button><button class="lnk" data-udis="${esc(u.email)}">${u.disabled ? "恢復" : "停權"}</button></span>`}</div>`).join("");
       box.onclick = async e => {
         const a = e.target.closest("[data-uadm],[data-udis]"); if (!a) return;
