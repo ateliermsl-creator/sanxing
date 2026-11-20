@@ -87,6 +87,16 @@ const KINDS = ['logs', 'matrecs', 'safety', 'pours', 'workorders', 'vols'];
   await M.p.goto(B + '/#/punch/' + BID); await M.p.waitForTimeout(900);
   ok('一般同事開別人建的缺失只能看', await M.p.isDisabled('[data-f="desc"]') && (await M.p.textContent('.clroBar')).includes(boss));
 
+  // 一般同事可以在別人建立的缺失上簽收（只存簽收，其他欄位不動）
+  await M.p.evaluate(async id => { const x = await DB.get('punch', id); x.ack = { id: 'ak2', at: '2026-11-21T08:00:00', ids: [id], sigs: { trade: 'data:image/png;base64,iVBORw0KGgo=' } }; x.desc = '同事偷改'; x.updated = Date.now(); await DB.put('punch', x); }, BID);
+  await sync(M.p); await sync(A.p);
+  const bk = await A.p.evaluate(id => DB.get('punch', id), BID);
+  ok('一般同事簽收別人建立的缺失：簽收有存', bk?.ack?.id === 'ak2', bk?.ack);
+  ok('一般同事簽收時其他欄位不會被改', bk?.desc === '管理員建的', bk?.desc);
+  ok('同事手機收回雲端版本', (await M.p.evaluate(id => DB.get('punch', id), BID))?.desc === '管理員建的');
+  await V.p.evaluate(async id => { const x = await DB.get('punch', id); if (x) { x.ack = { id: 'ak3', at: '2026-11-21T09:00:00', ids: [id], sigs: { boss: 'data:image/png;base64,iVBORw0KGgo=' } }; x.updated = Date.now(); await DB.put('punch', x); } }, BID);
+  await sync(V.p); await sync(A.p);
+  ok('唯讀者不能簽收', (await A.p.evaluate(id => DB.get('punch', id), BID))?.ack?.id === 'ak2');
   // 升級前就在手機上的資料：補上傳一次
   const OLD = await M.p.evaluate(async P => {
     const id = 'old' + Date.now().toString(36);

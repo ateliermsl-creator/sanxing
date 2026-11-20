@@ -18,7 +18,7 @@
 | `attach.js` | 附加檔案（Blob，單檔 10 MB） |
 | `pdf.js` | 「分享 PDF」：html2canvas + jsPDF，把 `.paper` 轉成 A4 |
 | `workorder.js punch.js pour.js material.js` | 點工單、缺失改善、混凝土澆置抽驗、材料進場驗收 |
-| `punch.js` 通知單 | 缺失改善通知單 `#/punch/report`：預設列待改善／待複驗，全部結案且沒動過篩選時自動連已結案一起列（2026-11-20 使用者反映填完後通知單空白）。列表／通知單／總表共用 `pHasContent`（只拍照也算）。每頁（工班）可在手機簽收：`saSigPad`（safety.js）簽「工班」「工地主任」，存在該頁每筆缺失的 `ack = {id, at, ids, sigs:{trade, boss}}`，列出的項目與 `ids` 完全相同才顯示簽名（同工班新增缺失要重簽），`safe.js` 的 `cack` 清理 |
+| `punch.js` 通知單 | 缺失改善通知單 `#/punch/report`：預設列待改善／待複驗，全部結案且沒動過篩選時自動連已結案一起列（2026-11-20 使用者反映填完後通知單空白）。列表／通知單／總表共用 `pHasContent`（只拍照也算）。每頁（工班）可在手機簽收：`saSigPad`（safety.js）簽「工班」「工地主任」，存在該頁每筆缺失的 `ack = {id, at, ids, sigs:{trade, boss}}`，列出的項目與 `ids` 完全相同才顯示簽名（同工班新增缺失要重簽），`safe.js` 的 `cack` 清理。雲端版：一般同事也能在別人建立的缺失上簽收（2026-11-20 使用者用決策卡同意放寬），`worker.js` 只存 `ack`、其他欄位維持雲端版本；唯讀不能簽 |
 | `cure.js` | 試體養護與拆模追蹤（讀澆置資料） |
 | `shot.js` | 施工照片（電子黑板相機）、照片冊 |
 | `safety.js` | 職安衛勤前教育／危害告知簽到 |

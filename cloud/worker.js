@@ -162,7 +162,18 @@ async function pushOne(db, me, item) {
     if (item.kind !== "templates" && item.project !== pid && !(isLead(roleIn(me, item.project)) && isLead(role))) return deny("不能把紀錄移到別的專案");
     if (!canWrite(role)) return deny(item.kind === "templates" ? "自訂範本要由工程主管或管理員發布到公司共用" : role === "viewer" ? "你在這個專案是唯讀" : "你不是這個專案的成員");
     const own = !cur || cur.created_by === me.email;
-    if (!isLead(role) && !own) return deny("一般同事只能修改自己建立的表單");
+    if (!isLead(role) && !own) {
+      // 缺失通知單簽收（2026-11-20 使用者同意放寬）：一般同事可以在別人建立的缺失上簽收，只存 ack，其他欄位維持雲端版本
+      if (item.kind === "punch" && cur && !cur.deleted && !item.del && isObj(curData) && !same(data.ack, curData.ack)) {
+        const next = { ...curData, updated: Math.max(Number(curData.updated) || 0, Number(data.updated) || 0) };
+        if (data.ack === undefined) delete next.ack; else next.ack = data.ack;
+        const other = Object.keys({ ...data, ...curData }).some(k => k !== "ack" && k !== "updated" && !same(data[k], curData[k]));
+        const r = await saveDoc(db, me, cur, item, next, "ack");
+        if (r) return { id: item.id, status: "merged", msg: other ? "已存簽收；這筆缺失的其他修改要由建立人或工程主管處理" : "", version: r.version, data: next, by: r.created_by };
+        continue;
+      }
+      return deny("一般同事只能修改自己建立的表單");
+    }
     if (!cur) {
       if (item.del) return { id: item.id, status: "ok", version: 0, gone: true };
       const r = await saveDoc(db, me, null, item, data);
