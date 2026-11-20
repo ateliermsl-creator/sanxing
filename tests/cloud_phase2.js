@@ -49,6 +49,11 @@ const KINDS = ['logs', 'matrecs', 'safety', 'pours', 'workorders', 'vols'];
   await sync(M.p); await sync(A.p);
   for (const k of KINDS) { const x = await A.p.evaluate(([k, id]) => DB.get(k, id), [k, ids[k]]); ok(`${k}：另一支手機收到`, x && x.siteId === P, x); }
 
+  // 方數「其他」列（直接填單個體積 v）也同步
+  const VO = await M.p.evaluate(async P => { const id = 'vo' + Date.now().toString(36); await DB.put('vols', { id, siteId: P, name: '集水坑', rows: [{ name: '集水坑', type: 'oth', a: '', b: '', c: '', d: '', e: '', v: '0.85', n: '2', op: [] }], cfg: {}, created: Date.now(), updated: Date.now() }); return id; }, P);
+  await sync(M.p); await sync(A.p);
+  const vo = await A.p.evaluate(id => DB.get('vols', id), VO);
+  ok('方數「其他」列與單個體積同步', vo?.rows?.[0]?.type === 'oth' && vo.rows[0].v === '0.85', vo);
   // 管理員改缺失 → Amy 收到；開著的畫面會更新
   await M.p.goto(B + '/#/punch/' + PU); await M.p.waitForTimeout(600);
   await A.p.evaluate(async id => { const x = await DB.get('punch', id); x.trade = '泥作班'; x.updated = Date.now(); await DB.put('punch', x); }, PU);
