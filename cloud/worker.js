@@ -10,7 +10,7 @@
    本機測試：DEV_AUTH = "1" 且網址是 localhost 時，改用 X-Dev-Email 標頭當登入者 */
 
 const ROLES = ["lead", "member", "viewer"];
-const SYNC_KINDS = ["records", "templates", "punch", "logs", "matrecs", "safety", "pours", "workorders", "vols"];   // 第一期＋第二期同步的表單；templates 以外都掛在專案（siteId）下
+const SYNC_KINDS = ["records", "templates", "punch", "logs", "matrecs", "safety", "pours", "workorders", "vols", "calcs"];   // 第一期＋第二期同步的表單；templates 以外都掛在專案（siteId）下
 const MAX_DOC = 1500000;                               // 單份表單上限（字元），D1 一列上限 2 MB
 const PULL_LIMIT = 400;
 

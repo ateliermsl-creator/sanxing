@@ -1,4 +1,4 @@
-// cloud_phase2：第二期同步（缺失改善、施工日誌、材料進場、勤前教育、混凝土澆置、點工單、方數）。需先啟動 wrangler dev（見 tests/README.md）
+// cloud_phase2：第二期同步（缺失改善、施工日誌、材料進場、勤前教育、混凝土澆置、點工單、方數）＋結構計算存到專案。需先啟動 wrangler dev（見 tests/README.md）
 const { chromium } = require('playwright');
 const B = process.env.CLOUD_URL || 'http://localhost:8787';
 const api = async (who, path, body) => (await fetch(B + '/api/' + path, { method: body ? 'POST' : 'GET', headers: { 'x-dev-email': who, 'content-type': 'application/json' }, body: body && JSON.stringify(body) })).json();
@@ -81,6 +81,30 @@ const KINDS = ['logs', 'matrecs', 'safety', 'pours', 'workorders', 'vols'];
   await sync(M.p); await sync(M.p); await sync(A.p);
   ok('升級前的資料自動補上傳', (await A.p.evaluate(id => DB.get('punch', id), OLD))?.desc === '升級前的缺失');
 
+  // 結構計算存到專案：Amy 存一份柱模 → 管理員開啟；管理員開 Amy 的只能看、不會改到原紀錄
+  await M.p.evaluate(P => { localStorage.setItem('siteId', P); }, P);
+  await M.p.goto(B + '/#/struct/col'); await M.p.waitForSelector('#csBar'); await M.p.waitForTimeout(400);
+  await M.p.fill('[data-p="info.loc"]', '3F C1'); await M.p.locator('[data-p="info.loc"]').blur();
+  await M.p.fill('#csName', 'Amy 的柱模'); await M.p.click('#csSave'); await M.p.waitForTimeout(500);
+  const KC = await M.p.evaluate(async () => (await DB.all('calcs'))[0]?.id);
+  await sync(M.p); await sync(A.p);
+  ok('結構計算：另一支手機收到', (await A.p.evaluate(id => DB.get('calcs', id), KC))?.data?.info?.loc === '3F C1');
+  await A.p.evaluate(P => { localStorage.setItem('siteId', P); }, P); await A.p.reload(); await A.p.waitForTimeout(1500);
+  await A.p.goto(B + '/#/struct/col'); await A.p.waitForSelector('#csBar'); await A.p.waitForTimeout(500);
+  await A.p.click('#csOpen'); await A.p.click(`[data-id="${KC}"] [data-csopen]`); await A.p.waitForTimeout(800);
+  ok('開啟同事存的計算載入輸入', (await A.p.inputValue('[data-p="info.loc"]')) === '3F C1');
+  // Amy 改自己的 → 自動存回並同步
+  await M.p.fill('[data-p="info.loc"]', '3F C1-改'); await M.p.locator('[data-p="info.loc"]').blur(); await M.p.waitForTimeout(1200);
+  await sync(M.p); await sync(A.p);
+  ok('本人修改後自動存回並同步', (await A.p.evaluate(id => DB.get('calcs', id), KC))?.data?.info?.loc === '3F C1-改');
+  // 唯讀者開 Amy 的：只能看
+  await V.p.evaluate(P => { localStorage.setItem('siteId', P); }, P); await sync(V.p); await V.p.reload(); await V.p.waitForTimeout(1500);
+  await V.p.goto(B + '/#/struct/col'); await V.p.waitForSelector('#csBar'); await V.p.waitForTimeout(500);
+  await V.p.click('#csOpen'); await V.p.waitForTimeout(200);
+  ok('唯讀者看到「只能看」、沒有刪除鈕', (await V.p.textContent(`[data-id="${KC}"]`)).includes('只能看') && !(await V.p.$(`[data-id="${KC}"] [data-csdel]`)));
+  await V.p.click(`[data-id="${KC}"] [data-csopen]`); await V.p.waitForTimeout(800);
+  await V.p.fill('[data-p="info.loc"]', '唯讀者亂改'); await V.p.locator('[data-p="info.loc"]').blur(); await V.p.waitForTimeout(1200); await sync(V.p);
+  ok('唯讀者改輸入不會改到原紀錄', (await api(boss, 'sync', { cursor: 0 })).pull.find(d => d.id === KC)?.data?.data?.info?.loc === '3F C1-改');
   ok('沒有網頁錯誤', !errs.length, errs);
   console.log(out.join('\n')); console.log(out.filter(x => x[0] === '✗').length ? '有失敗' : '全部通過');
   await b.close();

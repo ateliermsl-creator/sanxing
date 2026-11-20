@@ -28,6 +28,10 @@ const obj = v => (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
 const cname = v => cs(v, 200).replace(/[\u0000-\u001f\u007f]/g, "");
 const csigs = (v, keys) => Object.fromEntries(keys.map(k => [k, safeImg(obj(v)[k])]).filter(([, x]) => x));
 const cnames = (v, keys) => Object.fromEntries(keys.map(k => [k, cs(obj(v)[k], 100)]));
+// 計算機輸入：只留 JSON 的字串、數字、布林、陣列、物件，限制層數與大小
+const cjson = (v, d = 0) => d > 6 ? undefined : typeof v === "string" ? v.slice(0, 2000) : (typeof v === "number" && Number.isFinite(v)) || typeof v === "boolean" ? v
+  : Array.isArray(v) ? v.slice(0, 300).map(x => cjson(x, d + 1)).filter(x => x !== undefined)
+  : v && typeof v === "object" ? Object.fromEntries(Object.entries(v).slice(0, 200).filter(([k]) => k.length <= 60 && k !== "__proto__").map(([k, x]) => [k, cjson(x, d + 1)]).filter(([, x]) => x !== undefined)) : undefined;
 const clog = v => arr(v, 200).map(l => ({ at: ciso(obj(l).at), text: cs(obj(l).text, 500) }));
 
 const CLEAN = {
@@ -86,6 +90,10 @@ const CLEAN = {
       pre: tri(x.pre, ["yes", "no"]), newLabor: tri(x.newLabor, ["yes", "no", "none"]), ppe: tri(x.ppe, ["yes", "no"]),
       other: cs(x.other, 3000), sampling: cs(x.sampling, 6000), notify: cs(x.notify, 3000), important: cs(x.important, 6000), sig: safeImg(x.sig), signer: cs(x.signer, 50), created: cn(x.created), updated: cn(x.updated) };
   })(),
+  calcs: x => safeId(x.id) && safeId(x.siteId) && ["col", "wall", "slab", "beam", "scaf", "brk", "row", "anc", "sec"].includes(x.tab) && {   // 結構計算存到專案（calcsave.js）；data 各計算機讀回時會再挑欄位
+    id: x.id, siteId: x.siteId, tab: x.tab, name: cs(x.name, 100), data: cjson(x.data) || {},
+    lib: arr(x.lib, 60).map(p => obj(p)).filter(p => cs(p.id, 64)).map(p => Object.fromEntries(["id", "kind", "n", "sect", "t", "b", "h", "cnt", "I", "S", "A", "kv", "fb", "fv", "E", "ta"].map(k => [k, cs(p[k], 100)]))),
+    created: cn(x.created), updated: cn(x.updated) },
   vols: x => safeId(x.id) && safeId(x.siteId) && {   // 混凝土方數儲存的計算（volume.js）
     id: x.id, siteId: x.siteId, name: cs(x.name, 100),
     rows: arr(x.rows, 300).map(r => ({ name: cs(obj(r).name, 100), type: ce(obj(r).type, ["rect", "cyl", "wall", "slab", "beam", "ftg", "gb", "stair"], "rect"),

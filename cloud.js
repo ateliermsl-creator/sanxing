@@ -8,8 +8,8 @@
    必須在 app.js 之後載入（要包住 DB），sidenav.js 之前（左側選單多一項）。 */
 const CLOUD = {
   on: !/github\.io$/i.test(location.hostname) && (!["localhost", "127.0.0.1", ""].includes(location.hostname) || ls.get("cloudDev", "") === "1"),
-  stores: ["sites", "records", "templates", "punch", "logs", "matrecs", "safety", "pours", "workorders", "vols"],   // 同步的資料表（第一期＋第二期）；要和 worker.js 的 SYNC_KINDS 一致。照片（photos、shots）第三期才同步
-  phase: "2",                                    // 新增同步的表時加 1：已登入的手機會把專案裡原有、還沒上傳的表單補上傳一次
+  stores: ["sites", "records", "templates", "punch", "logs", "matrecs", "safety", "pours", "workorders", "vols", "calcs"],   // 同步的資料表（第一期＋第二期）；要和 worker.js 的 SYNC_KINDS 一致。照片（photos、shots）第三期才同步
+  phase: "3",                                    // 新增同步的表時加 1：已登入的手機會把專案裡原有、還沒上傳的表單補上傳一次
   me: null, projects: [], meta: new Map(),       // meta：`${store}:${id}` → { v 雲端版次, dirty, n 改了幾次, del, by 建立人, cloud（專案）, local（只在這支手機） }
   state: "idle", msg: "", last: 0, busy: false, again: false, timer: null, notes: [], applied: new Set(),
   deny: null, reqs: 0   // deny：不在名單時雲端回的資料（applied 申請狀態）；reqs：管理員看到的待核准申請數
@@ -60,6 +60,7 @@ async function clApply(kind, d) {   // 把雲端那一份寫進手機（不會�
   const clean = CLEAN[kind] && CLEAN[kind](d.data);
   if (!clean) return false;
   await DBraw.put(kind, clean);
+  if (kind === "calcs") window.csApplied?.(clean);   // 正開著的結構計算紀錄：換成收到的內容
   await clMetaPut({ ...(CLOUD.meta.get(k) || {}), id: k, s: kind, doc: clean.id, v: d.version, by: d.by || CLOUD.meta.get(k)?.by || "", pid: clean.siteId || "", dirty: false, del: false, n: CLOUD.meta.get(k)?.n || 0 });
   return true;
 }
@@ -176,7 +177,7 @@ async function cloudSync() {
     const open = location.hash.split("/").slice(2).find(x => CLOUD.applied.has(x));
     if (open) { if (svCur?.pending) await svCur.flush().catch(() => {}); if (!CLOUD.notes.length) CLOUD.notes.push("這份剛收到同事的修改，畫面已更新"); }
     CLOUD.applied.clear();
-    if (changed || open) { await loadSites(); const h = location.hash; if (open || /^(#\/?)?$|^#\/(checklist|cloud|punch|log|material|safety|pour|cure|workorder)$/.test(h)) route(); }
+    if (changed || open) { await loadSites(); const h = location.hash; if (open || /^(#\/?)?$|^#\/(checklist|cloud|punch|log|material|safety|pour|cure|workorder|struct\/[a-z]+)$/.test(h)) route(); }
     if (CLOUD.notes.length) { clToast(CLOUD.notes.join("\n")); CLOUD.notes = []; }
     if (CLOUD.again) { CLOUD.again = false; clSoon(500); }
   }
@@ -378,7 +379,7 @@ async function renderCloud() {
         await clMetaPut({ ...m, local: false, cloud: true, dirty: true, n: (m.n || 0) + 1 });
         for (const st of CLOUD.stores.filter(clProj)) for (const x of (await DB.all(st)).filter(x => x.siteId === sid)) { if (st === "records") used.add(x.templateId); await DB.put(st, x); }
       } else {
-        for (const st of ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs", "vols"])   // 照片（shots）先改掛到該專案、留在手機，第三期上傳
+        for (const st of ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs", "vols", "calcs"])   // 照片（shots）先改掛到該專案、留在手機，第三期上傳
           for (const x of (await DB.all(st)).filter(x => x.siteId === sid)) { x.siteId = to; if (st === "records") used.add(x.templateId); await DB.put(st, x); }
         await DBraw.del("sites", sid); await clMetaDel(clKey("sites", sid));
         if (siteId === sid) { siteId = to; ls.set("siteId", to); }
