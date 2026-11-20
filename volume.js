@@ -1,35 +1,39 @@
 "use strict";
 /* 計算機「混凝土方數」分頁與 A4 計算書（#/calc/vol/sheet）
-   構件：矩形柱／其他、圓柱、牆（可扣開口）、版（可扣開口）、梁（可扣版厚）、獨立基礎、地梁／連續基礎、樓梯（踏階＋斜版）。
+   構件：矩形柱、圓柱、牆（可扣開口）、版（可扣開口）、梁（可扣版厚）、獨立基礎、地梁／連續基礎、樓梯（踏階＋斜版）、其他（自訂：長×寬×高，或直接填單個體積 v）。
+   2026-11-20 使用者要求「矩形柱／其他」拆成「矩形柱」與「其他」：舊紀錄 type 仍是 rect，顯示為矩形柱、算法不變。
    多列加總、每列乘數量，分類小計、損耗率、建議叫料（進位 0.5 m³）、車數。尺寸一律公尺。
    沿用舊版的 localStorage `calcRows`、`calcCfg`；舊資料的 rect（a 長、b 寬、c 高）、cyl（a 直徑、c 高）照舊可用。
    維度欄位共用 a～e（牆、版、矩形都是 a×b×c，c 為厚／高），切換構件時數值保留；牆、版的開口存在 op: [{w, h, n}]。 */
 
 const VOL_MAX_OP = 8;
 const VOL_TYPES = [
-  { k: "rect", n: "矩形柱／其他", f: [["a", "長"], ["b", "寬"], ["c", "高"]], ph: "例：2F C1 柱" },
+  { k: "rect", n: "矩形柱", f: [["a", "長"], ["b", "寬"], ["c", "高"]], ph: "例：2F C1 柱" },
   { k: "cyl", n: "圓柱", f: [["a", "直徑"], ["c", "高"]], ph: "例：2F 圓柱" },
   { k: "wall", n: "牆", f: [["a", "長"], ["b", "高"], ["c", "厚"]], op: ["寬", "高"], ph: "例：2F 外牆 A 軸" },
   { k: "slab", n: "版", f: [["a", "長"], ["b", "寬"], ["c", "厚"]], op: ["長", "寬"], ph: "例：3F 樓版 A～B" },
   { k: "beam", n: "梁", f: [["b", "梁寬"], ["c", "梁深"], ["a", "淨長"], ["d", "扣版厚"]], ph: "例：3F G1 梁" },
   { k: "ftg", n: "獨立基礎", f: [["a", "長"], ["b", "寬"], ["c", "厚"]], ph: "例：F1 基腳" },
   { k: "gb", n: "地梁／連續基礎", f: [["b", "寬"], ["c", "深"], ["a", "淨長"]], ph: "例：FB1 地梁" },
-  { k: "stair", n: "樓梯", f: [["b", "梯寬"], ["d", "級數"], ["c", "級高"], ["a", "級深"], ["e", "斜版厚"]], ph: "例：1F～2F 樓梯" }
+  { k: "stair", n: "樓梯", f: [["b", "梯寬"], ["d", "級數"], ["c", "級高"], ["a", "級深"], ["e", "斜版厚"]], ph: "例：1F～2F 樓梯" },
+  { k: "oth", n: "其他", f: [["a", "長"], ["b", "寬"], ["c", "高"], ["v", "體積", "m³"]], ph: "例：集水坑、設備基座", hint: "填長、寬、高；形狀不規則可改填單個「體積」（有填體積時以體積為準）。" }
 ];
 const volType = k => VOL_TYPES.find(t => t.k === k) || VOL_TYPES[0];
-const volBlank = (type = "rect") => ({ name: "", type, a: "", b: "", c: "", d: "", e: "", n: 1, op: [] });
+const volBlank = (type = "rect") => ({ name: "", type, a: "", b: "", c: "", d: "", e: "", v: "", n: 1, op: [] });
 
 // 單列計算：回傳 { v（含數量的 m³，無法計算為 NaN）, one（單個）, expr（計算式文字）, warn }
 function volCalc(r) {
   const t = volType(r.type), g = k => { const s = String(r[k] ?? "").trim(); return s === "" ? NaN : +s; };
   const n = String(r.n ?? "").trim() === "" ? 1 : +r.n;
   const f = x => fmt(x, 4);
-  const need = t.f.filter(([k]) => !(t.k === "beam" && k === "d")).map(([k]) => g(k));
+  const vv = t.k === "oth" ? g("v") : NaN;   // 其他：有填單個體積就用體積，否則長×寬×高
+  const need = Number.isFinite(vv) ? [vv] : t.f.filter(([k]) => !(t.k === "beam" && k === "d") && k !== "v").map(([k]) => g(k));
   if (need.some(x => !Number.isFinite(x)) || !Number.isFinite(n)) return { v: NaN, expr: "", warn: "" };
   if (need.some(x => x < 0) || n < 0 || (t.k === "beam" && g("d") < 0)) return { v: NaN, expr: "", warn: "尺寸不可為負" };
   const a = g("a"), b = g("b"), c = g("c"), d = g("d"), e = g("e");
   let one, expr, warn = "";
-  if (t.k === "cyl") { one = Math.PI * a * a / 4 * c; expr = `π/4 × ${f(a)}² × ${f(c)}`; }
+  if (Number.isFinite(vv)) { one = vv; expr = `${f(vv)} m³`; }
+  else if (t.k === "cyl") { one = Math.PI * a * a / 4 * c; expr = `π/4 × ${f(a)}² × ${f(c)}`; }
   else if (t.k === "wall" || t.k === "slab") {
     const thk = c, gross = a * b * c;   // 牆：長×高×厚、版：長×寬×厚，欄位一致，切換時數值保留
     const ops = (r.op || []).map(o => ({ w: +o.w, h: +o.h, n: String(o.n ?? "").trim() === "" ? 1 : +o.n })).filter(o => Number.isFinite(o.w) && Number.isFinite(o.h) && Number.isFinite(o.n) && o.w > 0 && o.h > 0 && o.n > 0);
@@ -62,7 +66,7 @@ function volNorm(rows, cfg) {
   if (!Array.isArray(rows)) rows = [];
   rows = rows.filter(r => r && typeof r === "object").map(r => {
     const o = volBlank(VOL_TYPES.some(t => t.k === r.type) ? r.type : "rect");
-    for (const k of ["name", "a", "b", "c", "d", "e", "n"]) if (r[k] != null && typeof r[k] !== "object") o[k] = String(r[k]);
+    for (const k of ["name", "a", "b", "c", "d", "e", "v", "n"]) if (r[k] != null && typeof r[k] !== "object") o[k] = String(r[k]);
     o.op = (Array.isArray(r.op) ? r.op : []).slice(0, VOL_MAX_OP).filter(x => x && typeof x === "object").map(x => ({ w: String(x.w ?? ""), h: String(x.h ?? ""), n: String(x.n ?? "1") }));
     return o;
   });
@@ -90,7 +94,7 @@ function volTotals(st) {
 
 let volGen = 0;
 const volStamp = t => { const d = new Date(t || 0), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
-const volHasData = st => st.rows.some(r => ["a", "b", "c", "d", "e"].some(k => String(r[k] ?? "").trim() !== "") || String(r.name ?? "").trim() !== "");
+const volHasData = st => st.rows.some(r => ["a", "b", "c", "d", "e", "v"].some(k => String(r[k] ?? "").trim() !== "") || String(r.name ?? "").trim() !== "");
 const volRec = (st, base) => ({ ...base, name: st.cfg.title.trim(), rows: st.rows, cfg: { loss: st.cfg.loss, cap: st.cfg.cap, loc: st.cfg.loc, who: st.cfg.who }, updated: Date.now() });
 
 function tabVolume(box) {
@@ -120,7 +124,8 @@ function tabVolume(box) {
     const t = volType(r.type);
     return `<div class="panel vrow" data-i="${i}">
       <div class="vtop"><input data-k="name" placeholder="${esc(t.ph)}" value="${esc(r.name)}"><select data-k="type" aria-label="構件種類">${VOL_TYPES.map(x => `<option value="${x.k}" ${x.k === t.k ? "selected" : ""}>${x.n}</option>`).join("")}</select><button class="danger" data-del="${i}" aria-label="刪除此列">✕</button></div>
-      <div class="vdims">${t.f.map(([k, l]) => `<label>${l}${k === "d" && t.k === "stair" ? "" : "（m）"}${dimIn(i, k, r[k])}</label>`).join("")}<label>數量${dimIn(i, "n", r.n)}</label></div>
+      <div class="vdims">${t.f.map(([k, l, u]) => `<label>${l}${k === "d" && t.k === "stair" ? "" : `（${u || "m"}）`}${dimIn(i, k, r[k])}</label>`).join("")}<label>數量${dimIn(i, "n", r.n)}</label></div>
+      ${t.hint ? `<p class="cnote" style="margin:6px 0 0">${t.hint}</p>` : ""}
       ${t.op ? `${(r.op || []).map((o, j) => `<div class="vdims vop" data-j="${j}"><label>開口${j + 1} ${t.op[0]}（m）<input data-o="w" inputmode="decimal" value="${esc(o.w)}"></label><label>${t.op[1]}（m）<input data-o="h" inputmode="decimal" value="${esc(o.h)}"></label><label>個數<input data-o="n" inputmode="decimal" value="${esc(o.n)}"></label><button class="sec" data-opdel="${j}" aria-label="移除開口${j + 1}" style="align-self:end;min-height:44px">✕</button></div>`).join("")}
         ${(r.op || []).length < VOL_MAX_OP ? `<button class="sec" data-opadd="1" style="margin-top:8px;min-height:40px;padding:0 12px;font-size:14px">＋ 扣除開口（門窗、管道間）</button>` : ""}` : ""}
       <div class="vres"><small class="vexpr" data-vx="${i}" style="display:block;font-size:12px;overflow-wrap:anywhere"></small>小計：<b data-vr="${i}">—</b></div></div>`;
