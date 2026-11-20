@@ -34,6 +34,23 @@ await p.goto('http://localhost:8793/index.html#/punch/report');await p.waitForTi
 r=await rep();chk(tag+' 只拍照的在通知單',r.text.includes('P-1')&&r.text.includes('見照片'),JSON.stringify(r));
 await p.goto('http://localhost:8793/index.html#/punch/summary');await p.waitForTimeout(700);
 chk(tag+' 只拍照的在總表',(await p.textContent('.psum')).includes('P-1'));
+// 現場簽收：鋼筋工那頁（只有 P-1）
+const sign=async(k)=>{await p.click(`[data-rsign="${k}"][data-g="0"]`);await p.waitForSelector('.sapad canvas');const c=await p.locator('.sapad canvas').boundingBox();
+ await p.mouse.move(c.x+30,c.y+40);await p.mouse.down();await p.mouse.move(c.x+c.width*.6,c.y+c.height*.5,{steps:8});await p.mouse.up();await p.click('.sapadbar [data-k="ok"]');await p.waitForTimeout(600)};
+await p.goto('http://localhost:8793/index.html#/punch/report');await p.waitForTimeout(700);
+const g0=await p.evaluate(()=>document.querySelector('#rPaper .paper').innerText.split('\n').find(l=>l.includes('工班／廠商')));
+await sign('trade');await sign('boss');
+let sg=await p.evaluate(()=>({imgs:document.querySelectorAll('#rPaper .paper')[0].querySelectorAll('.psigs img').length,date:document.querySelectorAll('#rPaper .paper')[0].querySelector('.psigs').innerText}));
+const acked=await p.evaluate(async()=>(await DB.all('punch')).filter(x=>x.ack).map(x=>({id:x.id,n:Object.keys(x.ack.sigs).length,ids:x.ack.ids,log:x.log.at(-1)?.text})));
+chk(tag+' 簽收存檔',sg.imgs===2&&/工班簽收／日期　\d{3}\/\d{2}\/\d{2}/.test(sg.date)&&acked.length===1&&acked[0].n===2&&acked[0].log.includes('簽收'),g0+JSON.stringify(sg)+JSON.stringify(acked));
+await p.screenshot({path:require('path').join(__dirname,'out')+`/punch_report_signed_${tag}.png`,fullPage:true});
+const cl=await p.evaluate(()=>{const x=CLEAN.punch({id:'a',siteId:'s1',desc:'',location:'',ack:{id:'k1',at:'2026-11-20T10:00:00Z',ids:['a','bad id!'],sigs:{trade:'javascript:alert(1)',boss:'data:image/png;base64,AAAA'}}});const y=CLEAN.punch({id:'b',siteId:'s1',desc:'',location:'',ack:{id:'k2',sigs:{}}});return {a:x.ack,b:y.ack}});
+chk(tag+' 清理器簽收',cl.a&&cl.a.ids.length===1&&!cl.a.sigs.trade&&cl.a.sigs.boss&&cl.b===undefined,JSON.stringify(cl));
+// 同一工班再多一筆缺失 → 這頁要重新簽
+await p.evaluate(async()=>{await DB.put('punch',{id:'ph2',siteId:'s1',no:'P-2',location:'2F',desc:'露筋',trade:'鋼筋工',status:'open',log:[],thumb:'',created:6,updated:6})});
+await p.goto('http://localhost:8793/index.html#/punch');await p.waitForTimeout(300);await p.goto('http://localhost:8793/index.html#/punch/report');await p.waitForTimeout(700);
+sg=await p.evaluate(()=>document.querySelectorAll('#rPaper .paper')[0].querySelectorAll('.psigs img').length);
+chk(tag+' 新增缺失後要重簽',sg===0,String(sg));
 // 切到乙工程
 await p.selectOption('#siteSelect','s2');await p.goto('http://localhost:8793/index.html#/punch/report');await p.waitForTimeout(700);
 r=await rep();chk(tag+' 切換專案',r.text.includes('乙的缺失')&&!r.text.includes('P-1'),JSON.stringify(r));

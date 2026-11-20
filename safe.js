@@ -32,6 +32,9 @@ const cnames = (v, keys) => Object.fromEntries(keys.map(k => [k, cs(obj(v)[k], 1
 const c01 = v => { const n = Number(v); return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0; };
 const cmarks = v => Object.fromEntries(Object.entries(obj(v)).filter(([k, l]) => safeId(k) && Array.isArray(l)).slice(0, 60)
   .map(([k, l]) => [k, l.slice(0, 20).map(m => ({ x: c01(obj(m).x), y: c01(obj(m).y), t: cs(obj(m).t, 100) }))]).filter(([, l]) => l.length));
+// 缺失通知單簽收：同一頁（工班）一起簽，ids 是簽收時列出的缺失（punch.js）
+const cack = v => { const a = obj(v), sigs = csigs(a.sigs, ["trade", "boss"]);
+  return safeId(a.id) && Object.keys(sigs).length ? { id: a.id, at: ciso(a.at), ids: arr(a.ids, 500).filter(safeId), sigs } : undefined; };
 const clog = v => arr(v, 200).map(l => ({ at: ciso(obj(l).at), text: cs(obj(l).text, 500) }));
 
 const CLEAN = {
@@ -53,7 +56,7 @@ const CLEAN = {
   punch: x => safeId(x.id) && safeId(x.siteId) && {
     id: x.id, siteId: x.siteId, no: cs(x.no, 60), location: cs(x.location, 200), desc: cs(x.desc, 2000), trade: cs(x.trade, 100), due: cdate(x.due), foundDate: cdate(x.foundDate), foundBy: cs(x.foundBy, 100),
     status: ce(x.status, ["open", "fixed", "closed"], "open"), fixedAt: cdate(x.fixedAt), fixedNote: cs(x.fixedNote, 1000), closedAt: cdate(x.closedAt), closedBy: cs(x.closedBy, 100), rejects: cn(x.rejects),
-    thumb: safeImg(x.thumb), marks: cmarks(x.marks), seedLoc: typeof x.seedLoc === "string" ? cs(x.seedLoc, 200) : undefined, log: clog(x.log), created: cn(x.created), updated: cn(x.updated) },
+    thumb: safeImg(x.thumb), marks: cmarks(x.marks), ack: cack(x.ack), seedLoc: typeof x.seedLoc === "string" ? cs(x.seedLoc, 200) : undefined, log: clog(x.log), created: cn(x.created), updated: cn(x.updated) },
   pours: x => safeId(x.id) && safeId(x.siteId) && {
     id: x.id, siteId: x.siteId, date: cdate(x.date), floor: cs(x.floor, 50), part: cs(x.part, 100), supplier: cs(x.supplier, 200), fc: cs(x.fc, 30), slumpMin: cs(x.slumpMin, 30), slumpMax: cs(x.slumpMax, 30),
     clMax: cs(x.clMax, 30), limitMin: cs(x.limitMin, 30), created: cn(x.created), updated: cn(x.updated),
