@@ -109,6 +109,8 @@ function pMarkEditor(photo, marks, start, onChange, onClose) {
   box.querySelector(".pmk-ok").focus();
   return close;
 }
+// 有內容的缺失（列表、通知單、總表共用同一個判斷）：只拍照、沒寫文字的也算
+const pHasContent = x => !!((x.desc || "").trim() || (x.location || "").trim() || x.thumb || (x.fixedNote || "").trim() || Object.keys(x.marks || {}).length);
 const pPhotosOf = async id => (await DB.all("photos")).filter(p => p.recId === id).sort((a, b) => a.created - b.created);
 const pTrades = async () => [...new Set([...PUNCH_TRADES, ...(await DB.all("punch")).map(x => x.trade).filter(Boolean), ...(await DB.all("workorders")).map(x => x.vendor).filter(Boolean)])];
 
@@ -126,7 +128,7 @@ async function renderPunchList() {
   if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
   // 清掉按了「新增」卻沒填任何內容的空白缺失
   // 「沿用位置再新增」後位置沒改、也沒填內容或照片的，也視為空白
-  for (const x of (await DB.all("punch")).filter(x => x.siteId === siteId && !x.desc.trim() && !x.thumb && !x.fixedNote && (!x.location.trim() || (x.seedLoc !== undefined && x.location === x.seedLoc)))) await DB.del("punch", x.id);
+  for (const x of (await DB.all("punch")).filter(x => x.siteId === siteId && !(x.desc || "").trim() && !x.thumb && !x.fixedNote && !Object.keys(x.marks || {}).length && (!(x.location || "").trim() || (x.seedLoc !== undefined && x.location === x.seedLoc)))) await DB.del("punch", x.id);
   const all = (await DB.all("punch")).filter(x => x.siteId === siteId);
   const cnt = { act: all.filter(x => x.status !== "closed").length, open: all.filter(x => x.status === "open").length, fixed: all.filter(x => x.status === "fixed").length, over: all.filter(pOver).length, closed: all.filter(x => x.status === "closed").length, all: all.length };
   if (seq !== renderPunchList.seq) return;
@@ -324,14 +326,18 @@ async function renderPunchForm(id) {
 }
 
 /* ---------- 工班通知單 ---------- */
-let pRepTrade = "", pRepStatus = { open: true, fixed: true, closed: false }, pRepPhoto = true;
+let pRepTrade = "", pRepStatus = { open: true, fixed: true, closed: false }, pRepPhoto = true, pRepTouched = false;
 async function renderPunchReport() {
   const seq = renderPunchReport.seq = (renderPunchReport.seq || 0) + 1;   // 連續操作時，只採用最新一次的結果
   if (!siteId) { goReplace("#/punch"); return; }
-  const all = (await DB.all("punch")).filter(x => x.siteId === siteId && (x.desc.trim() || x.location.trim()));
+  const all = (await DB.all("punch")).filter(x => x.siteId === siteId && pHasContent(x));
   const trades = [...new Set(all.map(x => x.trade).filter(Boolean))];
   if (pRepTrade && pRepTrade !== "__none" && !trades.includes(pRepTrade)) pRepTrade = "";   // 記著的工班已不存在，就清掉
-  const items = all.filter(x => pRepStatus[x.status] && (!pRepTrade || (pRepTrade === "__none" ? !x.trade : x.trade === pRepTrade)))
+  // 預設只列待改善、待複驗；全部都結案了（沒動過篩選）就自動連已結案一起列，免得通知單一片空白
+  const pick = st => all.filter(x => st[x.status] && (!pRepTrade || (pRepTrade === "__none" ? !x.trade : x.trade === pRepTrade)));
+  const autoClosed = !pRepTouched && !pRepStatus.closed && !pick(pRepStatus).length && pick({ closed: true }).length > 0;
+  const shownStatus = autoClosed ? { ...pRepStatus, closed: true } : pRepStatus;
+  const items = all.filter(x => shownStatus[x.status] && (!pRepTrade || (pRepTrade === "__none" ? !x.trade : x.trade === pRepTrade)))
     .sort((x, y) => (x.due || "9999").localeCompare(y.due || "9999") || x.created - y.created);
   // 工班順序固定：預設工班清單的順序 → 其他工班依名稱 → 未指定工班放最後（每個工班內依期限排序）
   const tradeRank = t => { const i = PUNCH_TRADES.indexOf(t); return i >= 0 ? i : 100; };
@@ -350,7 +356,8 @@ async function renderPunchReport() {
   view.innerHTML = `
     <div class="noprint"><h2 class="t">缺失改善通知單</h2>
       <div class="panel"><div class="field"><label>工班／廠商</label><select id="rTrade"><option value="">全部工班（每個工班一頁）</option><option value="__none" ${pRepTrade === "__none" ? "selected" : ""}>未指定工班</option>${trades.map(t => `<option ${t === pRepTrade ? "selected" : ""}>${esc(t)}</option>`).join("")}</select></div>
-        <div class="timing" style="margin-bottom:8px">${Object.entries(PUNCH_STATUS).map(([k, l]) => `<label><input type="checkbox" data-rs="${k}" ${pRepStatus[k] ? "checked" : ""}> ${l}</label>`).join("")}</div>
+        <div class="timing" style="margin-bottom:8px">${Object.entries(PUNCH_STATUS).map(([k, l]) => `<label><input type="checkbox" data-rs="${k}" ${shownStatus[k] ? "checked" : ""}> ${l}</label>`).join("")}</div>
+        ${autoClosed ? `<div class="legend" id="rAuto" style="margin:0 0 8px">目前沒有待改善、待複驗的缺失，下面先列出已結案的 ${items.length} 筆。</div>` : ""}
         <label class="timing" style="display:flex;gap:8px"><input type="checkbox" id="rPhoto" ${pRepPhoto ? "checked" : ""}> 附缺失照片</label></div>
       <div class="row"><button id="rPrint">🖨 列印／存成 PDF</button><button class="sec" id="rShare">📤 分享文字</button></div>
       <div class="row"><a class="btnlink" href="#/punch">← 回缺失列表</a></div></div>
@@ -358,12 +365,12 @@ async function renderPunchReport() {
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}<div class="ptitle">缺失改善通知單</div>
       <div style="margin:2mm 0 3mm;font-size:13px">工程：${esc(site?.name)}　工班／廠商：<b>${esc(tr)}</b>　製表：${pRoc(today())}　共 ${os.length} 項</div>
       <table class="pt items sm"><tr><th>編號</th><th>位置</th><th>缺失內容</th>${pRepPhoto ? "<th>照片</th>" : ""}<th>期限</th><th>狀態</th></tr>
-        ${os.map(x => `<tr><td class="c nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${repNotes(x)}${x.rejects ? `<br><small>↩ 複驗退回 ${esc(x.rejects)} 次</small>` : ""}</td>${pRepPhoto ? `<td class="c">${repPics(x)}</td>` : ""}
+        ${os.map(x => `<tr><td class="c nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc) || (photoMap[x.id] ? "（見照片）" : "")}${repNotes(x)}${x.rejects ? `<br><small>↩ 複驗退回 ${esc(x.rejects)} 次</small>` : ""}</td>${pRepPhoto ? `<td class="c">${repPics(x)}</td>` : ""}
           <td class="c nw" style="${pOver(x) ? "color:var(--bad)" : ""}">${x.due ? pRoc(x.due) : "—"}${pOver(x) ? `<br><small>逾期${pLate(x)}天</small>` : ""}</td><td class="c nw">${PUNCH_STATUS[x.status]}</td></tr>`).join("")}</table>
       <div class="psigs tall"><div>工班簽收／日期</div><div>工地主任</div></div></div>`).join("") : `<div class="panel noprint" style="color:var(--mut)">沒有符合條件的缺失。<br><small>這個工地共有 ${all.length} 筆：待改善 ${cnt.open}、待複驗 ${cnt.fixed}、已結案 ${cnt.closed}。<br>目前篩選：工班＝${pRepTrade ? esc(pRepTrade === "__none" ? "未指定" : pRepTrade) : "全部"}；狀態＝${Object.entries(PUNCH_STATUS).filter(([k]) => pRepStatus[k]).map(([, l]) => l).join("、") || "（都沒勾選）"}</small><br><button class="sec" id="rClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button></div>`}</div>`;
   $("#rTrade").onchange = e => { pRepTrade = e.target.value; renderPunchReport(); };
-  $("#rClear")?.addEventListener("click", () => { pRepTrade = ""; pRepStatus = { open: true, fixed: true, closed: true }; renderPunchReport(); });
-  view.querySelectorAll("[data-rs]").forEach(b => b.onchange = () => { pRepStatus[b.dataset.rs] = b.checked; renderPunchReport(); });
+  $("#rClear")?.addEventListener("click", () => { pRepTouched = true; pRepTrade = ""; pRepStatus = { open: true, fixed: true, closed: true }; renderPunchReport(); });
+  view.querySelectorAll("[data-rs]").forEach(b => b.onchange = () => { pRepTouched = true; pRepStatus = { ...shownStatus, [b.dataset.rs]: b.checked }; renderPunchReport(); });
   $("#rPhoto").onchange = e => { pRepPhoto = e.target.checked; renderPunchReport(); };
   $("#rPrint").onclick = doPrint;
   $("#rShare").onclick = async () => {
@@ -388,7 +395,7 @@ function pStats(list) {
 async function renderPunchSummary() {
   const seq = renderPunchSummary.seq = (renderPunchSummary.seq || 0) + 1;
   if (!siteId) { goReplace("#/punch"); return; }
-  const all = (await DB.all("punch")).filter(x => x.siteId === siteId && (x.desc.trim() || x.location.trim()));
+  const all = (await DB.all("punch")).filter(x => x.siteId === siteId && pHasContent(x));
   if (seq !== renderPunchSummary.seq) return;
   const trades = [...new Set(all.map(x => x.trade).filter(Boolean))];
   if (pSumTrade && pSumTrade !== "__none" && !trades.includes(pSumTrade)) pSumTrade = "";
