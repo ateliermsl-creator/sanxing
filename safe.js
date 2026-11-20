@@ -27,6 +27,8 @@ const arr = (v, max = 5000) => Array.isArray(v) ? v.slice(0, max) : [];
 const obj = v => (v && typeof v === "object" && !Array.isArray(v)) ? v : {};
 const cname = v => cs(v, 200).replace(/[\u0000-\u001f\u007f]/g, "");
 const csigs = (v, keys) => Object.fromEntries(keys.map(k => [k, safeImg(obj(v)[k])]).filter(([, x]) => x));
+// 計算書簽名（calcsig.js）：{ calc|boss: { img, at, fp } }
+const ccsg = v => Object.fromEntries(["calc", "boss"].map(k => { const o = obj(obj(v)[k]), img = safeImg(o.img); return img && [k, { img, at: ciso(o.at), fp: cs(o.fp, 40) }]; }).filter(Boolean));
 const cnames = (v, keys) => Object.fromEntries(keys.map(k => [k, cs(obj(v)[k], 100)]));
 // 缺失照片標記：{ 照片id: [{ x, y, t }] }，x、y 為 0～1 的相對位置（punch.js）
 const c01 = v => { const n = Number(v); return Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0; };
@@ -98,7 +100,7 @@ const CLEAN = {
     rows: arr(x.rows, 300).map(r => ({ name: cs(obj(r).name, 100), type: ce(obj(r).type, ["rect", "cyl", "wall", "slab", "beam", "ftg", "gb", "stair", "oth"], "rect"),
       ...Object.fromEntries(["a", "b", "c", "d", "e", "v", "n"].map(k => [k, cs(obj(r)[k], 30)])),
       op: arr(obj(r).op, 8).map(o => ({ w: cs(obj(o).w, 30), h: cs(obj(o).h, 30), n: cs(obj(o).n, 30) })) })),
-    cfg: { loss: cs(obj(x.cfg).loss, 30), cap: cs(obj(x.cfg).cap, 30), loc: cs(obj(x.cfg).loc, 100), who: cs(obj(x.cfg).who, 50) },
+    cfg: { loss: cs(obj(x.cfg).loss, 30), cap: cs(obj(x.cfg).cap, 30), loc: cs(obj(x.cfg).loc, 100), who: cs(obj(x.cfg).who, 50), ...(Object.keys(ccsg(obj(x.cfg).sigs)).length ? { sigs: ccsg(obj(x.cfg).sigs) } : {}) },
     created: cn(x.created), updated: cn(x.updated) },
   files: x => safeId(x.id) && safeId(x.recId) && typeof x.data === "string" && x.data.length < 20e6 && SAFE_DATA.test(x.data) && {
     id: x.id, recId: x.recId, name: cname(x.name) || "檔案", type: SAFE_FILE_TYPES.includes(x.type) ? x.type : "application/octet-stream", size: cn(x.size), created: cn(x.created), data: x.data }

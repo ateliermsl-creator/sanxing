@@ -73,7 +73,7 @@ function volNorm(rows, cfg) {
   if (!rows.length) rows = [volBlank()];
   if (!cfg || typeof cfg !== "object") cfg = {};
   const s = v => v == null || typeof v === "object" ? "" : String(v);
-  return { rows, cfg: { loss: cfg.loss == null ? "5" : s(cfg.loss), cap: cfg.cap == null ? "6" : s(cfg.cap), loc: s(cfg.loc), who: s(cfg.who), cur: s(cfg.cur), title: s(cfg.title) } };
+  return { rows, cfg: { loss: cfg.loss == null ? "5" : s(cfg.loss), cap: cfg.cap == null ? "6" : s(cfg.cap), loc: s(cfg.loc), who: s(cfg.who), cur: s(cfg.cur), title: s(cfg.title), sigs: ccsg(cfg.sigs) } };
 }
 function volLoad() {
   const j = k => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
@@ -95,7 +95,7 @@ function volTotals(st) {
 let volGen = 0;
 const volStamp = t => { const d = new Date(t || 0), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
 const volHasData = st => st.rows.some(r => ["a", "b", "c", "d", "e", "v"].some(k => String(r[k] ?? "").trim() !== "") || String(r.name ?? "").trim() !== "");
-const volRec = (st, base) => ({ ...base, name: st.cfg.title.trim(), rows: st.rows, cfg: { loss: st.cfg.loss, cap: st.cfg.cap, loc: st.cfg.loc, who: st.cfg.who }, updated: Date.now() });
+const volRec = (st, base) => ({ ...base, name: st.cfg.title.trim(), rows: st.rows, cfg: { loss: st.cfg.loss, cap: st.cfg.cap, loc: st.cfg.loc, who: st.cfg.who, ...(Object.keys(st.cfg.sigs).length ? { sigs: st.cfg.sigs } : {}) }, updated: Date.now() });
 
 function tabVolume(box) {
   const st = volLoad();
@@ -268,6 +268,17 @@ function renderVolSheet() {
     </div>`;
   $("#vsBack").onclick = () => goBack("#/calc/vol");
   $("#pvPrint").onclick = doPrint;
+  csgBind({   // 計算書簽名（calcsig.js）：存在目前輸入，開啟中的方數紀錄也一起存（同事建立、只能看的紀錄開啟時不會掛 cur）
+    get: () => volLoad().cfg.sigs,
+    set: async n => {
+      const s = volLoad(); s.cfg.sigs = n; volSave(s);
+      const r = s.cfg.cur ? await DB.get("vols", s.cfg.cur) : null;
+      if (r && r.siteId === siteId && !(window.cloudRO && await cloudRO("vols", r))) {
+        const cfg = { ...(r.cfg || {}) }; if (Object.keys(n).length) cfg.sigs = n; else delete cfg.sigs;
+        await DB.put("vols", { ...r, cfg, updated: Date.now() });
+      }
+    }
+  }, renderVolSheet);
 }
 
 CALC_TABS.splice(2, 0, ["vol", "混凝土方數", tabVolume]);
