@@ -26,6 +26,89 @@ const pThumb = data => new Promise(res => {
   im.onload = () => { const k = 96 / Math.max(im.width, im.height), c = document.createElement("canvas"); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext("2d").drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL("image/jpeg", 0.6)); };
   im.onerror = () => res(""); im.src = data;
 });
+/* ---------- 照片標記（圖釘＋編號） ----------
+   存在缺失紀錄 it.marks = { 照片id: [{ x, y, t }] }，x、y 是相對位置（0～1，左上角為 0），原圖不動。
+   編號在同一筆缺失內連續：依照片拍攝先後，第一張的圖釘 1、2，第二張接著 3…，通知單上說明就不會重號。
+   放在缺失紀錄上（不放在照片上），雲端同步與備份會跟著缺失一起走。 */
+const P_MARK_MAX = 20;
+const pCirc = n => n >= 1 && n <= 20 ? String.fromCharCode(0x245F + n) : `(${n})`;
+// 缺失照片（itemIdx 0）依拍攝先後，每張的第一個編號
+function pMarkStart(it, photos) {
+  const st = {}; let n = 1;
+  for (const p of photos.filter(q => q.itemIdx === 0).sort((a, b) => a.created - b.created)) { st[p.id] = n; n += (it.marks?.[p.id] || []).length; }
+  return st;
+}
+// 通知單、分享文字用：「①蜂窩　②露筋」（沒寫說明的跳過）
+const pMarkText = (it, photos, sep = "　") => { const st = pMarkStart(it, photos);
+  return photos.filter(p => p.itemIdx === 0 && st[p.id]).sort((a, b) => a.created - b.created).flatMap(p => (it.marks?.[p.id] || []).map((m, i) => m.t ? pCirc(st[p.id] + i) + m.t : "")).filter(Boolean).join(sep); };
+// 圖釘疊在圖片上（HTML，給通知單；PDF、列印都看得到）
+const pPinsHtml = (ms, start) => (ms || []).map((m, i) => `<span class="pmpin" style="left:${(m.x * 100).toFixed(2)}%;top:${(m.y * 100).toFixed(2)}%">${start + i}</span>`).join("");
+// 放大預覽用：把圖釘畫進圖片（只在畫面上，不存檔）
+const pBurnPins = (data, ms, start) => new Promise(res => {
+  if (!ms?.length) { res(data); return; }
+  const im = new Image();
+  im.onload = () => {
+    const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; const g = c.getContext("2d"); g.drawImage(im, 0, 0);
+    const r = Math.max(14, Math.round(Math.max(im.width, im.height) * 0.032));
+    ms.forEach((m, i) => { const x = m.x * im.width, y = m.y * im.height;
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = "#99493a"; g.fill(); g.lineWidth = Math.max(2, r * 0.18); g.strokeStyle = "#fff"; g.stroke();
+      g.fillStyle = "#fff"; g.font = `700 ${Math.round(r * 1.15)}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(start + i), x, y + r * 0.05); });
+    res(c.toDataURL("image/jpeg", 0.88));
+  };
+  im.onerror = () => res(data); im.src = data;
+});
+// 標記畫面：點照片放圖釘、拖曳移動、下方填說明或刪除。onChange(新陣列) 每次修改都會呼叫
+function pMarkEditor(photo, marks, start, onChange, onClose) {
+  let ms = (marks || []).map(m => ({ ...m })), sel = -1;
+  const box = document.createElement("div"); box.className = "pmk"; box.setAttribute("role", "dialog"); box.setAttribute("aria-label", "標記問題位置");
+  box.innerHTML = `<div class="pmk-top"><div><b>標記問題位置</b><small>點照片放圖釘，按住圖釘可拖曳移動</small></div><button type="button" class="pmk-ok">完成</button></div>
+    <div class="pmk-stage"><div class="pmk-box"><img src="${safeImg(photo.data)}" alt="缺失照片" draggable="false"><div class="pmk-pins"></div></div></div>
+    <div class="pmk-list"></div>`;
+  const pins = box.querySelector(".pmk-pins"), list = box.querySelector(".pmk-list"), pic = box.querySelector(".pmk-box");
+  const emit = () => onChange(ms.map(m => ({ x: +m.x.toFixed(4), y: +m.y.toFixed(4), t: m.t || "" })));
+  const drawPins = () => { pins.innerHTML = ms.map((m, i) => `<span class="pmpin${i === sel ? " on" : ""}" data-i="${i}" style="left:${m.x * 100}%;top:${m.y * 100}%">${start + i}</span>`).join(""); };
+  const drawList = () => {
+    list.innerHTML = ms.length ? ms.map((m, i) => `<div class="pmk-row${i === sel ? " on" : ""}" data-i="${i}"><span class="pmpin st">${start + i}</span><input data-mt="${i}" maxlength="60" placeholder="說明（可空白，例：蜂窩）" value="${esc(m.t || "")}"><button type="button" class="pmk-del" data-md="${i}" aria-label="刪除圖釘 ${start + i}">✕</button></div>`).join("")
+      : `<div class="pmk-empty">點照片上有問題的地方，就會放一個編號圖釘。</div>`;
+  };
+  const draw = () => { drawPins(); drawList(); };
+  draw();
+  list.oninput = e => { const i = e.target.dataset?.mt; if (i === undefined) return; ms[+i].t = e.target.value; emit(); };
+  list.addEventListener("focusin", e => { const i = e.target.dataset?.mt; if (i !== undefined && sel !== +i) { sel = +i; drawPins(); list.querySelectorAll(".pmk-row").forEach(r => r.classList.toggle("on", +r.dataset.i === sel)); } });
+  list.onclick = e => { const d = e.target.closest?.("[data-md]"); if (!d) return; ms.splice(+d.dataset.md, 1); sel = -1; draw(); emit(); };
+  // 拖曳與新增：按下後沒移動就算「點一下」（點空白處新增、點圖釘選取），有移動就是拖曳
+  let drag = null;
+  const pos = e => { const r = pic.getBoundingClientRect(); return { x: Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), y: Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)) }; };
+  pic.addEventListener("pointerdown", e => {
+    if (e.button > 0) return;
+    const pin = e.target.closest?.(".pmpin"); drag = { i: pin ? +pin.dataset.i : -1, x0: e.clientX, y0: e.clientY, moved: false, id: e.pointerId };
+    try { pic.setPointerCapture(e.pointerId); } catch {}
+    if (pin) e.preventDefault();
+  });
+  pic.addEventListener("pointermove", e => {
+    if (!drag || drag.id !== e.pointerId || drag.i < 0) return;
+    if (!drag.moved && Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < 6) return;
+    drag.moved = true; const p = pos(e); Object.assign(ms[drag.i], p);
+    const el = pins.querySelector(`[data-i="${drag.i}"]`); if (el) { el.style.left = p.x * 100 + "%"; el.style.top = p.y * 100 + "%"; }
+  });
+  const end = e => {
+    if (!drag || drag.id !== e.pointerId) return;
+    const d = drag; drag = null;
+    if (d.i >= 0) { if (d.moved) emit(); sel = d.i; draw(); return; }
+    if (e.type === "pointercancel" || Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > 10) return;   // 捲動、縮放不算點一下
+    if (ms.length >= P_MARK_MAX) { alert(`一張照片最多 ${P_MARK_MAX} 個圖釘`); return; }
+    ms.push({ ...pos(e), t: "" }); sel = ms.length - 1; draw(); emit();
+  };
+  pic.addEventListener("pointerup", end); pic.addEventListener("pointercancel", end);
+  const close = fromPop => { if (!box.isConnected) return; box.remove(); document.body.classList.remove("pmkOpen"); window.removeEventListener("popstate", onPop); if (!fromPop && history.state?.pmk) history.back(); onClose(); };
+  const onPop = () => close(true);
+  box.querySelector(".pmk-ok").onclick = () => close();
+  box.addEventListener("keydown", e => { if (e.key === "Escape") close(); });
+  document.body.append(box); document.body.classList.add("pmkOpen");
+  history.pushState({ pmk: 1 }, ""); window.addEventListener("popstate", onPop);   // Android 返回鍵先關掉標記畫面
+  box.querySelector(".pmk-ok").focus();
+  return close;
+}
 const pPhotosOf = async id => (await DB.all("photos")).filter(p => p.recId === id).sort((a, b) => a.created - b.created);
 const pTrades = async () => [...new Set([...PUNCH_TRADES, ...(await DB.all("punch")).map(x => x.trade).filter(Boolean), ...(await DB.all("workorders")).map(x => x.vendor).filter(Boolean)])];
 
@@ -161,7 +244,7 @@ async function renderPunchForm(id) {
   let photos = await pPhotosOf(it.id);
   const sv = svAuto(async () => { it.updated = Date.now(); await DB.put("punch", it); }), save = sv.save, flush = sv.flush;
   const trades = await pTrades(), locs = [...new Set((await DB.all("punch")).filter(x => x.siteId === it.siteId).map(x => x.location).filter(Boolean))];
-  const photoBlock = (slot, label) => `<div class="panel"><b>${label}</b><div class="phrow"><button type="button" class="phbtn" data-pcam="${slot}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-pfile="${slot}"></label><div class="thumbs" data-pth="${slot}"></div></div></div>`;
+  const photoBlock = (slot, label) => `<div class="panel"><b>${label}</b><div class="phrow"><button type="button" class="phbtn" data-pcam="${slot}">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden data-pfile="${slot}"></label><div class="thumbs" data-pth="${slot}"></div></div>${slot === 0 ? `<small class="pmhint" id="pMarkHint" hidden>點照片角落的 📍 可標出問題位置（編號圖釘＋說明），通知單會一起印出。</small>` : ""}</div>`;
   const badge = `<span class="st st-${it.status === "closed" ? "已完成" : it.status === "fixed" ? "填寫中" : "未填"}" style="${it.status === "open" ? "color:var(--bad)" : ""};font-size:15px">${PUNCH_STATUS[it.status]}</span>`;
   const hasAfter = photos.some(p => p.itemIdx === 1), open = it.status === "open";
   view.innerHTML = `
@@ -188,7 +271,11 @@ async function renderPunchForm(id) {
     ${it.log.length ? `<div class="panel"><small style="color:var(--mut)">紀錄<br>${it.log.map(x => `${esc(pStamp(x.at))}　${esc(x.text)}`).join("<br>")}</small></div>` : ""}
     <div class="row"><button class="danger" id="pDel">刪除這筆缺失</button></div>`;
 
-  const drawTh = slot => { const el = $(`[data-pth="${slot}"]`); if (el) el.innerHTML = photos.filter(p => p.itemIdx === slot).map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
+  it.marks = it.marks && typeof it.marks === "object" ? it.marks : {};
+  const drawTh = slot => { const el = $(`[data-pth="${slot}"]`); if (!el) return; const st = pMarkStart(it, photos);
+    el.innerHTML = photos.filter(p => p.itemIdx === slot).map(p => { const n = (it.marks[p.id] || []).length;
+      return `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button>${slot === 0 ? `<button class="pmbtn${n ? " has" : ""}" data-pmark="${esc(p.id)}" aria-label="在照片上標記問題位置">📍${n ? `<b>${st[p.id]}${n > 1 ? "–" + (st[p.id] + n - 1) : ""}</b>` : ""}</button>` : ""}</span>`; }).join("");
+    if (slot === 0) { const h = $("#pMarkHint"); if (h) h.hidden = !photos.some(p => p.itemIdx === 0); } };
   [0, 1].forEach(drawTh);
   const syncThumb = async () => { const f = photos.find(p => p.itemIdx === 0); it.thumb = f ? await pThumb(f.data) : ""; await flush(); };
   const addPhoto = async (slot, file) => {
@@ -208,9 +295,17 @@ async function renderPunchForm(id) {
     for (const f of files) { try { await addPhoto(slot, f); } catch { alert("這張照片無法讀取，請換一張"); } } });
   view.onclick = async e => {
     const img = e.target.closest?.(".th img");
-    if (img) { const pid = img.parentElement.querySelector("[data-pdel]").dataset.pdel, cur = photos.find(x => x.id === pid), same = photos.filter(x => x.itemIdx === cur.itemIdx); openLightbox(same, same.indexOf(cur)); return; }
-    const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
-    const ph = photos.find(x => x.id === del); await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh(ph.itemIdx); if (ph.itemIdx === 0) await syncThumb();
+    if (img) { const pid = img.parentElement.querySelector("[data-pdel]").dataset.pdel, cur = photos.find(x => x.id === pid), same = photos.filter(x => x.itemIdx === cur.itemIdx);
+      const st = pMarkStart(it, photos), shown = await Promise.all(same.map(async p => ({ ...p, data: cur.itemIdx === 0 ? await pBurnPins(p.data, it.marks[p.id], st[p.id]) : p.data })));   // 放大看時圖釘也畫上去
+      openLightbox(shown, same.indexOf(cur)); return; }
+    const mk = e.target.closest?.("[data-pmark]");
+    if (mk) { const ph = photos.find(x => x.id === mk.dataset.pmark); if (!ph) return;
+      pMarkEditor(ph, it.marks[ph.id], pMarkStart(it, photos)[ph.id], ms => { if (ms.length) it.marks[ph.id] = ms; else delete it.marks[ph.id]; save(); }, async () => { await flush(); drawTh(0); });
+      return; }
+    const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？" + ((it.marks[del] || []).length ? "\n（照片上的標記也會一併刪除）" : ""))) return;
+    const ph = photos.find(x => x.id === del); await DB.del("photos", del); photos = photos.filter(x => x.id !== del);
+    if (it.marks[del]) { delete it.marks[del]; save(); }
+    drawTh(ph.itemIdx); if (ph.itemIdx === 0) await syncThumb();
   };
   const logAdd = text => it.log.push({ at: new Date().toISOString(), text });
   $("#pFix")?.addEventListener("click", async () => { it.status = "fixed"; it.fixedAt = today(); logAdd("回報已改善" + (it.fixedNote ? "：" + it.fixedNote : "")); await flush(); renderPunchForm(id); });
@@ -242,8 +337,13 @@ async function renderPunchReport() {
   const tradeRank = t => { const i = PUNCH_TRADES.indexOf(t); return i >= 0 ? i : 100; };
   const groups = {};
   [...new Set(items.map(x => x.trade || ""))].sort((m, n) => !m - !n || tradeRank(m) - tradeRank(n) || m.localeCompare(n, "zh-Hant")).forEach(t => { groups[t || "（未指定工班）"] = items.filter(x => (x.trade || "") === t); });
-  const photoMap = {};
-  if (pRepPhoto) for (const p of await DB.all("photos")) if (p.itemIdx === 0 && items.some(x => x.id === p.recId) && !photoMap[p.recId]) photoMap[p.recId] = p.data;
+  // 每筆缺失的缺失照片（依拍攝先後）；有標記的照片都印（最多 3 張），沒有標記就印第一張
+  const photoMap = {}, ids = new Set(items.map(x => x.id));
+  for (const p of await DB.all("photos")) if (p.itemIdx === 0 && ids.has(p.recId)) (photoMap[p.recId] = photoMap[p.recId] || []).push(p);
+  Object.values(photoMap).forEach(l => l.sort((a, b) => a.created - b.created));
+  const repPics = x => { const l = photoMap[x.id] || [], st = pMarkStart(x, l), mk = l.filter(p => (x.marks?.[p.id] || []).length);
+    return (mk.length ? mk.slice(0, 3) : l.slice(0, 1)).map(p => `<span class="pmfig"><img src="${safeImg(p.data)}" alt="">${pPinsHtml(x.marks?.[p.id], st[p.id])}</span>`).join(""); };
+  const repNotes = x => { const t = pMarkText(x, photoMap[x.id] || []); return t ? `<br><small class="pmnote">📍 ${esc(t)}</small>` : ""; };
   if (seq !== renderPunchReport.seq) return;
   const site = sites.find(s => s.id === siteId), company = siteCompany(siteId);
   const cnt = { open: all.filter(x => x.status === "open").length, fixed: all.filter(x => x.status === "fixed").length, closed: all.filter(x => x.status === "closed").length };
@@ -258,7 +358,7 @@ async function renderPunchReport() {
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}<div class="ptitle">缺失改善通知單</div>
       <div style="margin:2mm 0 3mm;font-size:13px">工程：${esc(site?.name)}　工班／廠商：<b>${esc(tr)}</b>　製表：${pRoc(today())}　共 ${os.length} 項</div>
       <table class="pt items sm"><tr><th>編號</th><th>位置</th><th>缺失內容</th>${pRepPhoto ? "<th>照片</th>" : ""}<th>期限</th><th>狀態</th></tr>
-        ${os.map(x => `<tr><td class="c nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${x.rejects ? `<br><small>↩ 複驗退回 ${esc(x.rejects)} 次</small>` : ""}</td>${pRepPhoto ? `<td class="c">${photoMap[x.id] ? `<img src="${safeImg(photoMap[x.id])}" style="width:26mm;max-height:26mm;object-fit:cover">` : ""}</td>` : ""}
+        ${os.map(x => `<tr><td class="c nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc)}${repNotes(x)}${x.rejects ? `<br><small>↩ 複驗退回 ${esc(x.rejects)} 次</small>` : ""}</td>${pRepPhoto ? `<td class="c">${repPics(x)}</td>` : ""}
           <td class="c nw" style="${pOver(x) ? "color:var(--bad)" : ""}">${x.due ? pRoc(x.due) : "—"}${pOver(x) ? `<br><small>逾期${pLate(x)}天</small>` : ""}</td><td class="c nw">${PUNCH_STATUS[x.status]}</td></tr>`).join("")}</table>
       <div class="psigs tall"><div>工班簽收／日期</div><div>工地主任</div></div></div>`).join("") : `<div class="panel noprint" style="color:var(--mut)">沒有符合條件的缺失。<br><small>這個工地共有 ${all.length} 筆：待改善 ${cnt.open}、待複驗 ${cnt.fixed}、已結案 ${cnt.closed}。<br>目前篩選：工班＝${pRepTrade ? esc(pRepTrade === "__none" ? "未指定" : pRepTrade) : "全部"}；狀態＝${Object.entries(PUNCH_STATUS).filter(([k]) => pRepStatus[k]).map(([, l]) => l).join("、") || "（都沒勾選）"}</small><br><button class="sec" id="rClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button></div>`}</div>`;
   $("#rTrade").onchange = e => { pRepTrade = e.target.value; renderPunchReport(); };
@@ -267,7 +367,7 @@ async function renderPunchReport() {
   $("#rPhoto").onchange = e => { pRepPhoto = e.target.checked; renderPunchReport(); };
   $("#rPrint").onclick = doPrint;
   $("#rShare").onclick = async () => {
-    const text = Object.entries(groups).map(([tr, os]) => `【缺失改善通知】${site?.name || ""}\n工班：${tr}　${pRoc(today())}\n` + os.map((x, i) => `${i + 1}. ${x.location || "—"}｜${x.desc || "—"}｜期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `（逾期${pLate(x)}天）` : ""}`).join("\n") + `\n共 ${os.length} 項，請於期限前改善並通知複驗。`).join("\n\n");
+    const text = Object.entries(groups).map(([tr, os]) => `【缺失改善通知】${site?.name || ""}\n工班：${tr}　${pRoc(today())}\n` + os.map((x, i) => `${i + 1}. ${x.location || "—"}｜${x.desc || "—"}${pMarkText(x, photoMap[x.id] || [], "、") ? `（${pMarkText(x, photoMap[x.id] || [], "、")}）` : ""}｜期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `（逾期${pLate(x)}天）` : ""}`).join("\n") + `\n共 ${os.length} 項，請於期限前改善並通知複驗。`).join("\n\n");
     if (!text) { alert("沒有可分享的缺失"); return; }
     try { if (navigator.share) { await navigator.share({ title: "缺失改善通知", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
     try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
