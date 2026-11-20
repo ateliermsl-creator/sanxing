@@ -13,7 +13,7 @@ await A.evaluate(async()=>{ // 補其他資料
  await DB.put('matcats',{id:'__cure',ages:[7,14,28],forms:[{n:'樑底模',d:'14'}],updated:3});
  await DB.put('matcats',{id:'__safety',risks:['甲'],hazards:['乙'],statement:'聲明',updated:3});
  const pj=await DB.get('pours','j1');pj.forms={'樑底模':{strip:'2026-10-28'}};pj.trucks[0].tests={7:{date:'2026-10-28',vals:['300','310'],note:'x'},28:{skip:true}};await DB.put('pours','j1'.length?pj:pj);
- await DB.put('vols',{id:'vl1',siteId:'s1',name:'3F 版梁',rows:[{name:'外牆',type:'wall',a:'10',b:'3',c:'0.2',d:'',e:'',n:'1',op:[{w:'1.2',h:'2.1',n:'2'}]},{name:'G1',type:'beam',a:'7.4',b:'0.4',c:'0.7',d:'0.15',e:'',n:'3',op:[]}],cfg:{loss:'5',cap:'6',loc:'3F',who:'王'},created:1,updated:9});
+ await DB.put('vols',{id:'vl1',siteId:'s1',name:'3F 版梁',rows:[{name:'外牆',type:'wall',a:'10',b:'3',c:'0.2',d:'',e:'',n:'1',op:[{w:'1.2',h:'2.1',n:'2'}]},{name:'G1',type:'beam',a:'7.4',b:'0.4',c:'0.7',d:'0.15',e:'',n:'3',op:[]},{name:'集水坑',type:'oth',a:'',b:'',c:'',d:'',e:'',v:'0.85',n:'2',op:[]}],cfg:{loss:'5',cap:'6',loc:'3F',who:'王'},created:1,updated:9});
  await DB.put('files',{id:'fl1',recId:'t0_7',name:'報告.pdf',type:'application/pdf',size:4,blob:new Blob(['%PDF']),created:1});
 });
 await A.reload();await A.waitForTimeout(600);
