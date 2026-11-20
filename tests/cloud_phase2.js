@@ -49,6 +49,11 @@ const KINDS = ['logs', 'matrecs', 'safety', 'pours', 'workorders', 'vols'];
   await sync(M.p); await sync(A.p);
   for (const k of KINDS) { const x = await A.p.evaluate(([k, id]) => DB.get(k, id), [k, ids[k]]); ok(`${k}：另一支手機收到`, x && x.siteId === P, x); }
 
+  // 缺失照片標記（marks）跟著缺失同步
+  await M.p.evaluate(async id => { const x = await DB.get('punch', id); x.marks = { ph1: [{ x: 0.25, y: 0.5, t: '蜂窩處' }] }; x.updated = Date.now(); await DB.put('punch', x); }, PU);
+  await sync(M.p); await sync(A.p);
+  const mk = (await A.p.evaluate(id => DB.get('punch', id), PU))?.marks;
+  ok('缺失照片標記同步', mk?.ph1?.[0]?.t === '蜂窩處' && mk.ph1[0].x === 0.25, mk);
   // 方數「其他」列（直接填單個體積 v）也同步
   const VO = await M.p.evaluate(async P => { const id = 'vo' + Date.now().toString(36); await DB.put('vols', { id, siteId: P, name: '集水坑', rows: [{ name: '集水坑', type: 'oth', a: '', b: '', c: '', d: '', e: '', v: '0.85', n: '2', op: [] }], cfg: {}, created: Date.now(), updated: Date.now() }); return id; }, P);
   await sync(M.p); await sync(A.p);
