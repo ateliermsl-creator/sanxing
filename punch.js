@@ -109,6 +109,8 @@ function pMarkEditor(photo, marks, start, onChange, onClose) {
   box.querySelector(".pmk-ok").focus();
   return close;
 }
+// ISO 時間 → 本地日期 YYYY-MM-DD（不用 toISOString，台灣凌晨才不會變前一天）
+const pLocalDay = iso => { const d = new Date(iso); return isNaN(d) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 // 有內容的缺失（列表、通知單、總表共用同一個判斷）：只拍照、沒寫文字的也算
 const pHasContent = x => !!((x.desc || "").trim() || (x.location || "").trim() || x.thumb || (x.fixedNote || "").trim() || Object.keys(x.marks || {}).length);
 const pPhotosOf = async id => (await DB.all("photos")).filter(p => p.recId === id).sort((a, b) => a.created - b.created);
@@ -352,6 +354,11 @@ async function renderPunchReport() {
   const repNotes = x => { const t = pMarkText(x, photoMap[x.id] || []); return t ? `<br><small class="pmnote">📍 ${esc(t)}</small>` : ""; };
   if (seq !== renderPunchReport.seq) return;
   const site = sites.find(s => s.id === siteId), company = siteCompany(siteId);
+  const groupList = Object.entries(groups);
+  // 簽收：整頁（同一工班、目前列出的這幾項）一起簽，存在每筆缺失的 ack；列出的項目和簽收時一模一樣才顯示簽名
+  const ackOf = os => { const a = os[0]?.ack; if (!a?.id) return null; const ids = new Set(a.ids || []);
+    return os.every(x => x.ack?.id === a.id) && ids.size === os.length && os.every(x => ids.has(x.id)) ? a : null; };
+  const sigCell = (a, k, label) => `<div>${a ? `<span class="psl">${a.sigs?.[k] ? `<img src="${safeImg(a.sigs[k])}" alt="">` : ""}</span>` : ""}${label}${k === "trade" && a?.sigs?.trade && a.at ? `　${pRoc(pLocalDay(a.at))}` : ""}</div>`;
   const cnt = { open: all.filter(x => x.status === "open").length, fixed: all.filter(x => x.status === "fixed").length, closed: all.filter(x => x.status === "closed").length };
   view.innerHTML = `
     <div class="noprint"><h2 class="t">缺失改善通知單</h2>
@@ -361,20 +368,35 @@ async function renderPunchReport() {
         <label class="timing" style="display:flex;gap:8px"><input type="checkbox" id="rPhoto" ${pRepPhoto ? "checked" : ""}> 附缺失照片</label></div>
       <div class="row"><button id="rPrint">🖨 列印／存成 PDF</button><button class="sec" id="rShare">📤 分享文字</button></div>
       <div class="row"><a class="btnlink" href="#/punch">← 回缺失列表</a></div></div>
-    <div id="rPaper">${items.length ? Object.entries(groups).map(([tr, os], gi) => `<div class="paper prep" style="${gi ? "" : ""}">
+    <div id="rPaper">${items.length ? groupList.map(([tr, os], gi) => `<div class="paper prep" style="${gi ? "" : ""}">
       ${company ? `<div class="pcomp">${esc(company)}</div>` : ""}<div class="ptitle">缺失改善通知單</div>
       <div style="margin:2mm 0 3mm;font-size:13px">工程：${esc(site?.name)}　工班／廠商：<b>${esc(tr)}</b>　製表：${pRoc(today())}　共 ${os.length} 項</div>
       <table class="pt items sm"><tr><th>編號</th><th>位置</th><th>缺失內容</th>${pRepPhoto ? "<th>照片</th>" : ""}<th>期限</th><th>狀態</th></tr>
         ${os.map(x => `<tr><td class="c nw">${esc(x.no)}</td><td>${esc(x.location)}</td><td>${esc(x.desc) || (photoMap[x.id] ? "（見照片）" : "")}${repNotes(x)}${x.rejects ? `<br><small>↩ 複驗退回 ${esc(x.rejects)} 次</small>` : ""}</td>${pRepPhoto ? `<td class="c">${repPics(x)}</td>` : ""}
           <td class="c nw" style="${pOver(x) ? "color:var(--bad)" : ""}">${x.due ? pRoc(x.due) : "—"}${pOver(x) ? `<br><small>逾期${pLate(x)}天</small>` : ""}</td><td class="c nw">${PUNCH_STATUS[x.status]}</td></tr>`).join("")}</table>
-      <div class="psigs tall"><div>工班簽收／日期</div><div>工地主任</div></div></div>`).join("") : `<div class="panel noprint" style="color:var(--mut)">沒有符合條件的缺失。<br><small>這個工地共有 ${all.length} 筆：待改善 ${cnt.open}、待複驗 ${cnt.fixed}、已結案 ${cnt.closed}。<br>目前篩選：工班＝${pRepTrade ? esc(pRepTrade === "__none" ? "未指定" : pRepTrade) : "全部"}；狀態＝${Object.entries(PUNCH_STATUS).filter(([k]) => pRepStatus[k]).map(([, l]) => l).join("、") || "（都沒勾選）"}</small><br><button class="sec" id="rClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button></div>`}</div>`;
+      ${(a => `<div class="psigs tall${a ? " signed" : ""}">${sigCell(a, "trade", "工班簽收／日期")}${sigCell(a, "boss", "工地主任")}</div></div>
+      <div class="row noprint prsign"><button class="sec" data-rsign="trade" data-g="${gi}">✍ ${a?.sigs?.trade ? "工班重簽" : "工班簽收"}</button><button class="sec" data-rsign="boss" data-g="${gi}">✍ ${a?.sigs?.boss ? "主任重簽" : "工地主任簽名"}</button></div>`)(ackOf(os))}`).join("") : `<div class="panel noprint" style="color:var(--mut)">沒有符合條件的缺失。<br><small>這個工地共有 ${all.length} 筆：待改善 ${cnt.open}、待複驗 ${cnt.fixed}、已結案 ${cnt.closed}。<br>目前篩選：工班＝${pRepTrade ? esc(pRepTrade === "__none" ? "未指定" : pRepTrade) : "全部"}；狀態＝${Object.entries(PUNCH_STATUS).filter(([k]) => pRepStatus[k]).map(([, l]) => l).join("、") || "（都沒勾選）"}</small><br><button class="sec" id="rClear" style="margin-top:8px;min-height:40px">清除篩選，顯示全部</button></div>`}</div>`;
   $("#rTrade").onchange = e => { pRepTrade = e.target.value; renderPunchReport(); };
   $("#rClear")?.addEventListener("click", () => { pRepTouched = true; pRepTrade = ""; pRepStatus = { open: true, fixed: true, closed: true }; renderPunchReport(); });
   view.querySelectorAll("[data-rs]").forEach(b => b.onchange = () => { pRepTouched = true; pRepStatus = { ...shownStatus, [b.dataset.rs]: b.checked }; renderPunchReport(); });
   $("#rPhoto").onchange = e => { pRepPhoto = e.target.checked; renderPunchReport(); };
   $("#rPrint").onclick = doPrint;
+  view.querySelectorAll("[data-rsign]").forEach(b => b.onclick = () => {
+    const k = b.dataset.rsign, [tr, os] = groupList[+b.dataset.g], cur = ackOf(os);
+    saSigPad(k === "trade" ? `${tr} 簽收` : "工地主任", cur?.sigs?.[k] || "", async sig => {
+      const a = cur ? { ...cur, sigs: { ...cur.sigs } } : { id: uid(), at: "", ids: os.map(x => x.id), sigs: {} };
+      if (sig) a.sigs[k] = sig; else delete a.sigs[k];
+      if (k === "trade") a.at = sig ? new Date().toISOString() : "";
+      const keep = a.sigs.trade || a.sigs.boss;
+      for (const o of os) { const x = await DB.get("punch", o.id); if (!x) continue;
+        if (keep) x.ack = a; else delete x.ack;
+        if (k === "trade" && sig) { x.log = x.log || []; x.log.push({ at: a.at, text: `工班簽收缺失改善通知單（${tr}，共 ${os.length} 項）` }); }
+        x.updated = Date.now(); await DB.put("punch", x); }
+      renderPunchReport();
+    });
+  });
   $("#rShare").onclick = async () => {
-    const text = Object.entries(groups).map(([tr, os]) => `【缺失改善通知】${site?.name || ""}\n工班：${tr}　${pRoc(today())}\n` + os.map((x, i) => `${i + 1}. ${x.location || "—"}｜${x.desc || "—"}${pMarkText(x, photoMap[x.id] || [], "、") ? `（${pMarkText(x, photoMap[x.id] || [], "、")}）` : ""}｜期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `（逾期${pLate(x)}天）` : ""}`).join("\n") + `\n共 ${os.length} 項，請於期限前改善並通知複驗。`).join("\n\n");
+    const text = groupList.map(([tr, os]) => `【缺失改善通知】${site?.name || ""}\n工班：${tr}　${pRoc(today())}\n` + os.map((x, i) => `${i + 1}. ${x.location || "—"}｜${x.desc || "—"}${pMarkText(x, photoMap[x.id] || [], "、") ? `（${pMarkText(x, photoMap[x.id] || [], "、")}）` : ""}｜期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `（逾期${pLate(x)}天）` : ""}`).join("\n") + `\n共 ${os.length} 項，請於期限前改善並通知複驗。`).join("\n\n");
     if (!text) { alert("沒有可分享的缺失"); return; }
     try { if (navigator.share) { await navigator.share({ title: "缺失改善通知", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
     try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
