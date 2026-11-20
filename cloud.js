@@ -8,7 +8,8 @@
    必須在 app.js 之後載入（要包住 DB），sidenav.js 之前（左側選單多一項）。 */
 const CLOUD = {
   on: !/github\.io$/i.test(location.hostname) && (!["localhost", "127.0.0.1", ""].includes(location.hostname) || ls.get("cloudDev", "") === "1"),
-  stores: ["sites", "records", "templates"],   // 第一期同步的資料表；之後各期在這裡和 worker.js 的 SYNC_KINDS 加
+  stores: ["sites", "records", "templates", "punch", "logs", "matrecs", "safety", "pours", "workorders", "vols"],   // 同步的資料表（第一期＋第二期）；要和 worker.js 的 SYNC_KINDS 一致。照片（photos、shots）第三期才同步
+  phase: "2",                                    // 新增同步的表時加 1：已登入的手機會把專案裡原有、還沒上傳的表單補上傳一次
   me: null, projects: [], meta: new Map(),       // meta：`${store}:${id}` → { v 雲端版次, dirty, n 改了幾次, del, by 建立人, cloud（專案）, local（只在這支手機） }
   state: "idle", msg: "", last: 0, busy: false, again: false, timer: null, notes: [], applied: new Set(),
   deny: null, reqs: 0   // deny：不在名單時雲端回的資料（applied 申請狀態）；reqs：管理員看到的待核准申請數
@@ -22,8 +23,9 @@ const clMetaPut = m => { CLOUD.meta.set(m.id, m); return tx("sync", "readwrite",
 const clMetaDel = id => { CLOUD.meta.delete(id); return tx("sync", "readwrite", o => o.delete(id)); };
 const clMetaLoad = (async () => { if (!CLOUD.on) return; for (const m of await tx("sync", "readonly", o => o.getAll())) CLOUD.meta.set(m.id, m); })().catch(() => {});
 const clMeta = (s, id) => CLOUD.meta.get(clKey(s, id));
+const clProj = s => s !== "sites" && s !== "templates";   // 掛在專案（siteId）下的表單
 const clCloudSites = () => new Set([...CLOUD.meta.values()].filter(m => m.s === "sites" && m.cloud).map(m => m.doc));
-const clPending = () => { const cs = clCloudSites(); return [...CLOUD.meta.values()].filter(m => m.dirty && !m.err && (m.s === "sites" ? m.cloud : m.s === "templates" ? !m.local : cs.has(m.pid))).length; };
+const clPending = () => { const cs = clCloudSites(); return [...CLOUD.meta.values()].filter(m => m.dirty && !m.err && (m.s === "sites" ? m.cloud : clProj(m.s) ? cs.has(m.pid) : !m.local)).length; };
 
 const DBraw = { put: DB.put, del: DB.del };
 async function clTouch(s, v, del) {
@@ -34,7 +36,7 @@ async function clTouch(s, v, del) {
     if (del || !CLOUD.me?.admin || m.local || !ls.get("cloudInit", "")) { if (!m.local) { m.local = true; await clMetaPut(m); } return; }
     m.cloud = true;
   }
-  if (!del && s === "records") m.pid = v.siteId;
+  if (!del && clProj(s)) m.pid = v.siteId;
   m.dirty = true; m.del = !!del; m.n = (m.n || 0) + 1; delete m.err;
   if (!m.by && !m.v && CLOUD.me) m.by = CLOUD.me.email;
   await clMetaPut(m);
@@ -52,7 +54,7 @@ async function clApply(kind, d) {   // 把雲端那一份寫進手機（不會�
   const k = clKey(kind, d.id || d.data?.id);
   CLOUD.applied.add(d.id || d.data?.id);
   if (d.deleted || d.gone || !d.data) {
-    if (kind === "records") { for (const p of await DB.all("photos")) if (p.recId === d.id) await DBraw.del("photos", p.id); }
+    if (clProj(kind)) { for (const p of await DB.all("photos")) if (p.recId === d.id) await DBraw.del("photos", p.id); }
     await DBraw.del(kind, d.id); await clMetaDel(k); return true;
   }
   const clean = CLEAN[kind] && CLEAN[kind](d.data);
@@ -87,8 +89,8 @@ async function cloudSync() {
         if (m.s === "templates" && m.local) continue;
         const data = m.del ? null : await DB.get(m.s, m.doc);
         if (!m.del && !data) { await clMetaDel(m.id); continue; }
-        const pid = m.s === "records" ? (data ? data.siteId : m.pid) : "";
-        if (m.s === "records" && !cs.has(pid)) continue;            // 還只在這支手機的工地，不上傳
+        const pid = clProj(m.s) ? (data ? data.siteId : m.pid) : "";
+        if (clProj(m.s) && !cs.has(pid)) continue;                // 還只在這支手機的工地，不上傳
         if (m.del && !m.v) { await clMetaDel(m.id); continue; }     // 從沒上傳過就刪了
         push.push({ id: m.doc, kind: m.s, project: pid, base: m.v || 0, del: !!m.del, data, n: m.n });
         sent.set(m.id, m.n);
@@ -104,7 +106,14 @@ async function cloudSync() {
       if (!ls.get("cloudInit", "")) {
         const ids = new Set(j.projects.map(p => p.id));
         for (const s of await DB.all("sites")) if (!ids.has(s.id) && !clMeta("sites", s.id)) await clMetaPut({ id: clKey("sites", s.id), s: "sites", doc: s.id, local: true });
-        ls.set("cloudInit", "1");
+        ls.set("cloudInit", "1"); ls.set("cloudPhase", CLOUD.phase);
+      }
+      // 新一期開始同步的表：雲端專案裡原本就存在手機、還沒上傳過的，補上傳一次
+      if (ls.get("cloudPhase", "") !== CLOUD.phase) {
+        const ids = new Set(j.projects.map(p => p.id));
+        for (const st of CLOUD.stores.filter(clProj)) for (const x of await DB.all(st))
+          if (ids.has(x.siteId) && !clMeta(st, x.id)) await clMetaPut({ id: clKey(st, x.id), s: st, doc: x.id, v: 0, pid: x.siteId, dirty: true, del: false, n: 1, by: CLOUD.me.email });
+        ls.set("cloudPhase", CLOUD.phase); CLOUD.again = true;
       }
       for (const pr of j.projResults || []) {
         const m = clMeta("sites", pr.id); if (!m) continue;
@@ -140,9 +149,9 @@ async function cloudSync() {
         if (!m?.cloud || m.local) await clMetaPut({ id: clKey("sites", p.id), s: "sites", doc: p.id, cloud: true, dirty: false });
       }
       for (const id of cs) if (!seen.has(id)) {          // 被移出專案：清掉這支手機上的雲端資料（還沒上傳的保留，改成只在本機）
-        const left = [...CLOUD.meta.values()].filter(m => m.s === "records" && m.pid === id && m.dirty);
+        const left = [...CLOUD.meta.values()].filter(m => clProj(m.s) && m.pid === id && m.dirty);
         if (left.length) { await clMetaPut({ ...clMeta("sites", id), cloud: false, local: true }); continue; }
-        for (const r of (await DB.all("records")).filter(r => r.siteId === id)) await clApply("records", { id: r.id, deleted: true });
+        for (const st of CLOUD.stores.filter(clProj)) for (const r of (await DB.all(st)).filter(r => r.siteId === id)) await clApply(st, { id: r.id, deleted: true });
         await DBraw.del("sites", id); await clMetaDel(clKey("sites", id)); changed = true;
         CLOUD.notes.push("你已不在其中一個專案，這支手機上的該專案資料已移除");
       }
@@ -165,9 +174,9 @@ async function cloudSync() {
     if (tplChanged) await loadTemplates();
     // 畫面上正開著的那一份剛收到別人的修改：重新顯示，避免用舊內容蓋掉
     const open = location.hash.split("/").slice(2).find(x => CLOUD.applied.has(x));
-    if (open && /^#\/checklist\//.test(location.hash)) { if (svCur?.pending) await svCur.flush().catch(() => {}); if (!CLOUD.notes.length) CLOUD.notes.push("這份剛收到同事的修改，畫面已更新"); }
+    if (open) { if (svCur?.pending) await svCur.flush().catch(() => {}); if (!CLOUD.notes.length) CLOUD.notes.push("這份剛收到同事的修改，畫面已更新"); }
     CLOUD.applied.clear();
-    if (changed || open) { await loadSites(); const h = location.hash; if (open || !h || h === "#/" || h === "#/checklist" || h === "#/cloud") route(); }
+    if (changed || open) { await loadSites(); const h = location.hash; if (open || /^(#\/?)?$|^#\/(checklist|cloud|punch|log|material|safety|pour|cure|workorder)$/.test(h)) route(); }
     if (CLOUD.notes.length) { clToast(CLOUD.notes.join("\n")); CLOUD.notes = []; }
     if (CLOUD.again) { CLOUD.again = false; clSoon(500); }
   }
@@ -198,6 +207,33 @@ async function cloudRO(store, rec) {
 function cloudCanReopen(rec) { return !clIsCloudSite(rec?.siteId) || ["admin", "lead"].includes(clRole(rec.siteId)); }
 // 清空白紀錄時只動自己建立的
 function cloudMine(store, id) { const by = clMeta(store, id)?.by; return !CLOUD.on || !by || by === CLOUD.me?.email; }
+// 第二期的表單（自主檢查表在 app.js 自己處理）：畫面畫好後，沒有權限的整份改成只能查看
+const CL_PAGES = { punch: "punch", log: "logs", material: "matrecs", safety: "safety", pour: "pours", workorder: "workorders" };
+async function clGuard() {
+  if (!CLOUD.on || !CLOUD.me) return;
+  const [, page, id] = location.hash.split("/"), st = CL_PAGES[page];
+  if (!st || !id || !/^[A-Za-z0-9_-]{1,64}$/.test(id)) return;
+  const rec = await DB.get(st, id).catch(() => null); if (!rec) return;
+  const ro = await cloudRO(st, rec);
+  if (!ro) { if (rec.locked && !cloudCanReopen(rec)) { const e = document.getElementById("dnEdit"); if (e) e.replaceWith(Object.assign(document.createElement("small"), { textContent: "要修改請找工程主管或管理員", style: "color:var(--mut)" })); } return; }
+  if (location.hash.split("/")[2] !== id || view.querySelector(".clroBar")) return;
+  view.classList.add("dnlock");
+  const keep = ".tipbtn, [data-a=open], [data-a=share], [data-a=preview], .dn-keep *, a";
+  view.querySelectorAll("input, select, textarea, button").forEach(el => {
+    if (el.matches(keep) || /預覽|分享|PDF|列印|返回|照片冊/.test(el.textContent || "")) return;
+    el.disabled = true;
+    if (el.tagName === "BUTTON" && !el.matches(".sym button, .chip, .sasig")) el.style.display = "none";
+  });
+  view.querySelectorAll("label.phbtn, [data-dnhide]").forEach(el => { el.style.display = "none"; });
+  const bar = document.createElement("div"); bar.className = "cllock reopen clroBar"; bar.textContent = "👁 " + ro;
+  view.prepend(bar);
+}
+if (CLOUD.on) {
+  const routeRaw = route;
+  window.removeEventListener("hashchange", routeRaw);
+  route = async (...a) => { const r = await routeRaw(...a); await clGuard().catch(() => {}); return r; };
+  window.addEventListener("hashchange", () => route());
+}
 // 雲端專案的名稱只有管理員能改、不能在手機上直接刪
 function cloudSiteBlock(id, act) {
   if (!clIsCloudSite(id)) return "";
@@ -340,9 +376,9 @@ async function renderCloud() {
       if (to === "__new") {
         const m = clMeta("sites", sid) || { id: clKey("sites", sid), s: "sites", doc: sid };
         await clMetaPut({ ...m, local: false, cloud: true, dirty: true, n: (m.n || 0) + 1 });
-        for (const r of recs.filter(r => r.siteId === sid)) { used.add(r.templateId); await DB.put("records", r); }
+        for (const st of CLOUD.stores.filter(clProj)) for (const x of (await DB.all(st)).filter(x => x.siteId === sid)) { if (st === "records") used.add(x.templateId); await DB.put(st, x); }
       } else {
-        for (const st of ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs", "vols"])   // 其他表單先改掛到該專案，留在手機，之後各期上傳
+        for (const st of ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs", "vols"])   // 照片（shots）先改掛到該專案、留在手機，第三期上傳
           for (const x of (await DB.all(st)).filter(x => x.siteId === sid)) { x.siteId = to; if (st === "records") used.add(x.templateId); await DB.put(st, x); }
         await DBraw.del("sites", sid); await clMetaDel(clKey("sites", sid));
         if (siteId === sid) { siteId = to; ls.set("siteId", to); }

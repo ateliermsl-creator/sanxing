@@ -6,7 +6,7 @@
 ## 技術概況
 - 純前端、無框架、無建置步驟。直接編輯檔案即可。第三方只有 `lib/html2canvas`、`lib/jspdf`（皆 MIT，授權檔在 `lib/`）。
 - 資料只存在使用者手機瀏覽器的 IndexedDB（庫名 `avocado-toolbox`，歷史原因沒改名，**不要改**，會讓既有資料消失）。目前版本 **13**，資料表：`sites records templates photos workorders punch pours matrecs matcats files shots safety logs vols sync`（`sync` 是雲端同步記錄哪一份改過，不是使用者資料，**不放進備份**）。
-- **雲端版（同事共用，2026-11-20 使用者同意，分三期）**：同一套程式另部署到 Cloudflare（Workers＋D1＋Access），`cloud.js` 只在非 `github.io`、非 localhost 的網址啟用（本機測試設 localStorage `cloudDev=1`），GitHub Pages 版仍是單機版、行為不變。伺服器在 `cloud/`，設定步驟、權限表、衝突規則見 `cloud/README.md`。第一期同步 `sites`（＝雲端專案）、`records`、`templates`；第二、三期要同步的表加到 `cloud.js` 的 `CLOUD.stores` 與 `worker.js` 的 `SYNC_KINDS`。
+- **雲端版（同事共用，2026-11-20 使用者同意，分三期）**：同一套程式另部署到 Cloudflare（Workers＋D1＋Access），`cloud.js` 只在非 `github.io`、非 localhost 的網址啟用（本機測試設 localStorage `cloudDev=1`），GitHub Pages 版仍是單機版、行為不變。伺服器在 `cloud/`，設定步驟、權限表、衝突規則見 `cloud/README.md`。第一期同步 `sites`（＝雲端專案）、`records`、`templates`；第二期（2026-11-20 使用者要求提前做）加 `punch logs matrecs safety pours workorders vols`。照片（`photos`、`shots`）、附加檔案、公司共用設定（`matcats`）還沒同步（第三期）。要同步的表加到 `cloud.js` 的 `CLOUD.stores` 與 `worker.js` 的 `SYNC_KINDS`，並把 `CLOUD.phase` 加 1（已登入的手機會把專案裡原有的資料補上傳一次）。第二期表單沒有權限時由 `cloud.js` 的 `clGuard`（包住 `route`）整頁改唯讀；新增表單頁要加進 `CL_PAGES`。
 - GitHub Pages 單機版沒有伺服器、沒有帳號。`localStorage` 只放個人偏好（上次選的工地等）。**公司名稱（各表單抬頭）存在每個工地的 `sites.company`**，用 `siteCompany(siteId)` 取（2026-11-19 使用者反映切換專案後抬頭沒換）；`localStorage` 的 `company` 只當新增工地的預設值，舊工地第一次載入時由 `loadSites` 帶入。新單據抬頭一律用 `siteCompany(紀錄的 siteId)`。
 - 路由是 hash（`#/頁面/id/子頁`），在 `app.js` 的 `route()` 分派，各功能一支檔案：
 
@@ -73,7 +73,7 @@ bash tests/run.sh print_overflow narrow_overflow pdf_all_outputs   # 版面
 ```
 結構計算另有**第三方獨立驗證**（anaStruct、PyNite、sectionproperties，Python）：`python3 tools/verify/verify.py`，產生 `tools/verify/REPORT.md`。改了任何結構計算檔（`colform.js`～`secprop.js`）都重跑一次，看有沒有新增不一致；新增結構計算時在 `tools/verify/` 補案例（說明見該資料夾 README）。
 改 `safe.js`、資料庫、備份：至少跑 `backup_roundtrip`、`db_upgrade_delete_site`、`xss_render`。
-改 `cloud.js`、`cloud/`：跑 `node tests/cloud_jwt.mjs`，並照 `cloud/README.md`「本機測試」啟動 wrangler dev 後跑 `node tests/cloud_api.js`、`node tests/cloud_e2e.js`、`node tests/cloud_apply.js`（`run.sh` 不含這幾支，因為要另外開伺服器）。改版面：跑 `print_overflow`、`narrow_overflow`。
+改 `cloud.js`、`cloud/`：跑 `node tests/cloud_jwt.mjs`，並照 `cloud/README.md`「本機測試」啟動 wrangler dev 後跑 `node tests/cloud_api.js`、`node tests/cloud_e2e.js`、`node tests/cloud_apply.js`、`node tests/cloud_phase2.js`（`run.sh` 不含這幾支，因為要另外開伺服器）。改版面：跑 `print_overflow`、`narrow_overflow`。
 
 ## 還沒做、等使用者決定
 - App 鎖（PIN／生物辨識）與備份檔加密——使用者說先暫緩。要做之前先問：密碼位數、忘記密碼怎麼處理、備份密碼忘記打不開是否可接受。

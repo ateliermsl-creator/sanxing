@@ -10,7 +10,7 @@
    本機測試：DEV_AUTH = "1" 且網址是 localhost 時，改用 X-Dev-Email 標頭當登入者 */
 
 const ROLES = ["lead", "member", "viewer"];
-const SYNC_KINDS = ["records", "templates"];          // 第一期同步的表單；之後各期在這裡加
+const SYNC_KINDS = ["records", "templates", "punch", "logs", "matrecs", "safety", "pours", "workorders", "vols"];   // 第一期＋第二期同步的表單；templates 以外都掛在專案（siteId）下
 const MAX_DOC = 1500000;                               // 單份表單上限（字元），D1 一列上限 2 MB
 const PULL_LIMIT = 400;
 
@@ -151,7 +151,7 @@ async function pushOne(db, me, item) {
   if (!item.del && (!isObj(data) || data.id !== item.id)) return { id: item.id, status: "bad" };
   if (!item.del && JSON.stringify(data).length > MAX_DOC) return { id: item.id, status: "too_big" };
   item.project = item.kind === "templates" ? "" : str(item.project, 64);
-  if (item.kind === "records" && !item.del && data.siteId !== item.project) return { id: item.id, status: "bad" };
+  if (item.kind !== "templates" && !item.del && data.siteId !== item.project) return { id: item.id, status: "bad" };
   for (let attempt = 0; attempt < 3; attempt++) {
     const cur = await db.prepare("SELECT * FROM docs WHERE id = ?").bind(item.id).first();
     if (cur && cur.kind !== item.kind) return { id: item.id, status: "bad" };
@@ -159,7 +159,7 @@ async function pushOne(db, me, item) {
     const role = item.kind === "templates" ? (leadAnywhere(me) ? "lead" : (Object.keys(me.roles).length ? "viewer" : "")) : roleIn(me, pid);
     const curData = cur ? JSON.parse(cur.data) : null;
     const deny = msg => ({ id: item.id, status: "denied", msg, ...(cur ? { version: cur.version, data: curData, deleted: !!cur.deleted, by: cur.created_by } : { gone: true }) });
-    if (item.kind === "records" && item.project !== pid && !(isLead(roleIn(me, item.project)) && isLead(role))) return deny("不能把紀錄移到別的專案");
+    if (item.kind !== "templates" && item.project !== pid && !(isLead(roleIn(me, item.project)) && isLead(role))) return deny("不能把紀錄移到別的專案");
     if (!canWrite(role)) return deny(item.kind === "templates" ? "自訂範本要由工程主管或管理員發布到公司共用" : role === "viewer" ? "你在這個專案是唯讀" : "你不是這個專案的成員");
     const own = !cur || cur.created_by === me.email;
     if (!isLead(role) && !own) return deny("一般同事只能修改自己建立的表單");
