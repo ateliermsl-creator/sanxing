@@ -525,3 +525,34 @@ body:has(#calcBar:not([hidden])) #saveTip{bottom:calc(env(safe-area-inset-bottom
 #view.dnlock canvas{pointer-events:none}
 #view.dnlock input:disabled,#view.dnlock textarea:disabled,#view.dnlock select:disabled{background:transparent;color:var(--tx);-webkit-text-fill-color:currentColor;opacity:1;border-style:dashed}
 #view.dnlock input[type=checkbox]:disabled,#view.dnlock input[type=radio]:disabled{opacity:.7}
+
+/* ---------- 缺失照片標記（punch.js pMarkEditor）：編號圖釘，位置存相對座標 ---------- */
+.pmpin{position:absolute;transform:translate(-50%,-50%);min-width:26px;height:26px;padding:0 4px;border-radius:13px;background:var(--bad);color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);font:700 13px/22px system-ui,sans-serif;text-align:center;box-sizing:border-box;pointer-events:none;-webkit-user-select:none;user-select:none}
+.th .pmbtn{position:absolute;right:-6px;bottom:-6px;top:auto;width:auto;min-width:26px;height:24px;min-height:24px;padding:0 4px;border-radius:12px;background:var(--card);color:var(--tx);border:1px solid var(--line);font-size:12px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.th .pmbtn.has{background:var(--bad);color:#fff;border-color:#fff}
+.th .pmbtn b{font-size:11px;margin-left:1px}
+.pmhint{display:block;margin-top:8px;color:var(--mut);font-size:13px}
+body.pmkOpen{overflow:hidden}
+.pmk{position:fixed;inset:0;z-index:55;background:#1d1b17;display:flex;flex-direction:column;color:#f5f1e8}
+.pmk-top{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:calc(env(safe-area-inset-top) + 10px) 14px 8px}
+.pmk-top b{display:block;font-size:16px}.pmk-top small{color:#bdb5a3;font-size:13px}
+.pmk-top .pmk-ok{flex:none;min-height:44px;padding:0 20px}
+.pmk-stage{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:4px 8px;overflow:hidden}
+.pmk-box{position:relative;display:inline-block;max-width:100%;max-height:100%;touch-action:none;cursor:crosshair;line-height:0}
+.pmk-box img{display:block;max-width:calc(100vw - 16px);max-height:calc(100vh - min(32vh,230px) - 90px);-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pmk-pins .pmpin{pointer-events:auto;cursor:grab;min-width:32px;height:32px;border-radius:16px;font-size:15px;line-height:28px}
+.pmk-pins .pmpin::after{content:"";position:absolute;inset:-8px}
+.pmk-pins .pmpin.on{outline:3px solid #f0d27a;outline-offset:1px}
+.pmk-list{flex:none;height:min(32vh,230px);box-sizing:border-box;overflow:auto;background:var(--card);color:var(--tx);border-radius:14px 14px 0 0;padding:10px 12px calc(env(safe-area-inset-bottom) + 10px)}
+.pmk-row{display:flex;align-items:center;gap:8px;padding:4px 0}
+.pmk-row .pmpin{position:static;transform:none;flex:none}
+.pmk-row input{flex:1;min-width:0;min-height:40px}
+.pmk-row.on input{border-color:var(--bad)}
+.pmk-row .pmk-del{flex:none;width:40px;min-height:40px;height:40px;padding:0;background:transparent;color:var(--bad);border:1px solid var(--line);border-radius:10px}
+.pmk-empty{color:var(--mut);font-size:14px;padding:8px 2px}
+@media screen and (min-width:768px){.pmk-list{width:560px;max-width:100%;margin:0 auto}}
+/* 通知單：圖片不裁切，圖釘才對得準 */
+.pmfig{position:relative;display:inline-block;line-height:0;margin:1px 0}
+.pmfig img{display:block;max-width:26mm;max-height:30mm}
+.pmfig .pmpin{min-width:4mm;height:4mm;border-radius:2mm;font-size:8px;line-height:calc(4mm - 2px);border-width:1px;padding:0 1px}
+.pmnote{color:#333!important}
