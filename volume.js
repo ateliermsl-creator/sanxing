@@ -172,9 +172,12 @@ function tabVolume(box) {
   const doSave = async () => {
     if (!rec) return;
     clearTimeout(timer); timer = 0;
+    if (!(await DB.get("vols", rec.id))) { forget(); return; }   // 這筆已被刪除（例如別台手機刪了、同步過來）：不要再存回去
     rec = volRec(st, rec); await DB.put("vols", rec); status(); list();
   };
   function autoSave() { if (!rec) { status(); return; } mark("存檔中…"); if (live()) svShow("saving"); clearTimeout(timer); timer = setTimeout(doSave, 400); }
+  // 開啟中的紀錄被刪除（在這裡刪、或別台手機刪了同步過來）：回到「新計算」，紀錄名稱一起清掉（2026-11-21 使用者反映刪除後上方仍顯示名稱）；輸入的構件保留
+  function forget() { clearTimeout(timer); timer = 0; rec = null; st.cfg.cur = ""; st.cfg.title = ""; volSave(st); const t = live() && $("#vTitle"); if (t) t.value = ""; status(); list(); }
   $("#vTitle").oninput = e => { st.cfg.title = e.target.value; volSave(st); if (rec && st.cfg.title.trim()) autoSave(); else head(); };
   $("#vTitle").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("#vSave").click(); } };
   $("#vOpen").onclick = () => { const l = $("#vList"), open = l.hidden; l.hidden = !open; $("#vOpen").setAttribute("aria-expanded", String(open)); $("#vOpen").classList.toggle("on", open); };
@@ -207,13 +210,13 @@ function tabVolume(box) {
     } else if (b.dataset.vdel) {
       if (!confirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`)) return;
       await DB.del("vols", id);
-      if (rec && rec.id === id) { clearTimeout(timer); timer = 0; rec = null; st.cfg.cur = ""; volSave(st); }
+      if (rec && rec.id === id) forget();
       status(); list();
     }
   };
   (async () => {   // 開啟中的那一筆要存在、且屬於目前工地，否則視為未儲存
     const x = st.cfg.cur ? await DB.get("vols", st.cfg.cur) : null;
-    if (x && x.siteId === siteId && x.kind !== "tile") rec = x; else if (st.cfg.cur) { st.cfg.cur = ""; volSave(st); }
+    if (x && x.siteId === siteId && x.kind !== "tile") rec = x; else if (st.cfg.cur) { if (!x) forget(); else { st.cfg.cur = ""; volSave(st); } }
     status(); list();
   })();
   const draw = () => { $("#vRows").innerHTML = `<h2 class="t" style="font-size:17px;margin:4px 12px"><span class="cfno">1</span>構件</h2>` + st.rows.map(rowHtml).join(""); sum(); };
