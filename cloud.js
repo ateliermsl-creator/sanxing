@@ -310,7 +310,7 @@ async function renderCloud() {
   const recs = await DB.all("records"), cnt = id => recs.filter(r => r.siteId === id).length;
   const writable = projs.filter(p => ["admin", "lead", "member"].includes(p.role));
   const leadOf = projs.filter(p => ["admin", "lead"].includes(p.role));
-  view.innerHTML = `<h2 class="t">☁ 雲端同步</h2>
+  view.innerHTML = `<h2 class="t">雲端同步</h2>
     <div class="panel" id="clState">${clStateHtml()}</div>
     ${me ? `<div class="panel"><b>我參與的專案</b>${projs.length ? projs.map(p => `<div class="clrow"><span>${esc(p.name)}${p.status === "closed" ? "（已關閉）" : ""}</span><small>${esc(clRoleName[p.role] || "")}</small></div>`).join("")
       : `<p class="cnote">${me.admin ? "還沒有雲端專案。按上方 ＋ 新增專案，或用下方「上傳這支手機的舊資料」。" : "管理員還沒有把你加進任何專案，請洽管理員或工程主管。"}</p>`}</div>` : ""}

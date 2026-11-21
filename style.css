@@ -654,3 +654,20 @@ input,.cfres td,.ct td,.cfref td,.big,#calcBar b,.kpi b{font-variant-numeric:tab
 #backupWarn a{color:var(--coral-dk)}
 /* 預覽頁動作列：最上面一顆主要按鈕（分享 PDF），下面一排次要按鈕 */
 .pvmain{margin-bottom:0}.pvmain+.pvbar,.pvmain+.row{margin-top:10px}
+/* ===== 品牌識別第二批（2026-11-22）：Logo A 向量檔與統一圖示（icons.js） ===== */
+svg.ic{display:block;width:24px;height:24px;flex:none}
+.card .ph{color:var(--coffee)}.card .ph svg.ic{width:28px;height:28px}
+.card.soon .ph{color:var(--g2)}
+.hero img{width:auto;height:150px;border-radius:0}
+.hero h1{line-height:0;margin:14px 0 8px}
+.hero h1 .hword{display:inline-block;width:auto;height:30px;border-radius:0}
+@media (max-width:380px){.hero h1 .hword{height:26px}}
+#sideNav .snBrand img{width:auto;height:36px;border-radius:0;background:none}
+#sideNav .snBrand img.snWord{height:17px}
+#sideNav a span svg.ic{width:20px;height:20px;margin:0 auto}
+.stcat h2{display:flex;align-items:center;gap:8px}.stcat h2 svg.ic{color:var(--coffee)}
+#topbar button svg{display:block;width:24px;height:24px}
+svg.ic.sm{width:16px;height:16px}
+.hbar button.lnk{display:inline-flex;align-items:center;justify-content:center}
+.hbic svg.ic{width:16px;height:16px;color:var(--g2)}
+.hbic{display:inline-flex}

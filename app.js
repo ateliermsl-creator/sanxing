@@ -57,7 +57,7 @@ function renderInstall() {
     <li>在跳出的視窗按 <b>「安裝」</b> 或 <b>「新增」</b>。</li>
     <li>回到桌面，點<b>三星蔥圖示</b>開啟。</li></ol>
     <p class="cnote">Samsung Internet：點選單 ≡ →「新增頁面到」→「主畫面」。</p>`;
-  view.innerHTML = `<h2 class="t">📲 加到手機桌面</h2>
+  view.innerHTML = `<h2 class="t">加到手機桌面</h2>
     ${isStandalone() ? `<div class="legend" style="background:var(--ok-lt);border-color:transparent;color:var(--ok)">✓ 你現在就是從桌面圖示開啟的，已經安裝好了。</div>` : ""}
     ${iab ? `<div class="legend" style="background:var(--warn-lt);border-color:transparent;color:var(--warn)">⚠ 你現在在 <b>${iab} 內建瀏覽器</b>，無法加入主畫面。請先改用 ${ios ? "Safari" : "Chrome"} 開啟：點${inAppHelp().where}。<br><button class="sec" id="inCopy" style="min-height:36px;font-size:14px;padding:0 12px;margin-top:6px">複製網址</button></div>` : ""}
     <div class="panel"><b>為什麼要加到桌面？</b><ul style="margin:6px 0 0;padding-left:20px;line-height:1.7"><li>點一下圖示就開，像一般 App，沒有網址列。</li><li>第一次要有網路載入，之後<b>沒有網路也能用</b>。</li><li>不會被當成一般網頁，手機比較不會清掉資料。</li></ul></div>
@@ -276,27 +276,27 @@ async function renderHome() {
   let cuN = 0; try { cuN = await cuUrgent(); } catch {}
   if (location.hash.split("/")[1]) return;   // 讀取期間已切到別的頁面，就不要用首頁蓋掉它
   view.innerHTML = `
-    <div class="htop"><div class="hbak" id="hBak" hidden></div><div class="hbar"><span class="hbic" aria-hidden="true">🏗️</span>${sites.length
-      ? `<span class="hblbl">所在專案：</span><span class="hbname"><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b>${sites.length > 1 ? " ▾" : ""}<select id="hSite" aria-label="切換所在專案">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></span><span class="hbact"><button class="lnk" id="hEdit" aria-label="修改所在專案" title="修改所在專案">✎</button><button class="lnk" id="hAdd" aria-label="新增專案" title="新增專案">＋</button></span>`
+    <div class="htop"><div class="hbak" id="hBak" hidden></div><div class="hbar"><span class="hbic" aria-hidden="true">${ic("folder")}</span>${sites.length
+      ? `<span class="hblbl">所在專案：</span><span class="hbname"><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b>${sites.length > 1 ? " ▾" : ""}<select id="hSite" aria-label="切換所在專案">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></span><span class="hbact"><button class="lnk" id="hEdit" aria-label="修改所在專案" title="修改所在專案">${ic("edit", "sm")}</button><button class="lnk" id="hAdd" aria-label="新增專案" title="新增專案">${ic("plus", "sm")}</button></span>`
       : `尚未建立專案，<button class="lnk t" id="hAdd">新增專案</button>`}</div></div>
-    ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">📲 把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
-    <section class="hero"><img src="leek.png" alt=""><h1>三星蔥工具箱</h1><p>粗糲的現場，需要最純粹的隨身器物</p></section>
-    <a class="card" href="#/checklist"><img src="leek.png" alt=""><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/safety"><div class="ph">👷</div><div><b>職安衛勤前教育／危害告知</b><small>全體合照・高風險作業・九宮格手寫簽到・A4 簽到表</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/log"><div class="ph">📒</div><div><b>施工日誌</b><small>B14-4 格式・自動累計・帶入材料與取樣・A4 PDF</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/material"><div class="ph">📦</div><div><b>材料進場驗收</b><small>類別檢查項目・簽名・照片・進場台帳</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/pour"><div class="ph">🚛</div><div><b>混凝土澆置抽驗</b><small>車號・坍度・氯離子・試體・簽名・方量統計</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/cure"><div class="ph">🧪</div><div><b>試體養護與拆模追蹤</b><small>${cuN ? `⚠️ ${cuN} 項待處理・` : ""}7／28 天試壓提醒・拆模齡期・強度台帳</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋稱號・鋼筋重量・混凝土方數・坡度高程・面積・磁磚計算・穿樑套管</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/shot"><div class="ph">📷</div><div><b>施工照片（電子黑板）</b><small>黑板合成在照片上・照片冊・分享 PDF</small></div><span class="arrow">›</span></a>
-    <h2 class="hsec">📐 結構計算 <small>假設工程檢核・A4 計算書</small></h2>
-    ${STRUCT_CATS.map(c => `<a class="card" href="#/struct/${c.tabs[0]}"><div class="ph">${c.icon}</div><div><b>${c.t}</b><small>${c.tabs.map(structName).map(esc).join("・")}</small></div><span class="arrow">›</span></a>`).join("")}
+    ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
+    <section class="hero"><img src="brand/logo-mark.svg" alt=""><h1><img class="hword" src="brand/wordmark.svg" alt="三星蔥工具箱"></h1><p>粗糲的現場，需要最純粹的隨身器物</p></section>
+    <a class="card" href="#/checklist"><div class="ph">${ic("check")}</div><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/safety"><div class="ph">${ic("hat")}</div><div><b>職安衛勤前教育／危害告知</b><small>全體合照・高風險作業・九宮格手寫簽到・A4 簽到表</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/log"><div class="ph">${ic("log")}</div><div><b>施工日誌</b><small>B14-4 格式・自動累計・帶入材料與取樣・A4 PDF</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/material"><div class="ph">${ic("box")}</div><div><b>材料進場驗收</b><small>類別檢查項目・簽名・照片・進場台帳</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/pour"><div class="ph">${ic("truck")}</div><div><b>混凝土澆置抽驗</b><small>車號・坍度・氯離子・試體・簽名・方量統計</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/cure"><div class="ph">${ic("cyl")}</div><div><b>試體養護與拆模追蹤</b><small>${cuN ? `⚠️ ${cuN} 項待處理・` : ""}7／28 天試壓提醒・拆模齡期・強度台帳</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/punch"><div class="ph">${ic("pin")}</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/workorder"><div class="ph">${ic("sign")}</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/calc"><div class="ph">${ic("calc")}</div><div><b>工程計算機</b><small>鋼筋稱號・鋼筋重量・混凝土方數・坡度高程・面積・磁磚計算・穿樑套管</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/shot"><div class="ph">${ic("cam")}</div><div><b>施工照片（電子黑板）</b><small>黑板合成在照片上・照片冊・分享 PDF</small></div><span class="arrow">›</span></a>
+    <h2 class="hsec">結構計算 <small>假設工程檢核・A4 計算書</small></h2>
+    ${STRUCT_CATS.map(c => `<a class="card" href="#/struct/${c.tabs[0]}"><div class="ph">${ic(c.icon)}</div><div><b>${c.t}</b><small>${c.tabs.map(structName).map(esc).join("・")}</small></div><span class="arrow">›</span></a>`).join("")}
     <h2 class="hsec">備份與安裝</h2>
-    <a class="card" href="#/backup"><div class="ph">💾</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/install"><div class="ph">📲</div><div><b>加到手機桌面</b><small>像 App 一樣使用・教學</small></div><span class="arrow">›</span></a>
-    <div class="card soon"><div class="ph">＋</div><div><b>更多工具開發中</b><small>敬請期待</small></div></div>
+    <a class="card" href="#/backup"><div class="ph">${ic("backup")}</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/install"><div class="ph">${ic("phone")}</div><div><b>加到手機桌面</b><small>像 App 一樣使用・教學</small></div><span class="arrow">›</span></a>
+    <div class="card soon"><div class="ph">${ic("plus")}</div><div><b>更多工具開發中</b><small>敬請期待</small></div></div>
     <details class="panel"><summary><b>📢 最新更新</b>${updates[0] ? ` <small style="color:var(--mut)">${esc(updates[0].date)}</small>` : ""}</summary>${updates.map(u => `<div class="d">${esc(u.date)}</div><ul>${u.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`).join("")}</details>`;
   $("#hSite")?.addEventListener("change", e => { siteId = e.target.value; ls.set("siteId", siteId); $("#siteSelect").value = siteId; $("#hName").textContent = sites.find(s => s.id === siteId)?.name || ""; });
   $("#hAdd")?.addEventListener("click", () => openSetup("add"));
@@ -311,7 +311,7 @@ function checkBackup() {
   const days = last ? (Date.now() - Date.parse(last)) / 864e5 : Infinity;
   const hb = $("#hBak");   // 首頁：和「目前工程」排在同一行的小標籤（CSS 會藏掉上方整條）
   for (const el of [w, hb]) if (el) {
-    if (days > 7) { el.hidden = false; el.innerHTML = `<a href="#/backup">💾 ${last ? "7 天沒備份" : "還沒備份"}</a>`; }   // 內頁與首頁同一種低調小標籤（2026-11-22 品牌識別 R8）
+    if (days > 7) { el.hidden = false; el.innerHTML = `<a href="#/backup">${last ? "7 天沒備份" : "還沒備份"}</a>`; }   // 內頁與首頁同一種低調小標籤（2026-11-22 品牌識別 R8）
     else el.hidden = true;
   }
 }
