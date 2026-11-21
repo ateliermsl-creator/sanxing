@@ -171,8 +171,10 @@ function tabTile(box) {
       : `<p class="cnote" style="margin:8px 0 0">${siteId ? "這個工地還沒有磁磚紀錄。算好後在頁面下方「存檔」。" : "請先建立或選擇工地（右上角＋）。"}</p>`;
   };
   const reopen = (rows, cfg) => { tileSave(tileNorm(rows, cfg)); tabTile(box); };
-  const doSave = async () => { if (!rec) return; clearTimeout(timer); timer = 0; rec = tileRec(st, rec); await DB.put("vols", rec); status(); list(); };
+  const doSave = async () => { if (!rec) return; clearTimeout(timer); timer = 0; if (!(await DB.get("vols", rec.id))) { forget(); return; } rec = tileRec(st, rec); await DB.put("vols", rec); status(); list(); };
   function autoSave() { if (!rec) { status(); return; } mark("存檔中…"); if (live()) svShow("saving"); clearTimeout(timer); timer = setTimeout(doSave, 400); }
+  // 開啟中的紀錄被刪除（在這裡刪、或別台手機刪了同步過來）：回到「新計算」，紀錄名稱一起清掉；輸入保留
+  function forget() { clearTimeout(timer); timer = 0; rec = null; st.cfg.cur = ""; st.cfg.title = ""; tileSave(st); const t = live() && $("#tlTitle"); if (t) t.value = ""; status(); list(); }
   $("#tlTitle").oninput = e => { st.cfg.title = e.target.value; tileSave(st); if (rec && st.cfg.title.trim()) autoSave(); else head(); };
   $("#tlTitle").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); $("#tlSave").click(); } };
   $("#tlOpen").onclick = () => { const l = $("#tlList"), open = l.hidden; l.hidden = !open; $("#tlOpen").setAttribute("aria-expanded", String(open)); $("#tlOpen").classList.toggle("on", open); };
@@ -206,13 +208,13 @@ function tabTile(box) {
     } else if (b.dataset.tdel) {
       if (!confirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`)) return;
       await DB.del("vols", id);
-      if (rec && rec.id === id) { clearTimeout(timer); timer = 0; rec = null; st.cfg.cur = ""; tileSave(st); }
+      if (rec && rec.id === id) forget();
       status(); list();
     }
   };
   (async () => {
     const x = st.cfg.cur ? await DB.get("vols", st.cfg.cur) : null;
-    if (x && x.siteId === siteId && x.kind === "tile") rec = x; else if (st.cfg.cur) { st.cfg.cur = ""; tileSave(st); }
+    if (x && x.siteId === siteId && x.kind === "tile") rec = x; else if (st.cfg.cur) { if (!x) forget(); else { st.cfg.cur = ""; tileSave(st); } }
     status(); list();
   })();
 
