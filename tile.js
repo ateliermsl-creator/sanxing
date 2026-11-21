@@ -11,7 +11,7 @@
 const TILE_MAX_OP = 12, TILE_MAX_SPEC = 8;
 const TILE_SIZES = [["二丁掛", 22.7, 6], ["30×60", 60, 30], ["60×60", 60, 60], ["30×30", 30, 30], ["60×120", 120, 60]];
 const tileSpecBlank = (i = 0) => ({ name: "磁磚 " + String.fromCharCode(65 + i), L: "", W: "", j: "", loss: "", box: "" });
-const tileBlank = (s = "0") => ({ name: "", s, a: "", b: "", v: "", n: "1", op: [] });
+const tileBlank = (s = "0") => ({ name: "", s, a: "", b: "", v: "", n: "1", g: "", op: [] });
 
 const tileNum = v => { const s = String(v ?? "").trim(); return s === "" ? NaN : +s; };
 // 單列：回傳 { A（含數量的淨面積 m²，無法計算為 NaN）, one（單面淨面積）, expr, warn }
@@ -48,13 +48,14 @@ function tileNorm(rows, cfg) {
   if (!specs.length) specs = [{ ...tileSpecBlank(0), L: "60", W: "30", j: "3", loss: "0" }];
   rows = rows.filter(r => r && typeof r === "object").map(r => {
     const o = tileBlank();
-    for (const k of ["name", "s", "a", "b", "v", "n"]) if (r[k] != null && typeof r[k] !== "object") o[k] = String(r[k]);
+    for (const k of ["name", "s", "a", "b", "v", "n", "g"]) if (r[k] != null && typeof r[k] !== "object") o[k] = String(r[k]);
+    if (!["", "in", "s", "f", "x"].includes(o.g)) o.g = "";   // 圖面：接上一面的方式（tiledraw.js）
     if (!(+o.s >= 0 && +o.s < specs.length)) o.s = "0";
-    o.op = (Array.isArray(r.op) ? r.op : []).slice(0, TILE_MAX_OP).filter(x => x && typeof x === "object").map(x => ({ w: s(x.w), h: s(x.h), n: x.n == null ? "1" : s(x.n) }));
+    o.op = (Array.isArray(r.op) ? r.op : []).slice(0, TILE_MAX_OP).filter(x => x && typeof x === "object").map(x => ({ w: s(x.w), h: s(x.h), n: x.n == null ? "1" : s(x.n), x: s(x.x), y: s(x.y) }));
     return o;
   });
   if (!rows.length) rows = [tileBlank()];
-  return { rows, cfg: { specs, glue: s(cfg.glue), bag: s(cfg.bag), loc: s(cfg.loc), who: s(cfg.who), cur: s(cfg.cur), title: s(cfg.title), sigs: ccsg(cfg.sigs) } };
+  return { rows, cfg: { specs, glue: s(cfg.glue), bag: s(cfg.bag), loc: s(cfg.loc), who: s(cfg.who), cur: s(cfg.cur), title: s(cfg.title), rot: ["1", "2", "3"].includes(s(cfg.rot)) ? s(cfg.rot) : "0", sigs: ccsg(cfg.sigs) } };
 }
 function tileLoad() {
   const j = k => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
@@ -78,7 +79,7 @@ function tileTotals(st) {
 
 let tileGen = 0;
 const tileHasData = st => st.rows.some(r => ["a", "b", "v"].some(k => String(r[k] ?? "").trim() !== "") || String(r.name ?? "").trim() !== "");
-const tileRec = (st, base) => ({ ...base, kind: "tile", name: st.cfg.title.trim(), rows: st.rows, cfg: { specs: st.cfg.specs, glue: st.cfg.glue, bag: st.cfg.bag, loc: st.cfg.loc, who: st.cfg.who, ...(Object.keys(st.cfg.sigs || {}).length ? { sigs: st.cfg.sigs } : {}) }, updated: Date.now() });
+const tileRec = (st, base) => ({ ...base, kind: "tile", name: st.cfg.title.trim(), rows: st.rows, cfg: { specs: st.cfg.specs, glue: st.cfg.glue, bag: st.cfg.bag, loc: st.cfg.loc, who: st.cfg.who, rot: st.cfg.rot, ...(Object.keys(st.cfg.sigs || {}).length ? { sigs: st.cfg.sigs } : {}) }, updated: Date.now() });
 const tileSpecLabel = (sp, c) => `${sp.name || "磁磚"}${c && c.L > 0 && c.W > 0 ? `（${fmt(c.L, 1)}×${fmt(c.W, 1)} cm）` : ""}`;
 
 function tabTile(box) {
@@ -93,6 +94,8 @@ function tabTile(box) {
     <div id="tlRows"></div>
     <div class="panel"><div class="row" style="margin:0"><button class="sec" id="tlAdd">＋ 加入一面</button><button class="sec" id="tlClear">全部清除</button></div>
       <p class="cnote">一面一列，例如「北向立面 1F～3F」。同樣的面可填數量；不規則的面（山牆三角形等）可直接填「面積」。</p></div>
+    <details class="panel" id="tlDrawBox" open><summary>展開圖與透視圖（示意）</summary><div id="tlDraw"></div>
+      <p class="cnote">各面依清單順序接續：外牆繞建築一圈選「陽角轉折」，室內繞房間一圈選「陰角轉折」（看著貼磚面、由左往右排）。門窗可填「距左」「離地」定位，沒填會自動排。圖只是示意，數量仍以上面的面積計算；磁磚太小時圖上只填色。</p></details>
     <details class="panel" id="tlGlue"><summary>黏著劑／益膠泥（選填）</summary>
       <div class="calc-ctl2"><div class="field"><label>單位用量（kg/m²）</label><input data-c="glue" inputmode="decimal" placeholder="依產品說明書" value="${esc(st.cfg.glue)}"></div>
         <div class="field"><label>每包重量（kg）</label><input data-c="bag" inputmode="decimal" placeholder="例：包裝標示" value="${esc(st.cfg.bag)}"></div></div>
@@ -125,7 +128,8 @@ function tabTile(box) {
   const rowHtml = (r, i) => `<div class="panel vrow" data-i="${i}">
       <div class="vtop"><input data-k="name" placeholder="例：北向立面 1F～3F" value="${esc(r.name)}">${specSel(r)}<button class="danger" data-del="${i}" aria-label="刪除此面">✕</button></div>
       <div class="vdims"><label>長（m）<input data-k="a" inputmode="decimal" value="${esc(r.a)}"></label><label>高（m）<input data-k="b" inputmode="decimal" value="${esc(r.b)}"></label><label>或面積<input data-k="v" inputmode="decimal" placeholder="m²" value="${esc(r.v)}"></label><label>數量<input data-k="n" inputmode="decimal" value="${esc(r.n)}"></label></div>
-      ${(r.op || []).map((o, j) => `<div class="vdims vop" data-j="${j}"><label>開口${j + 1} 寬（m）<input data-o="w" inputmode="decimal" value="${esc(o.w)}"></label><label>高（m）<input data-o="h" inputmode="decimal" value="${esc(o.h)}"></label><label>個數<input data-o="n" inputmode="decimal" value="${esc(o.n)}"></label><button class="sec" data-opdel="${j}" aria-label="移除開口${j + 1}" style="align-self:end;min-height:44px">✕</button></div>`).join("")}
+      <label class="tlg">畫圖時接上一面<select data-k="g">${TILE_G.map(([v, t]) => `<option value="${v}" ${r.g === v ? "selected" : ""}>${i === 0 && (v === "" || v === "in" || v === "s") ? (v === "" ? "第一面（起點 A）" : t + "（第一面不影響）") : t}</option>`).join("")}</select></label>
+      ${(r.op || []).map((o, j) => `<div class="vdims vop tlop" data-j="${j}"><label>開口${j + 1} 寬（m）<input data-o="w" inputmode="decimal" value="${esc(o.w)}"></label><label>高（m）<input data-o="h" inputmode="decimal" value="${esc(o.h)}"></label><label>個數<input data-o="n" inputmode="decimal" value="${esc(o.n)}"></label><label>距左（m）<input data-o="x" inputmode="decimal" placeholder="自動" value="${esc(o.x)}"></label><label>離地（m）<input data-o="y" inputmode="decimal" placeholder="自動" value="${esc(o.y)}"></label><button class="sec" data-opdel="${j}" aria-label="移除開口${j + 1}" style="align-self:end;min-height:44px">✕</button></div>`).join("")}
       ${(r.op || []).length < TILE_MAX_OP ? `<button class="sec" data-opadd="1" style="margin-top:8px;min-height:40px;padding:0 12px;font-size:14px">＋ 扣除開口（門、窗）</button>` : ""}
       <div class="vres"><small class="vexpr" data-tx="${i}" style="display:block;font-size:12px;overflow-wrap:anywhere"></small>淨面積：<b data-tr="${i}">—</b></div></div>`;
 
@@ -146,8 +150,12 @@ function tabTile(box) {
       ${Number.isFinite(T.kg) ? `<div class="big"><span>黏著劑／益膠泥</span><b>${fmt(T.kg, 1)} kg${Number.isFinite(T.bags) ? `（${T.bags} 包）` : ""}</b></div>` : ""}
       <p class="cnote">片數已含各規格損耗並無條件進位；箱數 = 片數 ÷ 每箱片數，無條件進位。</p>`
       : `<p class="cnote">輸入每一面的長、高（或面積）後，這裡會依磁磚規格合計面積、片數與箱數。</p>`;
-    tileSave(st); autoSave();
+    drawPic(); tileSave(st); autoSave();
   };
+  let picRaf = 0;
+  const drawPic = () => { cancelAnimationFrame(picRaf); picRaf = requestAnimationFrame(() => { const el = live() && $("#tlDraw"); if (el && $("#tlDrawBox").open) el.innerHTML = tileDrawHtml(st); }); };
+  $("#tlDrawBox").ontoggle = drawPic;
+  $("#tlDrawBox").onclick = e => { if (!e.target.closest("[data-trot]")) return; st.cfg.rot = String(((+st.cfg.rot || 0) + 1) % 4); sum(); };
 
   // ---- 儲存的計算（IndexedDB vols，kind: "tile"，依工地） ----
   let timer = 0, rec = null;
@@ -230,7 +238,7 @@ function tabTile(box) {
     const el = e.target.closest("button"); if (!el) return;
     if (el.dataset.del !== undefined) { st.rows.splice(+el.dataset.del, 1); if (!st.rows.length) st.rows.push(tileBlank()); draw(); return; }
     const r = rowOf(el); if (!r) return;
-    if (el.dataset.opadd) { r.op.push({ w: "", h: "", n: "1" }); draw(); box.querySelector(`.vrow[data-i="${st.rows.indexOf(r)}"] .vop:last-of-type input`)?.focus(); }
+    if (el.dataset.opadd) { r.op.push({ w: "", h: "", n: "1", x: "", y: "" }); draw(); box.querySelector(`.vrow[data-i="${st.rows.indexOf(r)}"] .vop:last-of-type input`)?.focus(); }
     else if (el.dataset.opdel !== undefined) { r.op.splice(+el.dataset.opdel, 1); draw(); }
   };
   $("#tlSpecs").oninput = e => {
@@ -303,6 +311,7 @@ function renderTileSheet() {
         ${Number.isFinite(T.kg) ? `<tr><td colspan="3">黏著劑／益膠泥（${fmt(tileNum(st.cfg.glue), 2)} kg/m² × 淨面積）</td><td class="c" colspan="2">${fmt(T.kg, 1)} kg${Number.isFinite(T.bags) ? `（${T.bags} 包）` : ""}</td></tr>` : ""}
       </table>
       <table class="pt"><tr><td style="font-size:9pt">註：每 m² 片數 = 10000 ÷〔(片長 + 縫寬) × (片寬 + 縫寬)〕（cm）；需片數 = 淨面積 × 每 m² 片數 × (1 + 損耗率)，無條件進位；箱數 = 需片數 ÷ 每箱片數，無條件進位。各面已扣除所列開口。本表為理論數量，實際叫料請考慮切割、收邊、轉角與破損，並以圖說與現場量測為準。</td></tr></table>
+      ${tileDrawSheet(st)}
       <div class="psigs">${["計算人員" + (st.cfg.who ? "：" + esc(st.cfg.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#tsBack").onclick = () => goBack("#/calc/tile");
