@@ -1,7 +1,7 @@
 // struct_nav：結構計算獨立區塊（首頁分區、四類、舊網址轉向、側欄、一鍵帶入）見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});
 (async()=>{const b=await chromium.launch();const U='http://localhost:8793/index.html';
-const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
 await p.goto(U);await p.waitForTimeout(400);await p.evaluate(async()=>{await DB.put('sites',{id:'s1',name:'測試工地'});localStorage.setItem('installHint','1');localStorage.setItem('lastBackup',new Date().toISOString());localStorage.setItem('calcScafForm','{"keep":"舊資料"}')});
 await p.goto(U+'#/');await p.reload();await p.waitForTimeout(500);
 console.log('首頁分區:',await p.$$eval('#view .hsec',x=>x.map(y=>y.textContent.trim())));
@@ -25,11 +25,11 @@ await p.goto(U+'#/struct/scaf');await p.waitForTimeout(400);const sc=await p.$('
 if(sc){await sc.click();await p.waitForTimeout(400);console.log('帶入後網址:',await p.evaluate(()=>location.hash),'PD1',await p.evaluate(()=>JSON.parse(localStorage.getItem('calcBrkForm')||'{}').PD1));}
 const bk=await p.$('[data-toanc]');console.log('三角架帶入按鈕:',!!bk);if(bk){await bk.click();await p.waitForTimeout(400);console.log('帶入後網址:',await p.evaluate(()=>location.hash));}
 // 窄螢幕
-const q=await (await b.newContext({viewport:{width:320,height:700}})).newPage();q.on('pageerror',x=>e.push(x.message));let ov=[];
+const q=await (await b.newContext({viewport:{width:320,height:700}})).newPage();await q.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});q.on('pageerror',x=>e.push(x.message));let ov=[];
 for(const h of ['#/','#/struct','#/struct/col','#/struct/scaf','#/struct/anc','#/struct/sec','#/calc']){await q.goto(U+h);await q.waitForTimeout(400);if(await q.evaluate(()=>document.documentElement.scrollWidth>innerWidth))ov.push(h);}
 console.log('320px 橫向捲動:',ov);
 // 電腦版側欄
-const d=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();d.on('pageerror',x=>e.push(x.message));
+const d=await (await b.newContext({viewport:{width:1440,height:900}})).newPage();await d.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});d.on('pageerror',x=>e.push(x.message));
 for(const h of ['#/','#/struct/beam','#/struct/sec','#/calc']){await d.goto(U+h);await d.waitForTimeout(400);
  const sn=await d.evaluate(()=>getComputedStyle(document.getElementById('sideNav')).display!=='none');
  const on=await d.$$eval('#sideNav a.on, #sideNav a.open',x=>x.map(y=>(y.classList.contains('on')?'on:':'open:')+y.textContent.trim()));

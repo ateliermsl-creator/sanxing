@@ -1,7 +1,7 @@
 // volume_calc：混凝土方數各構件、開口、扣版厚、樓梯、壞資料、計算書、窄螢幕與電腦版；見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});
 (async()=>{const b=await chromium.launch();const e=[];
-for(const [w,dpr] of [[390,2],[320,1],[1440,1]]){const p=await b.newPage({viewport:{width:w,height:844},deviceScaleFactor:dpr});p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+for(const [w,dpr] of [[390,2],[320,1],[1440,1]]){const p=await b.newPage({viewport:{width:w,height:844},deviceScaleFactor:dpr});await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
 const U='http://localhost:8793/index.html';
 await p.goto(U);await p.evaluate(()=>{localStorage.setItem('calcRows',JSON.stringify([{name:'舊柱',type:'rect',a:'0.6',b:'0.6',c:'3',n:'4'},{name:'圓',type:'cyl',a:'0.8',c:'3.2',n:2},
 {name:'外牆',type:'wall',a:'10',b:'3',c:'0.2',n:'1',op:[{w:'1.2',h:'2.1',n:'2'},{w:'0.9',h:'1.2',n:''}]},

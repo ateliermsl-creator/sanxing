@@ -2,7 +2,7 @@
 const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();let bad=0;
 const chk=(name,ok,info='')=>{if(!ok)bad++;console.log(ok?'OK':'NG',name,info)};
 const U='http://localhost:8793/index.html';
-const ctx=await b.newContext({viewport:{width:320,height:640}});const p=await ctx.newPage();const e=[];p.on('pageerror',x=>e.push(x.message));
+const ctx=await b.newContext({viewport:{width:320,height:640}});const p=await ctx.newPage();await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});const e=[];p.on('pageerror',x=>e.push(x.message));
 await p.goto(U);await p.waitForTimeout(500);
 const r=await p.evaluate(()=>{
  const W=(name,a,b,g,op=[])=>({name,s:'0',a,b,v:'',n:'1',g,op});

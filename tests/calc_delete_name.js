@@ -1,7 +1,7 @@
 // calc_delete_name：刪除開啟中的紀錄後，頁首「目前紀錄」與紀錄名稱欄要清掉、計算書不再印紀錄名稱（方數、磁磚、結構計算）；
 // 另測別台手機刪除（直接刪 DB 後重開頁面、或自動存回時發現已刪除）不會殘留名稱、也不會把紀錄存回去。見 tests/README.md
 const {chromium}=require('playwright');
-(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+(async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844}});await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
 const U='http://localhost:8793/index.html';let bad=0;const ok=(n,c,v)=>{console.log((c?'OK  ':'NG  ')+n,v===undefined?'':JSON.stringify(v));if(!c)bad++;};
 await p.goto(U);await p.waitForTimeout(500);
 await p.evaluate(async()=>{await DB.put('sites',{id:'sA',name:'甲工地'});localStorage.setItem('siteId','sA');for(const k of ['calcRows','calcCfg','calcTileRows','calcTileCfg','calcCur'])localStorage.removeItem(k);});await p.reload();await p.waitForTimeout(500);

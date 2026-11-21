@@ -51,7 +51,7 @@ const pBurnPins = (data, ms, start) => new Promise(res => {
     const c = document.createElement("canvas"); c.width = im.width; c.height = im.height; const g = c.getContext("2d"); g.drawImage(im, 0, 0);
     const r = Math.max(14, Math.round(Math.max(im.width, im.height) * 0.032));
     ms.forEach((m, i) => { const x = m.x * im.width, y = m.y * im.height;
-      g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = "#99493a"; g.fill(); g.lineWidth = Math.max(2, r * 0.18); g.strokeStyle = "#fff"; g.stroke();
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.fillStyle = "#b0392d"; g.fill(); g.lineWidth = Math.max(2, r * 0.18); g.strokeStyle = "#fff"; g.stroke();
       g.fillStyle = "#fff"; g.font = `700 ${Math.round(r * 1.15)}px sans-serif`; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText(String(start + i), x, y + r * 0.05); });
     res(c.toDataURL("image/jpeg", 0.88));
   };
