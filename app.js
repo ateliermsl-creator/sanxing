@@ -4,6 +4,9 @@ const view = $("#view");
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };   // 用手機的本地日期（toISOString 是 UTC，台灣凌晨 0～8 點會算成前一天）
+// 單據一律用民國年（2026-11-22 使用者決定）：表格內 115/11/21，抬頭欄位 115 年 11 月 21 日
+function rocYmd(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? `${+m[1] - 1911}/${m[2]}/${m[3]}` : ""; }
+function rocLong(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? `${+m[1] - 1911} 年 ${+m[2]} 月 ${+m[3]} 日` : ""; }
 const ls = {
   get: (k, d) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch {} }
@@ -130,7 +133,7 @@ async function loadSites() {
   const sel = $("#siteSelect");
   sel.innerHTML = sites.length
     ? sites.map(s => `<option value="${s.id}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")
-    : `<option value="">尚未建立工地</option>`;
+    : `<option value="">尚未建立專案</option>`;
 }
 /* 公司名稱跟著工地（專案）走；舊工地沒有這個欄位時沿用以前的全站設定 */
 function siteCompany(sid = siteId) {
@@ -143,7 +146,7 @@ function openSetup(mode) {
   const d = $("#setup"), cur = sites.find(x => x.id === siteId);
   const blk = mode === "edit" && cur && window.cloudSiteBlock?.(cur.id, "edit");
   if (blk) { alert(blk); return; }
-  $("#setupTitle").textContent = { first: "開始使用：先填寫工地", add: "新增工地", edit: "工地與公司設定" }[mode];
+  $("#setupTitle").textContent = { first: "開始使用：先填寫專案", add: "新增專案", edit: "專案與公司設定" }[mode];
   $("#setupHint").hidden = mode !== "first";
   $("#sName").value = mode === "edit" && cur ? cur.name : "";
   $("#sCompany").value = mode === "edit" && cur ? siteCompany(cur.id) : ls.get("company", "");
@@ -160,7 +163,7 @@ $("#setupForm").addEventListener("submit", async e => {
   if (!name) { e.preventDefault(); return; }
   const mode = $("#setup").dataset.mode;
   const company = $("#sCompany").value.trim();
-  ls.set("company", company); // 當作下次新增工地的預設值
+  ls.set("company", company); // 當作下次新增專案的預設值
   if (mode === "edit" && siteId) {
     const s = sites.find(x => x.id === siteId); s.name = name; s.company = company; await DB.put("sites", s);
   } else {
@@ -180,8 +183,8 @@ $("#sDel").onclick = async () => {
     for (const x of mine[st]) { ids.add(x.id); for (const t of x.trucks || []) ids.add(t.id); }
   }
   const total = stores.reduce((a, st) => a + mine[st].length, 0);
-  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}、混凝土方數 ${mine.vols.filter(x => x.kind !== "tile").length}、磁磚計算 ${mine.vols.filter(x => x.kind === "tile").length}、結構計算 ${mine.calcs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
-  const typed = prompt(`為了避免誤刪，請輸入工地名稱確認：\n${cur.name}`);
+  if (!confirm(`要刪除專案「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}、混凝土方數 ${mine.vols.filter(x => x.kind !== "tile").length}、磁磚計算 ${mine.vols.filter(x => x.kind === "tile").length}、結構計算 ${mine.calcs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
+  const typed = prompt(`為了避免誤刪，請輸入專案名稱確認：\n${cur.name}`);
   if (typed === null) return;
   if (typed.trim() !== cur.name) { alert("名稱不符，沒有刪除。"); return; }
   for (const st of stores) for (const x of mine[st]) await DB.del(st, x.id);
@@ -308,7 +311,7 @@ function checkBackup() {
   const days = last ? (Date.now() - Date.parse(last)) / 864e5 : Infinity;
   const hb = $("#hBak");   // 首頁：和「目前工程」排在同一行的小標籤（CSS 會藏掉上方整條）
   for (const el of [w, hb]) if (el) {
-    if (days > 7) { el.hidden = false; el.innerHTML = el === hb ? `<a href="#/backup">💾 ${last ? "7 天沒備份" : "還沒備份"}</a>` : `💾 ${last ? "已超過 7 天沒備份" : "還沒有備份過"}，<a href="#/backup">現在備份</a>`; }
+    if (days > 7) { el.hidden = false; el.innerHTML = `<a href="#/backup">💾 ${last ? "7 天沒備份" : "還沒備份"}</a>`; }   // 內頁與首頁同一種低調小標籤（2026-11-22 品牌識別 R8）
     else el.hidden = true;
   }
 }
@@ -421,7 +424,7 @@ async function clPurgeBlank() {
 }
 async function renderChecklist() {
   const seq = renderChecklist.seq = (renderChecklist.seq || 0) + 1;
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   await clPurgeBlank();
   const all = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
   const pc = {}; for (const p of await DB.all("photos")) pc[p.recId] = (pc[p.recId] || 0) + 1;
@@ -465,7 +468,7 @@ async function renderChecklist() {
 /* ---------- 選擇要填的檢查表 ---------- */
 let pickQuery = "";
 async function renderChecklistPick() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const recs = (await DB.all("records")).filter(r => r.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
   const shown = TEMPLATES.filter(t => !t.retired);   // 舊示範表不列出，舊紀錄仍可開啟
   const cats = ["全部", ...new Set(shown.map(t => t.cat))];
@@ -660,7 +663,7 @@ async function renderPreview(id) {
   if (!rec) return;
   const site = sites.find(s => s.id === rec.siteId);
   const company = siteCompany(rec.siteId);
-  const d = rec.date ? rec.date.replace(/^(\d+)-(\d+)-(\d+)$/, "$1 年 $2 月 $3 日") : "";
+  const d = rocLong(rec.date);
   const box = k => (rec.timing[k] ? "☑" : "□");
   const photos = await photosOf(rec.id);
   const withNotes = ls.get("pvNotes", "") === "1";

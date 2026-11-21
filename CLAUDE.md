@@ -46,6 +46,14 @@
 | `cloud/` | 雲端伺服器：`worker.js`（API、Access 通行證驗證、權限、三方合併 `merge3`）、`schema.sql`（D1）、`wrangler.toml`、`README.md`（設定步驟） |
 | `sw.js` | Service Worker（網路優先、離線備援；`/api/` 不經快取） |
 
+## 品牌識別（2026-11-22 檢視報告第一批）
+- 報告與規範草案：Claude Doc https://claude.ai/artifact/Udfzzhzu3TML7hds9n4X7z （第六節「視覺識別規範草案」），截圖在專案共用資料夾 `brand-review/`。
+- **畫面用語一律「專案」，不說「工地」**（資料仍叫 sites／siteId；單據上的「工程名稱」「工地主任」、施工日誌法定欄位不改）。
+- **單據與計算書日期一律民國年**（使用者決定）：表格與時間用 `rocYmd(iso)`（115/11/21），抬頭欄位用 `rocLong(iso)`（115 年 11 月 21 日），兩者在 `app.js` 最上方。計算書簽名指紋同時扣掉西元與民國的今天日期（`calcsig.js`）。
+- 預覽頁按鈕層級：`pdf.js` 自動在動作列最上面加唯一的主要按鈕「📤 分享 PDF」，並把原本的列印鈕改成次要、文字縮成「🖨 列印」。新預覽頁沿用 `#pvPrint`（或 `#sPrint`、`#rPrint`）就會自動套用。分享的 PDF 每頁下方有「三星蔥工具箱／第 x 頁／共 y 頁」（`pdfFooter`，用 canvas 畫字，因為 jsPDF 沒有中文字型）。
+- 內頁備份提醒 `#backupWarn` 和首頁 `#hBak` 一樣是紅點小標籤。
+- 主色 `--coral` 已由 #cf4e41 微調成 #c8493c（白字對比 4.7:1）。
+
 ## 每次修改一定要做的事
 1. **`sw.js` 的 `VERSION` 加 1**（例如 `"v135"` → `"v136"`）。不加的話，已安裝的手機不會換新版。
 2. 新增 `.js` 檔：同時加進 `index.html` 的 `<script>` 與 `sw.js` 的 `FILES`。

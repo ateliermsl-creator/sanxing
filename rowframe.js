@@ -211,7 +211,7 @@ function renderRowSheet() {
       <table class="pt">
         <tr><th>項目（控制組合）</th><th>需求</th><th>強度</th><th>單位</th><th>比值</th><th>判定</th></tr>
         <tr><td>${c.t}（${c.by}）</td><td class="c">${v(c.v, 1)}</td><td class="c">${v(c.a, 1)}</td><td class="c">kgf</td><td class="c">${c.a > 0 && Number.isFinite(c.v) ? v(c.v / c.a, 2) : "—"}</td><td class="c">${r.miss.length ? "資料未完整" : j}</td></tr>
-        <tr><td colspan="6" style="font-size:9pt">註：單跨單排代表單元，每片立架兩腳均分；未計水平力、偏心、頂座與底座、地盤或下層樓板承載及架頂格柵。載重預設值取自參考網站（非規範原文），由計算人員依規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr>
+        <tr><td colspan="6" style="font-size:9pt">註：單跨單排代表單元，每片立架兩腳均分；未計水平力、偏心、頂座與底座、地盤或下層樓板承載及架頂格柵。載重預設值取自參考網站（非規範原文），由計算人員依規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr>
       </table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;

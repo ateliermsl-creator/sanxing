@@ -13,9 +13,9 @@ const csgHash = s => { let h = 5381, g = 52711; for (let i = 0; i < s.length; i+
 function csgFp(paper) {
   const c = paper.cloneNode(true);
   c.querySelectorAll(".psigs").forEach(x => x.remove());
-  return csgHash(c.textContent.split(today()).join("").replace(/\s+/g, " ").trim());
+  return csgHash(c.textContent.split(today()).join("").split(rocYmd(today())).join("").replace(/\s+/g, " ").trim());
 }
-const csgDay = iso => { const d = new Date(iso); if (!Number.isFinite(d.getTime())) return ""; const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };   // 本地日期
+const csgDay = iso => { const d = new Date(iso); if (!Number.isFinite(d.getTime())) return ""; const p = n => String(n).padStart(2, "0"); return `${d.getFullYear() - 1911}/${p(d.getMonth() + 1)}/${p(d.getDate())}`; };   // 本地日期、民國年
 
 // 結構計算：localStorage「calcSigs」
 const csgAll = () => { try { const o = JSON.parse(localStorage.getItem("calcSigs") || "{}"); return o && typeof o === "object" && !Array.isArray(o) ? o : {}; } catch { return {}; } };

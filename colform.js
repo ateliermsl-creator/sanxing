@@ -366,7 +366,7 @@ function renderColSheet() {
         <tr><td colspan="6">螺桿：T = P × B4 × H4</td></tr>${crow(t.tie)}
       </table>`).join("")}`}
       <table class="pt"><tr><th>檢核結果</th><td>${r.err.length ? "分階高度有誤" : r.ng ? `${r.ng} 項超過容許值` : r.miss ? `尚有 ${r.miss} 項未完成` : "全部在容許值以內"}</td></tr>
-        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算，各階以該階最深處之側壓力檢核。材料容許值、撓度限制與側壓力上限由計算人員依材料規格、施工規範與契約填入，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算，各階以該階最深處之側壓力檢核。材料容許值、撓度限制與側壓力上限由計算人員依材料規格、施工規範與契約填入，本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#cfBack").onclick = () => goBack("#/struct/col");

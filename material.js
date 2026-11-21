@@ -86,7 +86,7 @@ async function renderMaterial(a, b) {
 /* ---------- 列表 ---------- */
 let matCatFilter = "", matStFilter = "", matQuery = "";
 async function renderMatList() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const seq = renderMatList.seq = (renderMatList.seq || 0) + 1;
   const cats = await matCats();
   // 清掉按了新增卻沒填任何內容的空白紀錄

@@ -291,10 +291,10 @@ canvas.lgsig{width:100%;height:80px;background:#f7f8f3;border:1px dashed #aab;bo
    全站顏色集中在這一組變數；要換色只改這裡。單據（.paper）永遠白底黑字，不受影響。
    --coffee 深咖啡（頂列、側欄、選中的分段標籤）  --coral 珊瑚紅（主要按鈕、重點）
    --cream 奶油米（頁面底色）  --cream2 次要底色（次要按鈕、圖示底）  --card 卡片白
-   對比：白字在 --coral 上 4.8:1、--mut 在白底 6:1，戶外仍看得清楚 */
+   對比：白字在 --coral 上 4.7:1（2026-11-22 由 #cf4e41 微調，原本實測 4.4:1）、--mut 在白底 6:1，戶外仍看得清楚 */
 :root{
   --coffee:#3a2b23;--coffee2:#58463b;--on-coffee:#f1e9dc;
-  --coral:#cf4e41;--coral-dk:#a63b30;--coral-lt:#f8e3dd;
+  --coral:#c8493c;--coral-dk:#a63b30;--coral-lt:#f8e3dd;
   --cream:#f3eee6;--cream2:#ebe3d6;--field:#fbf9f5;
   --g:var(--coffee);--g2:#8c7b6c;--bg:var(--cream);--card:#fff;--tx:#2e2520;--mut:#6b6056;--line:#e4dacd;
   --bad:#b0392d;--bad-lt:#f6e0db;--ok:#4c6b3a;--ok-lt:#e3ead9;--warn:#8f611c;--warn-lt:#f3e6cb;
@@ -646,3 +646,11 @@ input,.cfres td,.ct td,.cfref td,.big,#calcBar b,.kpi b{font-variant-numeric:tab
 @media (max-width:380px){#view .cfsteps.cfseg a{padding:4px 1px;font-size:12px;letter-spacing:-.02em}}
 @media screen and (min-width:1024px){#calcBox:has(> .cfsteps) > .cfnav{grid-column:1}}
 @media print{.cfnav,.cfallrow{display:none!important}}
+
+/* ===== 品牌識別第一批（2026-11-22）===== */
+/* 內頁備份提醒：和首頁一樣是低調小標籤（紅點＋短字），不再是整條橫幅 */
+#backupWarn:not([hidden]){display:flex;align-items:center;width:max-content;max-width:calc(100% - 24px);min-height:30px;margin:8px 12px 0;padding:2px 12px 2px 10px;border-radius:15px;background:var(--coral-lt);color:var(--coral-dk);font-size:13px;line-height:1.4}
+#backupWarn::before{content:"";flex:none;width:7px;height:7px;margin-right:6px;border-radius:50%;background:var(--coral)}
+#backupWarn a{color:var(--coral-dk)}
+/* 預覽頁動作列：最上面一顆主要按鈕（分享 PDF），下面一排次要按鈕 */
+.pvmain{margin-bottom:0}.pvmain+.pvbar,.pvmain+.row{margin-top:10px}

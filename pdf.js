@@ -37,8 +37,25 @@ async function pdfMake(papers, landscape) {
         start = end;
       }
     }
+    pdfFooter(doc, pageW, pageH, m, contentW);
   } finally { stage.remove(); }
   return doc.output("blob");
+}
+
+// 頁尾（2026-11-22 品牌識別 R6）：左「三星蔥工具箱」、中「第 x 頁／共 y 頁」，小字灰色印在下方留白內。
+// jsPDF 內建字型沒有中文，所以先用 canvas 畫成小圖再貼上。
+function pdfFooter(doc, pageW, pageH, m, contentW) {
+  const n = doc.getNumberOfPages(), hMm = 4, k = 12, c = document.createElement("canvas");   // k：每 mm 幾個像素
+  c.width = Math.round(contentW * k); c.height = hMm * k;
+  const g = c.getContext("2d"), font = getComputedStyle(document.body).fontFamily;
+  for (let i = 1; i <= n; i++) {
+    g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height);
+    g.fillStyle = "#666"; g.font = `${2.6 * k}px ${font}`; g.textBaseline = "middle";
+    g.textAlign = "left"; g.fillText("三星蔥工具箱", 0, c.height / 2);
+    g.textAlign = "center"; g.fillText(`第 ${i} 頁／共 ${n} 頁`, c.width / 2, c.height / 2);
+    doc.setPage(i);
+    doc.addImage(c.toDataURL("image/png"), "PNG", m, pageH - m + 3, contentW, hMm);
+  }
 }
 
 function pdfDownload(file) {
@@ -75,11 +92,13 @@ async function pdfSend(btn, file) {
 }
 
 // 在每個預覽頁（有 A4 單據與列印鈕的頁面）自動加上「分享 PDF」按鈕
+// 按鈕層級（2026-11-22 品牌識別檢視 R4）：每頁只有一顆主要按鈕＝「分享 PDF」，放在動作列最上面；列印、返回都是次要按鈕
 new MutationObserver(() => {
   const pr = view.querySelector("#pvPrint, #sPrint, #rPrint");
   if (!pr || !view.querySelector(".paper") || view.querySelector("#pdfShare")) return;
   const host = pr.closest(".row, .pvbar") || pr.parentElement, row = document.createElement("div");
-  row.className = "row noprint"; row.innerHTML = `<button id="pdfShare">📤 分享 PDF</button>`;
-  host.insertAdjacentElement("afterend", row);
+  pr.classList.add("sec"); pr.textContent = "🖨 列印";   // 已有「分享 PDF」，列印鈕縮短，手機上不換行
+  row.className = "row noprint pvmain"; row.innerHTML = `<button id="pdfShare">📤 分享 PDF</button>`;
+  host.insertAdjacentElement("beforebegin", row);
   const b = row.querySelector("button"); b.onclick = () => pdfShare(b);
 }).observe(view, { childList: true, subtree: true });

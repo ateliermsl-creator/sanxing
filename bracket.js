@@ -365,7 +365,7 @@ function renderBrkSheet() {
         <tr><th>項目</th><th>需求</th><th>強度</th><th>單位</th><th>比值</th><th>判定</th></tr>
         ${r.checks.map(crow).join("")}</table>` : ""}
       <table class="pt"><tr><th>檢核結果</th><td>${r.miss.length ? "資料未完整" : r.ng ? `${r.ng} 項超過設計強度` : "全部在設計強度以內"}</td></tr>
-        <tr><td colspan="2" style="font-size:9pt">註：平面構架線彈性一階分析，上弦、下斜桿、靠牆立材為梁元素，加勁桿為桁架元素，靠牆兩處為固定支承。只檢核托架平面內之軸力、彎矩、剪力與互制；平面外挫屈、扭轉、局部挫屈、接合、錨栓與牆體承載未檢核。本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+        <tr><td colspan="2" style="font-size:9pt">註：平面構架線彈性一階分析，上弦、下斜桿、靠牆立材為梁元素，加勁桿為桁架元素，靠牆兩處為固定支承。只檢核托架平面內之軸力、彎矩、剪力與互制；平面外挫屈、扭轉、局部挫屈、接合、錨栓與牆體承載未檢核。本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#bkBack").onclick = () => goBack("#/struct/brk");

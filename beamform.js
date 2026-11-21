@@ -401,7 +401,7 @@ function renderBeamSheet() {
         ${bfDetails(st, r, v).map(([h, cs]) => `<tr><td colspan="6">${h}</td></tr>${cs.map(crow).join("")}`).join("")}
       </table>
       <table class="pt"><tr><th>檢核結果</th><td>${r.ng ? `${r.ng} 項超過容許值` : r.err.length ? esc(r.err[0]) : r.miss ? `尚有 ${r.miss} 項未完成` : "全部在容許值以內"}</td></tr>
-        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算（側模第二層大格柵以承受集中力之連續梁計算），螺桿檢核拉力，鋼管支撐以軸壓檢核挫曲。載重、側壓力、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算（側模第二層大格柵以承受集中力之連續梁計算），螺桿檢核拉力，鋼管支撐以軸壓檢核挫曲。載重、側壓力、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#bfBack").onclick = () => goBack("#/struct/beam");

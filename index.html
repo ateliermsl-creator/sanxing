@@ -18,9 +18,9 @@
 <header id="topbar" hidden>
   <button id="homeBtn" aria-label="回首頁" title="回首頁"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 3.2 2.6 11.6a.8.8 0 0 0 .5 1.4H5v7.2c0 .5.4.8.8.8H10v-5.6h4V20h4.2c.5 0 .8-.3.8-.8V13h1.9a.8.8 0 0 0 .5-1.4L12 3.2z"/></svg></button>
   <button id="backBtn" aria-label="返回">‹</button>
-  <select id="siteSelect" aria-label="選擇工地"></select>
-  <button id="addSiteBtn" aria-label="新增工地">＋</button>
-  <button id="setBtn" aria-label="工地與公司設定">✎</button>
+  <select id="siteSelect" aria-label="選擇專案"></select>
+  <button id="addSiteBtn" aria-label="新增專案">＋</button>
+  <button id="setBtn" aria-label="專案與公司設定">✎</button>
 </header>
 <div id="backupWarn" hidden></div>
 <div id="iab" hidden></div>
@@ -45,13 +45,13 @@
 </dialog>
 <dialog id="setup">
   <form method="dialog" id="setupForm">
-    <h2 id="setupTitle" style="margin:0 0 6px;font-size:20px">開始使用：先填寫工地</h2>
-    <p id="setupHint" style="margin:0 0 12px;font-size:13px;color:var(--mut)">工地名稱會印在每張檢查表的「工程名稱」，請先填好再開始填表。之後可以按上方 ✎ 修改，或按 ＋ 新增其他工地。</p>
-    <div class="field" style="margin:0 0 10px"><label>工地名稱（必填）</label><input id="sName" placeholder="例如：宜蘭三星蔥新建工程" required></div>
-    <div class="field" style="margin:0 0 14px"><label>公司名稱（這個工地各表單最上方的抬頭，可空白）</label><input id="sCompany" placeholder="例如：○○營造有限公司"></div>
+    <h2 id="setupTitle" style="margin:0 0 6px;font-size:20px">開始使用：先填寫專案</h2>
+    <p id="setupHint" style="margin:0 0 12px;font-size:13px;color:var(--mut)">專案名稱會印在每張檢查表的「工程名稱」，請先填好再開始填表。之後可以按上方 ✎ 修改，或按 ＋ 新增其他工地。</p>
+    <div class="field" style="margin:0 0 10px"><label>專案名稱（必填）</label><input id="sName" placeholder="例如：宜蘭三星蔥新建工程" required></div>
+    <div class="field" style="margin:0 0 14px"><label>公司名稱（這個專案各表單最上方的抬頭，可空白）</label><input id="sCompany" placeholder="例如：○○營造有限公司"></div>
     <button class="full" id="sOk">開始填表</button>
     <button type="button" class="sec full" id="sCancel" style="margin-top:8px" hidden>取消</button>
-    <button type="button" class="danger full" id="sDel" style="margin-top:8px" hidden>🗑 刪除這個工地</button>
+    <button type="button" class="danger full" id="sDel" style="margin-top:8px" hidden>🗑 刪除這個專案</button>
   </form>
 </dialog>
 <script src="safe.js"></script>

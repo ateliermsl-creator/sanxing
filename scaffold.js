@@ -348,7 +348,7 @@ function renderScafSheet() {
         ${r.checks.map(crow).join("")}
       </table>
       <table class="pt"><tr><th>檢核結果</th><td>${r.ng ? `${r.ng} 項超過設計強度` : r.nmiss ? `尚有 ${r.nmiss} 項未完成` : "全部在設計強度以內"}</td></tr>
-        <tr><td colspan="2" style="font-size:9pt">註：簡化模型，主柱承擔垂直 D、L、Ev，壁連座承擔水平風力與地震力；未計水平力引致之主柱附加軸力、彎矩與二階效應，未檢核壁連座拉剪互制、偏心、接頭與錨定、托架與地盤承載。風壓、地震係數、活載重與間距上限由計算人員依規範與契約填寫，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+        <tr><td colspan="2" style="font-size:9pt">註：簡化模型，主柱承擔垂直 D、L、Ev，壁連座承擔水平風力與地震力；未計水平力引致之主柱附加軸力、彎矩與二階效應，未檢核壁連座拉剪互制、偏心、接頭與錨定、托架與地盤承載。風壓、地震係數、活載重與間距上限由計算人員依規範與契約填寫，本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#scBack").onclick = () => goBack("#/struct/scaf");
