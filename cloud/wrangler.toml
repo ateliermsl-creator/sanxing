@@ -1,0 +1,18 @@
+# 三星蔥工具箱 雲端版（Cloudflare Workers）
+# 部署：npx wrangler deploy -c cloud/wrangler.toml（在專案根目錄執行）
+# TEAM_DOMAIN、POLICY_AUD、ADMIN_EMAILS 請在 Cloudflare 後台設定，不要寫在這裡（這個檔案會公開在 GitHub）
+name = "sanxing"
+main = "worker.js"
+compatibility_date = "2026-11-01"
+# 保留後台設定的變數（TEAM_DOMAIN、POLICY_AUD、ADMIN_EMAILS），部署時不要清掉
+keep_vars = true
+
+[assets]
+directory = "../"
+binding = "ASSETS"
+not_found_handling = "none"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "sanxing"
+database_id = "1c5cbf6e-0bc0-4c92-ab26-caab9b53c922"   # 建立資料庫後換成實際的 id

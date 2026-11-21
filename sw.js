@@ -1,6 +1,6 @@
 // 每次更新程式請把版本號 +1，手機才會換掉舊快取
-const VERSION = "v155";
-const FILES = ["./", "index.html", "style.css", "app.js", "templates.js", "safe.js", "attach.js", "pdf.js", "lib/html2canvas.min.js", "lib/jspdf.umd.min.js", "calc.js", "volume.js", "tile.js", "colform.js", "wallform.js", "slabform.js", "beamform.js", "scaffold.js", "bracket.js", "rowframe.js", "anchor.js", "secprop.js", "calcsig.js", "calcbar.js", "sidenav.js", "workorder.js", "punch.js", "pour.js", "material.js", "shot.js", "cure.js", "safety.js", "log.js", "savestat.js", "updates.json", "manifest.json", "leek.png", "icon-180.png", "icon-192.png", "icon-512.png"];
+const VERSION = "v156";
+const FILES = ["./", "index.html", "style.css", "app.js", "templates.js", "safe.js", "attach.js", "pdf.js", "lib/html2canvas.min.js", "lib/jspdf.umd.min.js", "calc.js", "volume.js", "tile.js", "colform.js", "wallform.js", "slabform.js", "beamform.js", "scaffold.js", "bracket.js", "rowframe.js", "anchor.js", "secprop.js", "calcsave.js", "calcsig.js", "calcbar.js", "sidenav.js", "workorder.js", "punch.js", "pour.js", "material.js", "shot.js", "cure.js", "safety.js", "log.js", "savestat.js", "cloud.js", "updates.json", "manifest.json", "leek.png", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
 });
@@ -9,6 +9,7 @@ self.addEventListener("activate", e => {
 });
 self.addEventListener("fetch", e => {
   if (e.request.method !== "GET") return;
+  if (new URL(e.request.url).pathname.includes("/api/")) return;   // 雲端同步與登入不經過快取
   // 有網路就抓最新版（略過瀏覽器快取），3 秒內沒回應或離線才用手機內的快取
   e.respondWith((async () => {
     const cache = await caches.open(VERSION);

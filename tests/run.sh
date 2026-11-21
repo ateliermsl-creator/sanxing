@@ -8,7 +8,7 @@ SRV=$!
 trap 'kill $SRV 2>/dev/null' EXIT
 sleep 1
 cd tests
-LIST=("$@"); [ ${#LIST[@]} -eq 0 ] && LIST=($(ls *.js | sed 's/\.js$//'))
+LIST=("$@"); [ ${#LIST[@]} -eq 0 ] && LIST=($(ls *.js | grep -v '^cloud_' | sed 's/\.js$//'))
 for t in "${LIST[@]}"; do
   echo "=================== $t ==================="
   timeout 300 node "$t.js" 2>&1 | tail -25

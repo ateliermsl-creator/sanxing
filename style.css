@@ -489,9 +489,10 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
 .vfile{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;padding-top:10px;padding-bottom:10px}
 .vfname{flex:1 1 140px;min-width:0}.vfname small{display:block;font-size:12px;color:var(--mut)}.vfname small.bad{color:var(--bad)}
 .vfname b{display:block;font-size:16px;color:var(--g);overflow-wrap:anywhere}
-.vfbtn{display:flex;gap:6px}.vfbtn button{min-height:44px;padding:0 12px;font-size:14px;white-space:nowrap}
+.vfbtn{display:flex;gap:6px}
+.cssave{display:flex;gap:6px;flex:1 1 100%;min-width:0}.cssave input{flex:1;min-width:0;margin:0}.cssave button{min-height:44px;padding:0 12px;font-size:14px;white-space:nowrap}.vfbtn button{min-height:44px;padding:0 12px;font-size:14px;white-space:nowrap}
 #vOpen.on{background:var(--g);color:var(--card)}
-#vList{flex-basis:100%}
+#vList,#csList,#csMsg{flex-basis:100%}#csMsg:empty{display:none!important}
 .vsave{margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
 /* 澆置頁拆模追蹤：天數連到設定頁 */
 #cuForms .cfset{display:inline-flex;align-items:center;min-height:36px;padding:0 10px;border:1px solid var(--line);border-radius:999px;font-size:13px;color:var(--mut);text-decoration:none;white-space:nowrap;background:var(--card)}
@@ -532,6 +533,17 @@ body:has(#calcBar:not([hidden])) #saveTip{bottom:calc(env(safe-area-inset-bottom
 #view.dnlock input:disabled,#view.dnlock textarea:disabled,#view.dnlock select:disabled{background:transparent;color:var(--tx);-webkit-text-fill-color:currentColor;opacity:1;border-style:dashed}
 #view.dnlock input[type=checkbox]:disabled,#view.dnlock input[type=radio]:disabled{opacity:.7}
 
+/* ---------- 雲端同步（cloud.js，只在公司雲端網址出現） ---------- */
+.hcl{text-decoration:none;color:#6a5a33;margin-right:6px}
+.clrow{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--line)}
+.clrow:last-child{border-bottom:0}
+.clrow small{color:var(--mut)}
+.clrow select{min-height:36px;font-size:14px;width:auto;max-width:100%}
+.clrow button.lnk{background:none;border:0;color:var(--g);text-decoration:underline;font-size:14px;min-height:36px;padding:0 6px}
+.climp{padding:8px 0;border-top:1px solid var(--line)}
+.climp small{color:var(--mut)}
+#clToast{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area-inset-bottom) + 56px);z-index:30;max-width:520px;margin:0 auto;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--card);color:inherit;font-size:14px;line-height:1.5;white-space:pre-line;box-shadow:0 4px 14px rgba(55,51,43,.18)}
+#clToast[hidden]{display:none}
 /* ---------- 缺失照片標記（punch.js pMarkEditor）：編號圖釘，位置存相對座標 ---------- */
 .pmpin{position:absolute;transform:translate(-50%,-50%);min-width:26px;height:26px;padding:0 4px;border-radius:13px;background:var(--bad);color:#fff;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.45);font:700 13px/22px system-ui,sans-serif;text-align:center;box-sizing:border-box;pointer-events:none;-webkit-user-select:none;user-select:none}
 .th .pmbtn{position:absolute;right:-6px;bottom:-6px;top:auto;width:auto;min-width:26px;height:24px;min-height:24px;padding:0 4px;border-radius:12px;background:var(--card);color:var(--tx);border:1px solid var(--line);font-size:12px;line-height:1;box-shadow:0 1px 3px rgba(0,0,0,.18)}

@@ -196,6 +196,9 @@ function tabVolume(box) {
     if (b.dataset.vopen) {
       if (!rec && volHasData(st) && !confirm("目前的輸入還沒存檔，開啟後會被取代。要繼續嗎？")) return;
       if (timer) await doSave();
+      if (window.cloudRO && await cloudRO("vols", x)) {   // 雲端：同事建立的只能看，載入成未存檔的新計算，不會改到原紀錄
+        reopen(x.rows, { ...x.cfg, cur: "", title: x.name + "（同事的紀錄，另存才會保留）" }); return;
+      }
       reopen(x.rows, { ...x.cfg, cur: x.id, title: x.name });
     } else if (b.dataset.vcopy) {
       if (timer) await doSave();
