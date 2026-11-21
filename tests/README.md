@@ -25,7 +25,7 @@ bash tests/run.sh xss_render      # 單支
 | `pdf_all_outputs` | 產生 11 種單據 PDF 存到 `out/pdfs/`，人工看版面 | 頁數合理、沒有被切掉 |
 | `print_overflow` | 用 A4 實際寬度與很寬的簽名圖，檢查單據有無超出紙張 | 全部 `OK` |
 | `narrow_overflow` | 360／320 px 窄螢幕開所有畫面，檢查橫向捲動 | `無` |
-| `screens_theme_scan` | 逐頁截圖到 `out/theme/`，並掃描高彩度顏色 | 只應剩下刻意使用的陶土紅（rgb 153,73,58 / 140,69,53） |
+| `screens_theme_scan` | 逐頁截圖到 `out/theme/`，並掃描高彩度顏色 | 色系變數（`--coffee`、`--coral`、`--bad` 等，2026-11-21 改版）不算；應顯示「無」 |
 | `shot_camera_gps` | 電子黑板相機（假鏡頭＋假定位）、照片冊 | 已拍 2 張、定位列「已定位」、無 JS 錯誤 |
 | `cure_tracking` / `cure_backup_xss` | 試體養護與拆模追蹤；備份往返 | 文字符合預期、`xss undefined` |
 | `cure_set_link` | 澆置頁拆模追蹤「未設定天數 ⚙」連到設定頁，填完按「完成，回澆置紀錄」回來看到可拆日；點連結不會切換勾選框；頂部返回鍵回澆置；320 寬不溢出 | 網址 `#/cure/set/pour/j9`、回到 `#/pour/j9`、後面面板出現「可拆日 12/6」、`錯誤 []` |
