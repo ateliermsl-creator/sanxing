@@ -229,10 +229,10 @@ const calcProjName = st => { try { const s = sites.find(x => x.id === siteId); i
 const CALC_TABS = [["rebar", "鋼筋稱號", tabRebar], ["wt", "鋼筋重量", tabRebarWt], ["slope", "坡度高程", tabSlope], ["area", "面積換算", tabArea], ["lap", "倍數換算", tabLap], ["sleeve", "穿樑套管", tabSleeve]];
 const STRUCT_TABS = [];
 const STRUCT_CATS = [
-  { k: "form", icon: "🧱", t: "模板結構計算", d: "側壓力・襯板・格柵・螺桿・支撐挫曲", tabs: ["col", "wall", "slab", "beam"] },
-  { k: "scaf", icon: "🏗️", t: "施工架結構計算", d: "主柱・壁連座・托架・樓板支撐", tabs: ["scaf", "brk", "row"] },
-  { k: "conc", icon: "🔩", t: "混凝土構造", d: "ACI 318 第 17 章架構・拉剪互制", tabs: ["anc"] },
-  { k: "other", icon: "📏", t: "其他工具", d: "多邊形斷面・慣性矩・斷面模數", tabs: ["sec"] }
+  { k: "form", icon: "form", t: "模板結構計算", d: "側壓力・襯板・格柵・螺桿・支撐挫曲", tabs: ["col", "wall", "slab", "beam"] },
+  { k: "scaf", icon: "scaf", t: "施工架結構計算", d: "主柱・壁連座・托架・樓板支撐", tabs: ["scaf", "brk", "row"] },
+  { k: "conc", icon: "bolt", t: "混凝土構造", d: "ACI 318 第 17 章架構・拉剪互制", tabs: ["anc"] },
+  { k: "other", icon: "sec", t: "其他工具", d: "多邊形斷面・慣性矩・斷面模數", tabs: ["sec"] }
 ];
 const STRUCT_SHEETS = { col: () => renderColSheet(), wall: () => renderWallSheet(), slab: () => renderSlabSheet(), beam: () => renderBeamSheet(), scaf: () => renderScafSheet(), brk: () => renderBrkSheet(), row: () => renderRowSheet(), anc: () => renderAncSheet(), sec: () => renderSecSheet() };
 const structCatOf = tab => STRUCT_CATS.find(c => c.tabs.includes(tab));
@@ -243,10 +243,10 @@ function renderCalc(tab, sub) {
   if (tab === "tile" && sub === "sheet") return renderTileSheet();  // 磁磚數量計算書（tile.js）
   if (tab === "mas") return goReplace("#/calc/tile");               // 原「泥作材料」分頁改成磁磚計算（2026-11-20）
   const cur = CALC_TABS.find(t => t[0] === tab) || CALC_TABS[0];
-  view.innerHTML = `<h2 class="t">🧮 工程計算機</h2>
+  view.innerHTML = `<h2 class="t">工程計算機</h2>
     <div class="chips">${CALC_TABS.map(([k, l]) => `<a class="chip ${k === cur[0] ? "on" : ""}" href="#/calc/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${l}</a>`).join("")}</div>
     <div id="calcBox"></div>
-    <p class="cnote" style="margin:4px 12px 12px">模板、施工架、錨栓、斷面性質等要出計算書的檢核，在 <a href="#/struct">📐 結構計算</a>。</p>`;
+    <p class="cnote" style="margin:4px 12px 12px">模板、施工架、錨栓、斷面性質等要出計算書的檢核，在 <a href="#/struct">結構計算</a>。</p>`;
   view.querySelectorAll(".chips a.chip").forEach(a => a.onclick = e => { e.preventDefault(); goReplace(a.getAttribute("href")); });   // 切換分頁不累積瀏覽紀錄
   cur[2]($("#calcBox"));
 }
@@ -255,13 +255,13 @@ function renderStruct(tab, sub) {
   const cat = structCatOf(tab);
   const cur = cat && STRUCT_TABS.find(t => t[0] === tab);
   if (!cur) {   // 結構計算總覽：四類，每類列出它的計算
-    view.innerHTML = `<h2 class="t">📐 結構計算</h2>
+    view.innerHTML = `<h2 class="t">結構計算</h2>
       <p class="cnote" style="margin:0 12px 8px">假設工程結構檢核，可產生 A4 計算書。材料與公式預設值多取自參考資料，非規範原文，請依契約與規範確認。</p>
-      ${STRUCT_CATS.map(c => `<section class="panel stcat"><h2>${c.icon} ${c.t}</h2><div class="stlist">${c.tabs.map(k => `<a class="btnlink sec" href="#/struct/${k}">${esc(structName(k))}</a>`).join("")}</div></section>`).join("")}`;
+      ${STRUCT_CATS.map(c => `<section class="panel stcat"><h2>${ic(c.icon, "ich")}${c.t}</h2><div class="stlist">${c.tabs.map(k => `<a class="btnlink sec" href="#/struct/${k}">${esc(structName(k))}</a>`).join("")}</div></section>`).join("")}`;
     return;
   }
-  view.innerHTML = `<h2 class="t">${cat.icon} ${cat.t}</h2>
-    <nav class="stcrumb" aria-label="結構計算分類"><a href="#/struct">📐 結構計算</a><span aria-hidden="true">›</span>${STRUCT_CATS.map(c => `<a class="${c === cat ? "on" : ""}" href="#/struct/${c.tabs[0]}">${c.t.replace(/結構計算$/, "")}</a>`).join("")}</nav>
+  view.innerHTML = `<h2 class="t">${cat.t}</h2>
+    <nav class="stcrumb" aria-label="結構計算分類"><a href="#/struct">結構計算</a><span aria-hidden="true">›</span>${STRUCT_CATS.map(c => `<a class="${c === cat ? "on" : ""}" href="#/struct/${c.tabs[0]}">${c.t.replace(/結構計算$/, "")}</a>`).join("")}</nav>
     ${cat.tabs.length > 1 ? `<div class="chips">${cat.tabs.map(k => `<a class="chip ${k === tab ? "on" : ""}" href="#/struct/${k}" style="display:inline-flex;align-items:center;text-decoration:none">${esc(structName(k))}</a>`).join("")}</div>` : ""}
     <div id="calcBox"></div>`;
   view.querySelectorAll(".chips a.chip, .stcrumb a.on").forEach(a => a.onclick = e => { e.preventDefault(); goReplace(a.getAttribute("href")); });

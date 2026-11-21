@@ -6,6 +6,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>三星蔥工具箱</title>
 <link rel="manifest" href="manifest.json">
+<link rel="icon" href="brand/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="icon-192.png" type="image/png">
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="theme-color" content="#3a2b23">
@@ -16,11 +17,11 @@
 </head>
 <body>
 <header id="topbar" hidden>
-  <button id="homeBtn" aria-label="回首頁" title="回首頁"><svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path fill="currentColor" d="M12 3.2 2.6 11.6a.8.8 0 0 0 .5 1.4H5v7.2c0 .5.4.8.8.8H10v-5.6h4V20h4.2c.5 0 .8-.3.8-.8V13h1.9a.8.8 0 0 0 .5-1.4L12 3.2z"/></svg></button>
-  <button id="backBtn" aria-label="返回">‹</button>
+  <button id="homeBtn" aria-label="回首頁" title="回首頁"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11 12 4l8.5 7"/><path d="M6 9.5V20h4.5v-5h3v5H18V9.5"/></svg></button>
+  <button id="backBtn" aria-label="返回"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
   <select id="siteSelect" aria-label="選擇專案"></select>
-  <button id="addSiteBtn" aria-label="新增專案">＋</button>
-  <button id="setBtn" aria-label="專案與公司設定">✎</button>
+  <button id="addSiteBtn" aria-label="新增專案"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+  <button id="setBtn" aria-label="專案與公司設定"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5l4 4L9 19H5v-4z"/><path d="M12.5 7.5l4 4"/></svg></button>
 </header>
 <div id="backupWarn" hidden></div>
 <div id="iab" hidden></div>
@@ -55,6 +56,7 @@
   </form>
 </dialog>
 <script src="safe.js"></script>
+<script src="icons.js"></script>
 <script src="templates.js"></script>
 <script src="attach.js"></script>
 <script src="calc.js"></script>
