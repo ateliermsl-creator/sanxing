@@ -1,6 +1,6 @@
 :root{--g:#3b6b22;--g2:#6c9a3a;--bg:#f3f5f8;--card:#fff;--tx:#223;--mut:#778;--line:#dde2ea;--bad:#c0392b;--ok:#2e8b3d}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.5 -apple-system,"PingFang TC","Noto Sans TC",sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+body{margin:0;background:var(--bg);color:var(--tx);font:17px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang TC","Microsoft JhengHei UI","Microsoft JhengHei","Noto Sans TC","Noto Sans CJK TC",Roboto,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
 button,select,input,textarea{font:inherit}
 button{min-height:48px;padding:0 18px;border:0;border-radius:12px;background:var(--g);color:#fff;font-weight:600}
 button.sec{background:#e6ecdd;color:var(--g)}
@@ -459,7 +459,7 @@ body.hasCalcBar{padding-bottom:calc(env(safe-area-inset-bottom) + 72px)}
   #calcBox:has(> .cfsteps){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start}
   #calcBox:has(> .cfsteps) > *{grid-column:1}
   #calcBox:has(> .cfsteps) > section.panel:last-of-type{grid-column:2;grid-row:1 / span 30;position:sticky;top:76px;max-height:calc(100vh - 92px);overflow:auto;overscroll-behavior:contain}
-  #calcBox:has(> .cfsteps) .cfsteps a:last-child{display:none}   /* 最後一步是「檢核結果」，已固定在右欄 */
+  #calcBox:has(> .cfsteps) .cfsteps a:last-of-type{display:none}   /* 最後一步是「檢核結果」，已固定在右欄 */
 }
 @media screen and (min-width:1200px){
   body{padding-left:232px}
@@ -625,3 +625,24 @@ body.pmkOpen{overflow:hidden}
 #tlSpecAdd{margin-top:12px}
 .pt tr.tlwrap th{white-space:normal}
 #view .cfsteps a{color:var(--coffee)}
+/* 字體（2026-11-21 使用者問有沒有更容易閱讀的字體）：英數用 Segoe UI／系統字，中文用蘋方、微軟正黑體 UI、思源黑體；
+   數字等寬，表格與輸入框的數字上下對齊、不跳動 */
+body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+input,.cfres td,.ct td,.cfref td,.big,#calcBar b,.kpi b{font-variant-numeric:tabular-nums}
+/* 計算機分步驟分頁（cfstep.js）：步驟列改成分段頁籤，一次只顯示一步 */
+.cfoff{display:none!important}
+#view .cfsteps.cfseg{position:sticky;top:calc(env(safe-area-inset-top) + 70px);z-index:4;display:flex;flex-wrap:wrap;gap:4px;margin:8px 12px 10px;padding:5px;background:var(--card);border:1px solid var(--line);border-radius:999px;box-shadow:var(--shadow)}
+#view .cfsteps.cfseg a{flex:1 1 auto;justify-content:center;min-height:42px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:var(--mut);font-size:15px;font-weight:600;white-space:nowrap}
+#view .cfsteps.cfseg a.on{background:var(--coffee);color:var(--on-coffee)}
+.cfallrow{display:flex;justify-content:flex-end;margin:-6px 12px 4px}
+#view .cfallrow .cfallbtn{min-height:36px!important;padding:0 8px;background:transparent;color:var(--mut);font-size:13px;font-weight:400;text-decoration:underline}
+#view .cfsteps.cfseg.cfall a{color:var(--coffee)}
+.cfnav{display:flex;justify-content:space-between;gap:10px;margin:4px 12px 16px}
+.cfnav button{flex:0 1 auto;min-width:0;padding:0 16px;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media (max-width:600px){   /* 手機：各步等寬一排，字太長就換行 */
+  #view .cfsteps.cfseg{flex-wrap:nowrap;gap:3px;padding:4px;border-radius:16px}
+  #view .cfsteps.cfseg a{flex:1 1 0;min-width:0;min-height:48px;padding:4px 4px;border-radius:12px;font-size:13px;line-height:1.25;white-space:normal;text-align:center;word-break:keep-all}
+}
+@media (max-width:380px){#view .cfsteps.cfseg a{padding:4px 1px;font-size:12px;letter-spacing:-.02em}}
+@media screen and (min-width:1024px){#calcBox:has(> .cfsteps) > .cfnav{grid-column:1}}
+@media print{.cfnav,.cfallrow{display:none!important}}

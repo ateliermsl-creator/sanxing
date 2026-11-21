@@ -58,6 +58,7 @@
   function hide() { target = null; io?.disconnect(); io = null; bar.hidden = true; document.body.classList.remove("hasCalcBar"); }
   function go() {
     if (!target) return;
+    window.cfStepReveal?.(target);   // 分步驟分頁：先切到檢核結果那一步
     target.scrollIntoView({ behavior: "smooth", block: "start" });
     if (firstBad) { const r = firstBad; r.classList.remove("cbflash"); void r.offsetWidth; r.classList.add("cbflash"); }
   }

@@ -3,7 +3,7 @@ const {chromium}=require('playwright');(async()=>{const b=await chromium.launch(
 const chk=(name,ok,info='')=>{if(!ok)bad++;console.log(ok?'OK':'NG',name,info)};
 const out=require('path').join(__dirname,'out');require('fs').mkdirSync(out,{recursive:true});
 for(const [w,h,tag] of [[390,844,'phone'],[320,568,'phone320']]){
-const p=await (await b.newContext({viewport:{width:w,height:h},hasTouch:true})).newPage();const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+const p=await (await b.newContext({viewport:{width:w,height:h},hasTouch:true})).newPage();await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
 const U='http://localhost:8793/index.html';
 await p.goto(U);await p.waitForTimeout(500);
 await p.evaluate(async()=>{await DB.put('sites',{id:'s1',name:'甲工程',company:'順風營造'});
