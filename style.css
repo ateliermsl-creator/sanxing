@@ -581,6 +581,20 @@ body.pmkOpen{overflow:hidden}
 #tlOpen.on{background:var(--g);color:var(--card)}
 #tlList{flex-basis:100%}
 .tlspec+.tlspec{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+/* 磁磚展開圖／透視圖（tiledraw.js）：圖面一律白底，跟單據一樣不受配色影響 */
+.vdims.tlop{grid-template-columns:repeat(3,minmax(0,1fr));align-items:end}
+.tlg{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:13px;color:var(--mut)}
+.tlg select{flex:1;min-width:0;min-height:40px;padding:0 8px;border:1px solid var(--line);border-radius:10px;background:#fff;color:#222;font-size:14px}
+#tlDrawBox summary{font-weight:600;cursor:pointer}
+.tlh{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:15px;margin:12px 0 6px}
+.tlh button{min-height:40px;padding:0 12px;font-size:14px}
+.tlfig{background:#fff;border:1px solid var(--line);border-radius:8px;padding:4px;overflow:hidden}
+.tlsvg{display:block;width:100%;height:auto}.tlfig .tliso{max-height:70vh}
+.tllegs{display:flex;flex-wrap:wrap;gap:4px 14px;margin:8px 0 2px;font-size:13px}
+.tlleg{display:inline-flex;align-items:center;gap:6px}.tlleg i{display:inline-block;width:18px;height:12px;border:1px solid #7d7260}
+.cfpaper .tlpfig{margin:2mm 0 3mm;text-align:center}.cfpaper .tlpfig figcaption{font-size:9pt;margin-top:1mm}
+.cfpaper .tlpiso .tlsvg{max-width:60%;margin:0 auto}
+.cfpaper .tlpnote .cnote,.cfpaper .tlpnote .tllegs{color:#000;font-size:8.5pt}
 .tlsz{margin:8px 0 0;align-items:center}.tlsz .chip{min-height:34px;padding:0 10px;font-size:13px}
 .tlper{font-size:12px;color:var(--mut);margin-left:auto}
 #tlSpecAdd{margin-top:12px}
