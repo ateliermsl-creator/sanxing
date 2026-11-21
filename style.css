@@ -206,6 +206,7 @@ details>summary{cursor:pointer}
 .pdfmode .noprint,.pdfmode #attBox{display:none!important}
 #copyright{max-width:720px;margin:24px auto 32px;padding:0 16px;text-align:center;font-size:12px;line-height:1.6;color:var(--mut)}
 @media print{#copyright{display:none!important}}
+#view:empty ~ #copyright,body:not(:has(> #sideNav)) #copyright{visibility:hidden}   /* 程式與內容載入前先不顯示，避免重新整理時版權文字先出現在偏右／頂端再跳到正確位置 */
 /* 施工照片（電子黑板） */
 #shotCam{position:fixed;inset:0;z-index:55;background:#000;display:flex;flex-direction:column;color:#fff}
 #shotCam.flash{background:#fff}
