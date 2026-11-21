@@ -12,8 +12,8 @@ const r=await p.evaluate(()=>{
  const line=tileGeo(tileNorm([W('1','3','3',''),W('2','4','3','s'),{...W('3','','',''),v:'5'},W('4','2','3','x')],{}));
  const ops=tileOps({op:[{w:'1.5',h:'1.2',n:'6',x:'',y:''}]},12,9), ops2=tileOps({op:[{w:'1',h:'1',n:'3',x:'1',y:'2'}]},10,3);
  const bad=tileNorm([W('<b>x</b>','3','3','')],{});
- return {closed:g.closed,nW:g.walls.length,nF:g.floors.length,d:g.walls.map(w=>w.d.join(',')),door:g.walls[0].ops[0],win:g.walls[1].ops[0],
-  bclosed:bld.closed,bd:bld.walls.map(w=>w.d.join(',')),lineEnd:line.end.join(','),skip:line.skip.map(s=>s.i+':'+s.why),
+ return {closed:g.groups[0].closed,nW:g.walls.length,nF:g.floors.length,d:g.walls.map(w=>w.d.join(',')),door:g.walls[0].ops[0],win:g.walls[1].ops[0],
+  bclosed:bld.groups[0].closed,bd:bld.walls.map(w=>w.d.join(',')),lineEnd:line.groups[0].end.join(','),skip:line.skip.map(s=>s.i+':'+s.why),
   ops:ops.map(o=>+o.x.toFixed(4)+'/'+o.y),ops2:ops2.map(o=>o.x+'/'+o.y),
   svg:tileDrawHtml(room),xs:tileDrawHtml(bad)};});
 chk('室內四面陰角接回 A',r.closed&&r.nW===4&&r.nF===1&&r.d.join(' ')==='1,0 0,-1 -1,0 0,1',r.d.join(' '));
@@ -26,6 +26,16 @@ chk('自動排 6 個窗',r.ops.length===6&&r.ops[0]==='0.4286/3.9'&&r.ops[1]==='
 chk('距左定位多個對稱排',r.ops2.join(' ')==='1/2 4.5/2 8/2',r.ops2.join(' '));
 chk('直線接續、直接填面積不畫、不畫入圖',r.lineEnd==='7,0'&&r.skip.join()==='2:直接填面積',r.lineEnd+' '+r.skip.join());
 chk('圖面有展開圖、透視圖、圖例',(r.svg.match(/<svg/g)||[]).length===2&&r.svg.includes('壁')&&r.svg.includes('地'));
+const m=await p.evaluate(()=>{const W=(name,a,b,g)=>({name,s:'0',a,b,v:'',n:'1',g,op:[]});
+ const st=tileNorm([W('1F北','12','3.6',''),W('1F東','8','3.6',''),W('1F南','12','3.6',''),W('1F西','8','3.6',''),
+  W('2F北','12','3.2','up'),W('2F東','8','3.2',''),W('2F南','12','3.2',''),W('2F西','8','3.2',''),
+  W('浴室A','1.8','2.4','new'),W('浴室B','2.7','2.4','in'),W('浴室C','1.8','2.4','in'),W('浴室D','2.7','2.4','in'),{...W('浴室地坪','1.8','2.7','f')}],{});
+ const g=tileGeo(st);const h=tileDrawHtml(st);
+ return {n:g.groups.length,closed:g.groups.map(q=>q.closed).join(),z:g.groups.map(q=>q.z0).join(),start:g.groups.map(q=>q.start.join('/')).join(' '),fz:g.floors[0].z0,fgi:g.floors[0].gi,
+  heads:(h.match(/第 \d 段/g)||[]).length,lab2:h.includes('>2A<')&&h.includes('>3B<')};});
+// 1F 高 3.6 → 2F 底高 3.6、起點同 1F (0,0)；另起一圈放在最右邊 x = 12 + 1.5 = 13.5
+chk('多層：往上一層疊在上面、另起一圈放旁邊',m.n===3&&m.closed==='true,true,true'&&m.z==='0,3.6,0'&&m.start==='0/0 0/0 13.5/0'&&m.fz===0&&m.fgi===2,JSON.stringify(m));
+chk('多層：展開圖分段、編號加段號',m.heads===3&&m.lab2,JSON.stringify(m));
 chk('名稱轉義',!r.xs.includes('<b>')&&r.xs.includes('&lt;b&gt;'));
 const c=await p.evaluate(()=>{const x={id:'t1',siteId:'s1',kind:'tile',name:'x',rows:[{name:'a',s:'0',a:'1',b:'1',v:'',n:'1',g:'in',op:[{w:'1',h:'1',n:'1',x:'0.2',y:'0.3'}]}],cfg:{specs:[],rot:'2'},created:1,updated:1};const y=CLEAN.vols(x);return y.rows[0].g==='in'&&y.rows[0].op[0].x==='0.2'&&y.rows[0].op[0].y==='0.3'&&y.cfg.rot==='2'&&CLEAN.vols({...x,rows:[{...x.rows[0],g:'zz'}]}).rows[0].g===''});
 chk('清理器保留 g、開口 x／y、rot',c);
@@ -34,7 +44,7 @@ await p.evaluate(async()=>{await DB.put('sites',{id:'s1',name:'甲'});localStora
 await p.goto(U+'#/calc/tile');await p.reload();await p.waitForTimeout(800);
 chk('面板有兩張圖',(await p.$$('#tlDraw svg')).length===2);
 await p.selectOption('.vrow[data-i="1"] select[data-k="g"]','s');await p.waitForTimeout(200);
-chk('改接續方式即時重畫',(await p.evaluate(()=>tileGeo(tileLoad()).end.join(',')))==='5,0');
+chk('改接續方式即時重畫',(await p.evaluate(()=>tileGeo(tileLoad()).groups[0].end.join(',')))==='5,0');
 await p.click('[data-trot]');await p.waitForTimeout(200);chk('轉 90° 存進設定',(await p.evaluate(()=>tileLoad().cfg.rot))==='1');
 chk('320 不橫向捲動',(await p.evaluate(()=>document.documentElement.scrollWidth))<=320);
 await p.goto(U+'#/calc/tile/sheet');await p.waitForTimeout(500);

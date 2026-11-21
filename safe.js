@@ -105,7 +105,7 @@ const CLEAN = {
     created: cn(x.created), updated: cn(x.updated) },
   vols: x => safeId(x.id) && safeId(x.siteId) && (x.kind === "tile" ? {   // 磁磚計算（tile.js）也存在 vols，以 kind 區分
     id: x.id, siteId: x.siteId, kind: "tile", name: cs(x.name, 100),
-    rows: arr(x.rows, 300).map(r => ({ name: cs(obj(r).name, 100), ...Object.fromEntries(["s", "a", "b", "v", "n"].map(k => [k, cs(obj(r)[k], 30)])), g: ce(obj(r).g, ["", "in", "s", "f", "x"], ""),
+    rows: arr(x.rows, 300).map(r => ({ name: cs(obj(r).name, 100), ...Object.fromEntries(["s", "a", "b", "v", "n"].map(k => [k, cs(obj(r)[k], 30)])), g: ce(obj(r).g, ["", "in", "s", "up", "new", "f", "x"], ""),
       op: arr(obj(r).op, 12).map(o => ({ w: cs(obj(o).w, 30), h: cs(obj(o).h, 30), n: cs(obj(o).n, 30), x: cs(obj(o).x, 30), y: cs(obj(o).y, 30) })) })),
     cfg: { specs: arr(obj(x.cfg).specs, 8).map(p => Object.fromEntries([["name", cs(obj(p).name, 60)], ...["L", "W", "j", "loss", "box"].map(k => [k, cs(obj(p)[k], 30)])])),
       glue: cs(obj(x.cfg).glue, 30), bag: cs(obj(x.cfg).bag, 30), loc: cs(obj(x.cfg).loc, 100), who: cs(obj(x.cfg).who, 50), rot: ce(obj(x.cfg).rot, ["0", "1", "2", "3"], "0"), ...(Object.keys(ccsg(obj(x.cfg).sigs)).length ? { sigs: ccsg(obj(x.cfg).sigs) } : {}) },

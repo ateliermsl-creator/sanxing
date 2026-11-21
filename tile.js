@@ -49,7 +49,7 @@ function tileNorm(rows, cfg) {
   rows = rows.filter(r => r && typeof r === "object").map(r => {
     const o = tileBlank();
     for (const k of ["name", "s", "a", "b", "v", "n", "g"]) if (r[k] != null && typeof r[k] !== "object") o[k] = String(r[k]);
-    if (!["", "in", "s", "f", "x"].includes(o.g)) o.g = "";   // 圖面：接上一面的方式（tiledraw.js）
+    if (!["", "in", "s", "up", "new", "f", "x"].includes(o.g)) o.g = "";   // 圖面：接上一面的方式（tiledraw.js）
     if (!(+o.s >= 0 && +o.s < specs.length)) o.s = "0";
     o.op = (Array.isArray(r.op) ? r.op : []).slice(0, TILE_MAX_OP).filter(x => x && typeof x === "object").map(x => ({ w: s(x.w), h: s(x.h), n: x.n == null ? "1" : s(x.n), x: s(x.x), y: s(x.y) }));
     return o;
@@ -95,7 +95,7 @@ function tabTile(box) {
     <div class="panel"><div class="row" style="margin:0"><button class="sec" id="tlAdd">＋ 加入一面</button><button class="sec" id="tlClear">全部清除</button></div>
       <p class="cnote">一面一列，例如「北向立面 1F～3F」。同樣的面可填數量；不規則的面（山牆三角形等）可直接填「面積」。</p></div>
     <details class="panel" id="tlDrawBox" open><summary>展開圖與透視圖（示意）</summary><div id="tlDraw"></div>
-      <p class="cnote">各面依清單順序接續：外牆繞建築一圈選「陽角轉折」，室內繞房間一圈選「陰角轉折」（看著貼磚面、由左往右排）。門窗可填「距左」「離地」定位，沒填會自動排。圖只是示意，數量仍以上面的面積計算；磁磚太小時圖上只填色。</p></details>
+      <p class="cnote">各面依清單順序接續：外牆繞建築一圈選「陽角轉折」，室內繞房間一圈選「陰角轉折」（看著貼磚面、由左往右排）。多層樓在上一層的第一面選「往上一層」，同一層另一間選「另起一圈」；各層一樣的話，也可以只填一層、「數量」填層數。門窗可填「距左」「離地」定位，沒填會自動排。圖只是示意，數量仍以上面的面積計算；磁磚太小時圖上只填色。</p></details>
     <details class="panel" id="tlGlue"><summary>黏著劑／益膠泥（選填）</summary>
       <div class="calc-ctl2"><div class="field"><label>單位用量（kg/m²）</label><input data-c="glue" inputmode="decimal" placeholder="依產品說明書" value="${esc(st.cfg.glue)}"></div>
         <div class="field"><label>每包重量（kg）</label><input data-c="bag" inputmode="decimal" placeholder="例：包裝標示" value="${esc(st.cfg.bag)}"></div></div>
@@ -128,7 +128,7 @@ function tabTile(box) {
   const rowHtml = (r, i) => `<div class="panel vrow" data-i="${i}">
       <div class="vtop"><input data-k="name" placeholder="例：北向立面 1F～3F" value="${esc(r.name)}">${specSel(r)}<button class="danger" data-del="${i}" aria-label="刪除此面">✕</button></div>
       <div class="vdims"><label>長（m）<input data-k="a" inputmode="decimal" value="${esc(r.a)}"></label><label>高（m）<input data-k="b" inputmode="decimal" value="${esc(r.b)}"></label><label>或面積<input data-k="v" inputmode="decimal" placeholder="m²" value="${esc(r.v)}"></label><label>數量<input data-k="n" inputmode="decimal" value="${esc(r.n)}"></label></div>
-      <label class="tlg">畫圖時接上一面<select data-k="g">${TILE_G.map(([v, t]) => `<option value="${v}" ${r.g === v ? "selected" : ""}>${i === 0 && (v === "" || v === "in" || v === "s") ? (v === "" ? "第一面（起點 A）" : t + "（第一面不影響）") : t}</option>`).join("")}</select></label>
+      <label class="tlg">畫圖時接上一面<select data-k="g">${TILE_G.map(([v, t]) => `<option value="${v}" ${r.g === v ? "selected" : ""}>${i === 0 && ["", "in", "s", "up", "new"].includes(v) ? (v === "" ? "第一面（起點 A）" : t + "（第一面不影響）") : t}</option>`).join("")}</select></label>
       ${(r.op || []).map((o, j) => `<div class="vdims vop tlop" data-j="${j}"><label>開口${j + 1} 寬（m）<input data-o="w" inputmode="decimal" value="${esc(o.w)}"></label><label>高（m）<input data-o="h" inputmode="decimal" value="${esc(o.h)}"></label><label>個數<input data-o="n" inputmode="decimal" value="${esc(o.n)}"></label><label>距左（m）<input data-o="x" inputmode="decimal" placeholder="自動" value="${esc(o.x)}"></label><label>離地（m）<input data-o="y" inputmode="decimal" placeholder="自動" value="${esc(o.y)}"></label><button class="sec" data-opdel="${j}" aria-label="移除開口${j + 1}" style="align-self:end;min-height:44px">✕</button></div>`).join("")}
       ${(r.op || []).length < TILE_MAX_OP ? `<button class="sec" data-opadd="1" style="margin-top:8px;min-height:40px;padding:0 12px;font-size:14px">＋ 扣除開口（門、窗）</button>` : ""}
       <div class="vres"><small class="vexpr" data-tx="${i}" style="display:block;font-size:12px;overflow-wrap:anywhere"></small>淨面積：<b data-tr="${i}">—</b></div></div>`;
