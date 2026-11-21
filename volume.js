@@ -73,7 +73,7 @@ function volNorm(rows, cfg) {
   if (!rows.length) rows = [volBlank()];
   if (!cfg || typeof cfg !== "object") cfg = {};
   const s = v => v == null || typeof v === "object" ? "" : String(v);
-  return { rows, cfg: { loss: cfg.loss == null ? "5" : s(cfg.loss), cap: cfg.cap == null ? "6" : s(cfg.cap), loc: s(cfg.loc), who: s(cfg.who), cur: s(cfg.cur), title: s(cfg.title) } };
+  return { rows, cfg: { loss: cfg.loss == null ? "5" : s(cfg.loss), cap: cfg.cap == null ? "6" : s(cfg.cap), loc: s(cfg.loc), who: s(cfg.who), cur: s(cfg.cur), title: s(cfg.title), sigs: ccsg(cfg.sigs) } };
 }
 function volLoad() {
   const j = k => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
@@ -95,7 +95,7 @@ function volTotals(st) {
 let volGen = 0;
 const volStamp = t => { const d = new Date(t || 0), z = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())} ${z(d.getHours())}:${z(d.getMinutes())}`; };
 const volHasData = st => st.rows.some(r => ["a", "b", "c", "d", "e", "v"].some(k => String(r[k] ?? "").trim() !== "") || String(r.name ?? "").trim() !== "");
-const volRec = (st, base) => ({ ...base, name: st.cfg.title.trim(), rows: st.rows, cfg: { loss: st.cfg.loss, cap: st.cfg.cap, loc: st.cfg.loc, who: st.cfg.who }, updated: Date.now() });
+const volRec = (st, base) => ({ ...base, name: st.cfg.title.trim(), rows: st.rows, cfg: { loss: st.cfg.loss, cap: st.cfg.cap, loc: st.cfg.loc, who: st.cfg.who, ...(Object.keys(st.cfg.sigs).length ? { sigs: st.cfg.sigs } : {}) }, updated: Date.now() });
 
 function tabVolume(box) {
   const st = volLoad();
@@ -160,7 +160,7 @@ function tabVolume(box) {
   const status = () => { head(); tip(); mark(!siteId ? "要存檔請先建立或選擇工地（右上角＋）。目前的輸入仍會暫存在這支手機。"
     : rec ? `✓ 已存檔 ${volStamp(rec.updated)}，之後的修改會自動更新這筆紀錄` : volHasData(st) ? "尚未存檔：填紀錄名稱後按「存檔」，之後可從頁首「方數紀錄」開啟" : ""); };
   const list = async () => {
-    const all = siteId ? (await DB.all("vols")).filter(x => x.siteId === siteId).sort((a, b) => (b.updated || 0) - (a.updated || 0)) : [];
+    const all = siteId ? (await DB.all("vols")).filter(x => x.siteId === siteId && x.kind !== "tile").sort((a, b) => (b.updated || 0) - (a.updated || 0)) : [];
     const el = live() && $("#vList"); if (!el) return;
     $("#vCount").textContent = all.length ? `（${all.length}）` : "";
     el.innerHTML = all.length ? `<p class="cnote" style="margin:8px 0 4px">這個工地的方數紀錄（新的在前）：</p>` + all.map(x => { const T = volTotals(volNorm(x.rows, x.cfg)); return `<div class="vsrow${rec && rec.id === x.id ? " on" : ""}" data-id="${esc(x.id)}">
@@ -213,7 +213,7 @@ function tabVolume(box) {
   };
   (async () => {   // 開啟中的那一筆要存在、且屬於目前工地，否則視為未儲存
     const x = st.cfg.cur ? await DB.get("vols", st.cfg.cur) : null;
-    if (x && x.siteId === siteId) rec = x; else if (st.cfg.cur) { st.cfg.cur = ""; volSave(st); }
+    if (x && x.siteId === siteId && x.kind !== "tile") rec = x; else if (st.cfg.cur) { st.cfg.cur = ""; volSave(st); }
     status(); list();
   })();
   const draw = () => { $("#vRows").innerHTML = `<h2 class="t" style="font-size:17px;margin:4px 12px"><span class="cfno">1</span>構件</h2>` + st.rows.map(rowHtml).join(""); sum(); };
@@ -271,6 +271,17 @@ function renderVolSheet() {
     </div>`;
   $("#vsBack").onclick = () => goBack("#/calc/vol");
   $("#pvPrint").onclick = doPrint;
+  csgBind({   // 計算書簽名（calcsig.js）：存在目前輸入，開啟中的方數紀錄也一起存（同事建立、只能看的紀錄開啟時不會掛 cur）
+    get: () => volLoad().cfg.sigs,
+    set: async n => {
+      const s = volLoad(); s.cfg.sigs = n; volSave(s);
+      const r = s.cfg.cur ? await DB.get("vols", s.cfg.cur) : null;
+      if (r && r.siteId === siteId && !(window.cloudRO && await cloudRO("vols", r))) {
+        const cfg = { ...(r.cfg || {}) }; if (Object.keys(n).length) cfg.sigs = n; else delete cfg.sigs;
+        await DB.put("vols", { ...r, cfg, updated: Date.now() });
+      }
+    }
+  }, renderVolSheet);
 }
 
 CALC_TABS.splice(2, 0, ["vol", "混凝土方數", tabVolume]);

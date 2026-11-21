@@ -206,6 +206,7 @@ details>summary{cursor:pointer}
 .pdfmode .noprint,.pdfmode #attBox{display:none!important}
 #copyright{max-width:720px;margin:24px auto 32px;padding:0 16px;text-align:center;font-size:12px;line-height:1.6;color:var(--mut)}
 @media print{#copyright{display:none!important}}
+#view:empty ~ #copyright,body:not(:has(> #sideNav)) #copyright{visibility:hidden}   /* 程式與內容載入前先不顯示，避免重新整理時版權文字先出現在偏右／頂端再跳到正確位置 */
 /* 施工照片（電子黑板） */
 #shotCam{position:fixed;inset:0;z-index:55;background:#000;display:flex;flex-direction:column;color:#fff}
 #shotCam.flash{background:#fff}
@@ -573,3 +574,14 @@ body.pmkOpen{overflow:hidden}
 .pmfig img{display:block;max-width:26mm;max-height:30mm}
 .pmfig .pmpin{min-width:4mm;height:4mm;border-radius:2mm;font-size:8px;line-height:calc(4mm - 2px);border-width:1px;padding:0 1px}
 .pmnote{color:#333!important}
+/* 計算書簽名（calcsig.js） */
+.csgbar{max-width:210mm;margin:8px auto 16px}
+.csgbar .csgold{color:var(--bad);margin:0 12px 6px}
+/* 磁磚計算（tile.js）：沿用方數紀錄的樣式 */
+#tlOpen.on{background:var(--g);color:var(--card)}
+#tlList{flex-basis:100%}
+.tlspec+.tlspec{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.tlsz{margin:8px 0 0;align-items:center}.tlsz .chip{min-height:34px;padding:0 10px;font-size:13px}
+.tlper{font-size:12px;color:var(--mut);margin-left:auto}
+#tlSpecAdd{margin-top:12px}
+.pt tr.tlwrap th{white-space:normal}

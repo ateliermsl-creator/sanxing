@@ -180,7 +180,7 @@ $("#sDel").onclick = async () => {
     for (const x of mine[st]) { ids.add(x.id); for (const t of x.trucks || []) ids.add(t.id); }
   }
   const total = stores.reduce((a, st) => a + mine[st].length, 0);
-  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}、混凝土方數 ${mine.vols.length}、結構計算 ${mine.calcs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
+  if (!confirm(`要刪除工地「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}、混凝土方數 ${mine.vols.filter(x => x.kind !== "tile").length}、磁磚計算 ${mine.vols.filter(x => x.kind === "tile").length}、結構計算 ${mine.calcs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
   const typed = prompt(`為了避免誤刪，請輸入工地名稱確認：\n${cur.name}`);
   if (typed === null) return;
   if (typed.trim() !== cur.name) { alert("名稱不符，沒有刪除。"); return; }
@@ -286,7 +286,7 @@ async function renderHome() {
     <a class="card" href="#/cure"><div class="ph">🧪</div><div><b>試體養護與拆模追蹤</b><small>${cuN ? `⚠️ ${cuN} 項待處理・` : ""}7／28 天試壓提醒・拆模齡期・強度台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">📌</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">📝</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
-    <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋稱號・鋼筋重量・混凝土方數・坡度高程・面積・泥作材料・穿樑套管</small></div><span class="arrow">›</span></a>
+    <a class="card" href="#/calc"><div class="ph">🧮</div><div><b>工程計算機</b><small>鋼筋稱號・鋼筋重量・混凝土方數・坡度高程・面積・磁磚計算・穿樑套管</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/shot"><div class="ph">📷</div><div><b>施工照片（電子黑板）</b><small>黑板合成在照片上・照片冊・分享 PDF</small></div><span class="arrow">›</span></a>
     <h2 class="hsec">📐 結構計算 <small>假設工程檢核・A4 計算書</small></h2>
     ${STRUCT_CATS.map(c => `<a class="card" href="#/struct/${c.tabs[0]}"><div class="ph">${c.icon}</div><div><b>${c.t}</b><small>${c.tabs.map(structName).map(esc).join("・")}</small></div><span class="arrow">›</span></a>`).join("")}
