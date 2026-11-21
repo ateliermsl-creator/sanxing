@@ -10,6 +10,8 @@ bash tests/run.sh xss_render      # 單支
 ```
 `run.sh` 會在 8793 埠啟動靜態伺服器，結果的截圖與 PDF 放在 `tests/out/`（不進版控）。
 
+App 的確認視窗是站內對話框（`ui.js`，2026-11-22 起不用原生 alert／confirm／prompt）。測試檔最上面 `require('./uidlg')`，就能照舊用 `p.on('dialog', d => d.accept())`：`uidlg.js` 會把站內對話框轉成 Playwright 的 dialog 事件並真的去按畫面上的按鈕。
+
 ## 各支測試與「正常」的結果
 | 測試 | 檢查什麼 | 正常結果 |
 |---|---|---|

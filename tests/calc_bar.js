@@ -1,3 +1,4 @@
+require('./uidlg');
 // calc_bar：計算機結果摘要列（calcbar.js）見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());

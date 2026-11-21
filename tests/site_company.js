@@ -1,3 +1,4 @@
+require('./uidlg');
 // site_company：表單抬頭的公司名稱跟著所在專案（工地）切換；舊工地沒有公司欄位時沿用以前的全站設定（見 tests/README.md）
 const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();let bad=0;const ok=(c,m)=>{console.log(c?'OK ':'NG ',m);if(!c)bad++;};
 const p=await (await b.newContext({viewport:{width:390,height:844}})).newPage();const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());

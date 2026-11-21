@@ -1,3 +1,4 @@
+require('./uidlg');
 // struct_nav：結構計算獨立區塊（首頁分區、四類、舊網址轉向、側欄、一鍵帶入）見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});
 (async()=>{const b=await chromium.launch();const U='http://localhost:8793/index.html';

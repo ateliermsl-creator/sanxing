@@ -96,7 +96,7 @@ function pMarkEditor(photo, marks, start, onChange, onClose) {
     const d = drag; drag = null;
     if (d.i >= 0) { if (d.moved) emit(); sel = d.i; draw(); return; }
     if (e.type === "pointercancel" || Math.hypot(e.clientX - d.x0, e.clientY - d.y0) > 10) return;   // 捲動、縮放不算點一下
-    if (ms.length >= P_MARK_MAX) { alert(`一張照片最多 ${P_MARK_MAX} 個圖釘`); return; }
+    if (ms.length >= P_MARK_MAX) { uiAlert(`一張照片最多 ${P_MARK_MAX} 個圖釘`); return; }
     ms.push({ ...pos(e), t: "" }); sel = ms.length - 1; draw(); emit();
   };
   pic.addEventListener("pointerup", end); pic.addEventListener("pointercancel", end);
@@ -175,7 +175,7 @@ async function renderPunchList() {
   if (pBulk) {
     $("#pAll").onclick = () => { list.forEach(x => pPicked.add(x.id)); renderPunchList(); };
     $("#pAssign").onclick = async () => {
-      if (!pPicked.size) { alert("請先勾選要指定的缺失"); return; }
+      if (!pPicked.size) { uiAlert("請先勾選要指定的缺失"); return; }
       const all2 = await pTrades(), dlg = document.createElement("dialog");
       dlg.innerHTML = `<h2 style="margin:0 0 10px;font-size:19px">指定 ${pPicked.size} 筆缺失</h2>
         <div class="field" style="margin:0 0 10px"><label>責任工班／廠商（空白＝不變更）</label><input id="bTrade" list="bTrades" placeholder="例：泥作工"><datalist id="bTrades">${all2.map(t => `<option value="${esc(t)}">`).join("")}</datalist></div>
@@ -207,10 +207,10 @@ async function pQuickAction(kind, id) {
   const log = text => it.log.push({ at: new Date().toISOString(), text });
   if (kind === "fix") { pFixSheet(it, async () => { await renderPunchList(); }); return; }
   if (kind === "pass") {
-    const by = prompt("複驗人員姓名", ls.get("punchBy", "")); if (by === null) return;
+    const by = await uiPrompt("複驗人員姓名", ls.get("punchBy", "")); if (by === null) return;
     it.status = "closed"; it.closedAt = today(); it.closedBy = by.trim(); if (by.trim()) ls.set("punchBy", by.trim()); log(`複驗合格・結案（${by.trim() || "未填"}）`);
   } else if (kind === "reject") {
-    const why = prompt("複驗不合格的原因（可空白）", ""); if (why === null) return;
+    const why = await uiPrompt("複驗不合格的原因（可空白）", ""); if (why === null) return;
     it.status = "open"; it.rejects = (it.rejects || 0) + 1; it.fixedAt = ""; log("複驗不合格・退回" + (why.trim() ? "：" + why.trim() : ""));
   }
   await pSave(it); renderPunchList();
@@ -228,7 +228,7 @@ async function pFixSheet(it, done) {
   document.body.append(box);
   const cnt = () => { box.querySelector("#sfCnt").textContent = have ? `已有 ${have} 張改善後照片` : "還沒有改善後照片（可不拍）"; };
   cnt();
-  const add = async f => { try { await pAttachPhoto(it, 1, f); have++; cnt(); } catch { alert("這張照片無法讀取，請重新拍攝"); } };
+  const add = async f => { try { await pAttachPhoto(it, 1, f); have++; cnt(); } catch { uiAlert("這張照片無法讀取，請重新拍攝"); } };
   box.querySelector("#sfCam").onclick = () => openCamera(`改善後照片：${it.location || it.no}`, blob => add(blob), async files => { for (const f of files) await add(f); });
   box.querySelector("#sfFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; for (const f of fs) await add(f); };
   box.querySelector("#sfNo").onclick = () => box.remove();
@@ -294,9 +294,9 @@ async function renderPunchForm(id) {
   view.querySelectorAll("[data-d]").forEach(b => b.onclick = () => { it.due = pAddDays(+b.dataset.d); flush().then(() => renderPunchForm(id)); });
   view.querySelectorAll("[data-pcam]").forEach(b => b.onclick = () => { const slot = +b.dataset.pcam;
     openCamera(slot === 0 ? `缺失照片：${it.location || it.no}` : `改善後照片：${it.location || it.no}`, blob => addPhoto(slot, blob),
-      async files => { for (const f of files) { try { await addPhoto(slot, f); } catch { alert("這張照片無法讀取，請重新拍攝"); } } }); });
+      async files => { for (const f of files) { try { await addPhoto(slot, f); } catch { uiAlert("這張照片無法讀取，請重新拍攝"); } } }); });
   view.querySelectorAll("[data-pfile]").forEach(inp => inp.onchange = async () => { const slot = +inp.dataset.pfile, files = [...inp.files]; inp.value = "";
-    for (const f of files) { try { await addPhoto(slot, f); } catch { alert("這張照片無法讀取，請換一張"); } } });
+    for (const f of files) { try { await addPhoto(slot, f); } catch { uiAlert("這張照片無法讀取，請換一張"); } } });
   view.onclick = async e => {
     const img = e.target.closest?.(".th img");
     if (img) { const pid = img.parentElement.querySelector("[data-pdel]").dataset.pdel, cur = photos.find(x => x.id === pid), same = photos.filter(x => x.itemIdx === cur.itemIdx);
@@ -306,7 +306,7 @@ async function renderPunchForm(id) {
     if (mk) { const ph = photos.find(x => x.id === mk.dataset.pmark); if (!ph) return;
       pMarkEditor(ph, it.marks[ph.id], pMarkStart(it, photos)[ph.id], ms => { if (ms.length) it.marks[ph.id] = ms; else delete it.marks[ph.id]; save(); }, async () => { await flush(); drawTh(0); });
       return; }
-    const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？" + ((it.marks[del] || []).length ? "\n（照片上的標記也會一併刪除）" : ""))) return;
+    const del = e.target.dataset?.pdel; if (!del || !(await uiConfirm("刪除這張照片？" + ((it.marks[del] || []).length ? "\n（照片上的標記也會一併刪除）" : "")))) return;
     const ph = photos.find(x => x.id === del); await DB.del("photos", del); photos = photos.filter(x => x.id !== del);
     if (it.marks[del]) { delete it.marks[del]; save(); }
     drawTh(ph.itemIdx); if (ph.itemIdx === 0) await syncThumb();
@@ -314,17 +314,17 @@ async function renderPunchForm(id) {
   const logAdd = text => it.log.push({ at: new Date().toISOString(), text });
   $("#pFix")?.addEventListener("click", async () => { it.status = "fixed"; it.fixedAt = today(); logAdd("回報已改善" + (it.fixedNote ? "：" + it.fixedNote : "")); await flush(); renderPunchForm(id); });
   $("#pPass")?.addEventListener("click", async () => {
-    const by = prompt("複驗人員姓名", ls.get("punchBy", "")); if (by === null) return;
+    const by = await uiPrompt("複驗人員姓名", ls.get("punchBy", "")); if (by === null) return;
     it.status = "closed"; it.closedAt = today(); it.closedBy = by.trim(); if (by.trim()) ls.set("punchBy", by.trim()); logAdd(`複驗合格・結案（${by.trim() || "未填"}）`); await flush(); renderPunchForm(id);
   });
   $("#pReject")?.addEventListener("click", async () => {
-    const why = prompt("複驗不合格的原因（可空白）", ""); if (why === null) return;
+    const why = await uiPrompt("複驗不合格的原因（可空白）", ""); if (why === null) return;
     it.status = "open"; it.rejects = (it.rejects || 0) + 1; it.fixedAt = ""; logAdd("複驗不合格・退回" + (why.trim() ? "：" + why.trim() : "")); await flush(); renderPunchForm(id);
   });
-  $("#pReopen")?.addEventListener("click", async () => { if (!confirm("重新開啟這筆缺失？")) return; it.status = "open"; it.closedAt = ""; it.closedBy = ""; logAdd("重新開啟"); await flush(); renderPunchForm(id); });
+  $("#pReopen")?.addEventListener("click", async () => { if (!(await uiConfirm("重新開啟這筆缺失？"))) return; it.status = "open"; it.closedAt = ""; it.closedBy = ""; logAdd("重新開啟"); await flush(); renderPunchForm(id); });
   svBindDone(sv, "#/punch", "pDone");
   $("#pNext").onclick = async () => { await flush(); const n = pNew({ no: await pNextNo(), location: it.location, seedLoc: it.location, trade: it.trade, due: it.due, foundDate: it.foundDate, foundBy: it.foundBy }); await DB.put("punch", n); goReplace("#/punch/" + n.id); };
-  $("#pDel").onclick = async () => { if (!confirm("確定刪除這筆缺失？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("punch", id); goBack("#/punch"); };
+  $("#pDel").onclick = async () => { if (!(await uiConfirm("確定刪除這筆缺失？（含照片）"))) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("punch", id); goBack("#/punch"); };
 }
 
 /* ---------- 工班通知單 ---------- */
@@ -397,9 +397,9 @@ async function renderPunchReport() {
   });
   $("#rShare").onclick = async () => {
     const text = groupList.map(([tr, os]) => `【缺失改善通知】${site?.name || ""}\n工班：${tr}　${pRoc(today())}\n` + os.map((x, i) => `${i + 1}. ${x.location || "—"}｜${x.desc || "—"}${pMarkText(x, photoMap[x.id] || [], "、") ? `（${pMarkText(x, photoMap[x.id] || [], "、")}）` : ""}｜期限 ${x.due ? pRoc(x.due) : "未設"}${pOver(x) ? `（逾期${pLate(x)}天）` : ""}`).join("\n") + `\n共 ${os.length} 項，請於期限前改善並通知複驗。`).join("\n\n");
-    if (!text) { alert("沒有可分享的缺失"); return; }
+    if (!text) { uiAlert("沒有可分享的缺失"); return; }
     try { if (navigator.share) { await navigator.share({ title: "缺失改善通知", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
+    try { await navigator.clipboard.writeText(text); uiToast("已複製，可貼到 LINE 或訊息。"); } catch { await uiPrompt("請複製以下內容", text); }
   };
 }
 
@@ -473,8 +473,8 @@ async function renderPunchSummary() {
   $("#sShare").onclick = async () => {
     const lines = tradeOrder.map(k => { const c = pStats(all.filter(x => tradeKey(x) === k)); return `${k}：共${c.n}｜待改善${c.open}｜待複驗${c.fixed}｜已結案${c.closed}${c.over ? `｜逾期${c.over}` : ""}`; });
     const text = `【缺失改善總表】${site?.name || ""}　${pRoc(today())}\n共 ${tot.n} 項：待改善 ${tot.open}、待複驗 ${tot.fixed}、已結案 ${tot.closed}（完成率 ${pPct(tot.closed, tot.n)}）${tot.over ? `，逾期 ${tot.over} 項` : ""}\n` + lines.join("\n");
-    if (!tot.n) { alert("還沒有缺失紀錄"); return; }
+    if (!tot.n) { uiAlert("還沒有缺失紀錄"); return; }
     try { if (navigator.share) { await navigator.share({ title: "缺失改善總表", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
+    try { await navigator.clipboard.writeText(text); uiToast("已複製，可貼到 LINE 或訊息。"); } catch { await uiPrompt("請複製以下內容", text); }
   };
 }

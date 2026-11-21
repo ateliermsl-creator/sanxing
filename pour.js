@@ -117,13 +117,13 @@ async function renderPourBatch(id) {
     let bph = (await DB.all("photos")).filter(p => p.recId === bt.id).sort((a, b) => a.created - b.created);
     const draw = () => { $("#bjTh").innerHTML = bph.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
     const add = async file => { const p = { id: uid(), recId: bt.id, itemIdx: 0, data: await makePhoto(file, `${bt.date} ${sites.find(x => x.id === bt.siteId)?.name || ""}`.trim()), created: Date.now() }; await DB.put("photos", p); bph.push(p); draw(); };
-    const many = async files => { for (const f of files) { try { await add(f); } catch { alert("這張照片無法讀取"); } } };
+    const many = async files => { for (const f of files) { try { await add(f); } catch { uiAlert("這張照片無法讀取"); } } };
     draw();
     $("#bjCam").onclick = () => openCamera(`整批附件：${pourTitle(bt)}`, blob => add(blob), many);
     $("#bjFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; await many(fs); };
     $("#bjTh").onclick = async e => {
       const img = e.target.closest("img"); if (img) { openLightbox(bph, bph.findIndex(x => x.id === img.parentElement.querySelector("[data-pdel]").dataset.pdel)); return; }
-      const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
+      const del = e.target.dataset?.pdel; if (!del || !(await uiConfirm("刪除這張照片？"))) return;
       await DB.del("photos", del); bph = bph.filter(x => x.id !== del); draw();
     };
   }
@@ -135,10 +135,10 @@ async function renderPourBatch(id) {
       ...bt.trucks.map((t, i) => { const j = pourJudge(bt, t); return `${i + 1}. ${t.plate || "—"} ${t.arrive || ""}　${t.volume || "—"}m³　坍度${t.slump || "—"}　Cl⁻${t.chloride || "—"}${t.sampled ? "　試體" + (t.specimen || "✓") : ""}　${j.st === "ok" ? "合格" : j.st === "ng" ? "不合格" : "未判定"}${t.disp === "reject" ? "（退料）" : ""}`; }),
       `合計：${s.trucks} 車、澆置 ${pourVol(s.vol)} m³${s.rej ? `（退料 ${pourVol(s.rej)}）` : ""}、合格率 ${pourRate(s)}`].join("\n");
     try { if (navigator.share) { await navigator.share({ title: "混凝土澆置抽驗", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
+    try { await navigator.clipboard.writeText(text); uiToast("已複製，可貼到 LINE 或訊息。"); } catch { await uiPrompt("請複製以下內容", text); }
   };
   $("#pjDel").onclick = async () => {
-    if (!confirm(`確定刪除這次澆置？含 ${bt.trucks.length} 車的全部紀錄與照片，無法復原。`)) return;
+    if (!(await uiConfirm(`確定刪除這次澆置？含 ${bt.trucks.length} 車的全部紀錄與照片，無法復原。`))) return;
     const ph = await DB.all("photos"); for (const p of ph) if (p.recId === bt.id || bt.trucks.some(t => t.id === p.recId)) await DB.del("photos", p.id);
     await attPurge([id, ...bt.trucks.map(t => t.id)]); await DB.del("pours", id); goBack("#/pour");
   };
@@ -191,12 +191,12 @@ async function renderPourTruck(id, tid) {
   const drawTh = () => { $("#ptTh").innerHTML = photos.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
   drawTh();
   const addPhoto = async file => { const p = { id: uid(), recId: t.id, itemIdx: 0, data: await makePhoto(file, `${bt.date} ${site?.name || ""}`.trim()), created: Date.now() }; await DB.put("photos", p); photos.push(p); drawTh(); };
-  $("#ptCam").onclick = () => openCamera(`第 ${idx} 車：${t.plate || ""}`, blob => addPhoto(blob), async files => { for (const f of files) { try { await addPhoto(f); } catch { alert("這張照片無法讀取"); } } });
-  $("#ptFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; for (const f of fs) { try { await addPhoto(f); } catch { alert("這張照片無法讀取"); } } };
+  $("#ptCam").onclick = () => openCamera(`第 ${idx} 車：${t.plate || ""}`, blob => addPhoto(blob), async files => { for (const f of files) { try { await addPhoto(f); } catch { uiAlert("這張照片無法讀取"); } } });
+  $("#ptFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; for (const f of fs) { try { await addPhoto(f); } catch { uiAlert("這張照片無法讀取"); } } };
   view.onclick = async e => {
     const img = e.target.closest?.(".th img");
     if (img) { const pid = img.parentElement.querySelector("[data-pdel]").dataset.pdel; openLightbox(photos, photos.findIndex(x => x.id === pid)); return; }
-    const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
+    const del = e.target.dataset?.pdel; if (!del || !(await uiConfirm("刪除這張照片？"))) return;
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
   attBind(view, t.id);
@@ -207,7 +207,7 @@ async function renderPourTruck(id, tid) {
     bt.trucks.push(n); await flush(); goReplace(`#/pour/${id}/truck/${n.id}`);
   };
   $("#ptDel").onclick = async () => {
-    if (!confirm("確定刪除這一車？")) return;
+    if (!(await uiConfirm("確定刪除這一車？"))) return;
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(tid); bt.trucks = bt.trucks.filter(x => x.id !== tid); await flush(); goBack("#/pour/" + id);
   };
@@ -285,9 +285,9 @@ async function renderPourSummary() {
     a.download = `混凝土澆置抽驗_${woRoc(today())}.csv`; document.body.appendChild(a); a.click(); a.remove();
   };
   $("#sShare").onclick = async () => {
-    if (!all.length) { alert("這個期間沒有澆置紀錄"); return; }
+    if (!all.length) { uiAlert("這個期間沒有澆置紀錄"); return; }
     const text = [`【混凝土澆置抽驗統計】${site?.name || ""}　${pRoc(today())}`, ...rows.map(({ fl, r }) => `${fl}：${r.trucks} 車、${pourVol(r.vol)} m³、合格率 ${pourRate(r)}${r.ng ? `（不合格 ${r.ng}）` : ""}`), `合計：${tot.trucks} 車、${pourVol(tot.vol)} m³、合格率 ${pourRate(tot)}${tot.rej ? `；退料 ${pourVol(tot.rej)} m³` : ""}`].join("\n");
     try { if (navigator.share) { await navigator.share({ title: "混凝土澆置抽驗統計", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
+    try { await navigator.clipboard.writeText(text); uiToast("已複製，可貼到 LINE 或訊息。"); } catch { await uiPrompt("請複製以下內容", text); }
   };
 }

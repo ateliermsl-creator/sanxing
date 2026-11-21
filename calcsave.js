@@ -97,7 +97,7 @@ async function csClick(e) {
   }
   if (b.id === "csNew") {
     const rec = csCur(tab) ? await DB.get("calcs", csCur(tab)) : null;
-    if (!rec && Object.keys(csData(tab)).length && !confirm("目前的輸入還沒存到專案，要清空開始新計算嗎？")) return;
+    if (!rec && Object.keys(csData(tab)).length && !(await uiConfirm("目前的輸入還沒存到專案，要清空開始新計算嗎？"))) return;
     if (csTimer) { clearTimeout(csTimer); await csWrite(tab); }
     csQuiet = true; try { localStorage.removeItem(CS_KEYS[tab]); } catch {} csQuiet = false;
     csSetCur(tab, ""); route(); return;
@@ -106,7 +106,7 @@ async function csClick(e) {
   const x = await DB.get("calcs", id); if (!x) { csPaint(); return; }
   if (b.dataset.csopen || b.dataset.cscopy) {
     const cur = csCur(tab) ? await DB.get("calcs", csCur(tab)) : null;
-    if (!cur && Object.keys(csData(tab)).length && !confirm("目前的輸入還沒存到專案，開啟後會被取代。要繼續嗎？")) return;
+    if (!cur && Object.keys(csData(tab)).length && !(await uiConfirm("目前的輸入還沒存到專案，開啟後會被取代。要繼續嗎？"))) return;
     if (csTimer) { clearTimeout(csTimer); await csWrite(tab); }
     if (b.dataset.cscopy) {
       const c = { ...x, id: uid(), siteId, name: (x.name || "") + "（複本）", created: Date.now(), updated: Date.now() };
@@ -119,7 +119,7 @@ async function csClick(e) {
     route(); return;
   }
   if (b.dataset.csdel) {
-    if (!confirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`)) return;
+    if (!(await uiConfirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`))) return;
     await DB.del("calcs", id); if (csCur(tab) === id) csSetCur(tab, ""); csPaint();
   }
 }

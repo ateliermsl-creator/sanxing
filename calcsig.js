@@ -23,7 +23,7 @@ const csgLs = tab => ({
   get: () => ccsg(csgAll()[tab]),
   set: v => {
     const o = csgAll(); if (Object.keys(v).length) o[tab] = v; else delete o[tab];
-    try { localStorage.setItem("calcSigs", JSON.stringify(o)); } catch { alert("簽名沒有存成功（這支手機的瀏覽器儲存空間不足）。"); }
+    try { localStorage.setItem("calcSigs", JSON.stringify(o)); } catch { uiAlert("簽名沒有存成功（這支手機的瀏覽器儲存空間不足）。"); }
   }
 });
 
@@ -40,9 +40,9 @@ function csgBind(store, redraw) {
   paper.insertAdjacentHTML("afterend", `<div class="noprint csgbar">
     ${stale.length ? `<p class="cnote csgold">⚠ ${esc(stale.join("、"))}簽名後計算內容有修改，舊簽名不會印出，請重新簽名。</p>` : ""}
     <div class="row prsign">${CSG_ROLES.map(([k, l]) => `<button class="sec" data-csg="${k}">✍ ${ok(k) ? l + "重簽" : l + "簽名"}</button>`).join("")}</div></div>`);
-  view.querySelectorAll("[data-csg]").forEach(b => b.onclick = () => {
+  view.querySelectorAll("[data-csg]").forEach(b => b.onclick = async () => {
     const k = b.dataset.csg, l = CSG_ROLES.find(r => r[0] === k)[1];
-    if (ok(k) && !confirm(`${l}已經簽過了，要重新簽名嗎？`)) return;
+    if (ok(k) && !(await uiConfirm(`${l}已經簽過了，要重新簽名嗎？`))) return;
     saSigPad(l, ok(k)?.img || "", async sig => {
       const n = { ...(store.get() || {}) };
       if (sig) n[k] = { img: sig, at: new Date().toISOString(), fp }; else delete n[k];

@@ -18,15 +18,15 @@ const inAppName = () => { const ua = navigator.userAgent; return /\bLine\//i.tes
 const isIOS = () => /iPhone|iPad|iPod/i.test(navigator.userAgent) || (/Macintosh/i.test(navigator.userAgent) && (navigator.maxTouchPoints > 1 || /Mobile\//.test(navigator.userAgent)));   // iPadOS 的 Safari 會假裝成 Mac
 async function copyUrl() {
   const url = location.href.split("#")[0];
-  try { await navigator.clipboard.writeText(url); alert("已複製網址，請打開 Safari 貼上網址。"); } catch { prompt("請複製這個網址，貼到 Safari 開啟", url); }
+  try { await navigator.clipboard.writeText(url); uiToast("已複製網址，請打開 Safari 貼上網址。"); } catch { await uiPrompt("請複製這個網址，貼到 Safari 開啟", url); }
 }
 function inAppHelp() {
   const n = inAppName(), where = isIOS() ? "右下角的「分享」圖示 ⬆ →「在 Safari 開啟」" : "右上角選單 ⋮ →「以其他瀏覽器開啟」或「在 Chrome 開啟」";
   return { n, where, text: `目前是在 ${n} 的內建瀏覽器裡，無法列印或存成 PDF，也不能加入主畫面。\n\n請改用 ${isIOS() ? "Safari" : "Chrome"} 開啟：點${where}。\n\n注意：內建瀏覽器與 ${isIOS() ? "Safari" : "Chrome"} 的資料是分開的，在這裡填的資料不會出現在那邊。` };
 }
 // 列印／存成 PDF：內建瀏覽器按了不會有反應，所以改成說明怎麼處理
-function doPrint() {
-  if (inAppName()) { if (confirm(inAppHelp().text + "\n\n要複製網址嗎？")) copyUrl(); return; }
+async function doPrint() {
+  if (inAppName()) { if (await uiConfirm(inAppHelp().text + "\n\n要複製網址嗎？")) copyUrl(); return; }
   window.print();
 }
 function showInAppBanner() {
@@ -122,6 +122,13 @@ async function loadTemplates() {
 }
 
 /* ---------- 工地 ---------- */
+// 第幾次開啟（每個分頁階段算一次）：安裝到桌面的提示從第二次開啟才出現（2026-11-22 品牌識別 R9，第一次先認識工具）
+function appOpens() {
+  try {
+    if (!sessionStorage.getItem("opened")) { sessionStorage.setItem("opened", "1"); localStorage.setItem("opens", String(+(localStorage.getItem("opens") || 0) + 1)); }
+    return +(localStorage.getItem("opens") || 1);
+  } catch { return 2; }
+}
 let sites = [];
 let siteId = ls.get("siteId", "");
 async function loadSites() {
@@ -141,16 +148,16 @@ function siteCompany(sid = siteId) {
   return s && typeof s.company === "string" ? s.company : ls.get("company", "");
 }
 $("#siteSelect").onchange = e => { siteId = e.target.value; ls.set("siteId", siteId); route(); };
-/* mode: "first" 第一次使用（不可取消）／"add" 新增工地／"edit" 修改目前工地與公司 */
+/* mode: "first" 第一次使用（不可取消）／"welcome" 首頁歡迎卡片按的（同 first 但可取消）／"add" 新增工地／"edit" 修改目前工地與公司 */
 function openSetup(mode) {
   const d = $("#setup"), cur = sites.find(x => x.id === siteId);
   const blk = mode === "edit" && cur && window.cloudSiteBlock?.(cur.id, "edit");
-  if (blk) { alert(blk); return; }
-  $("#setupTitle").textContent = { first: "開始使用：先填寫專案", add: "新增專案", edit: "專案與公司設定" }[mode];
-  $("#setupHint").hidden = mode !== "first";
+  if (blk) { uiAlert(blk); return; }
+  $("#setupTitle").textContent = { first: "開始使用：先填寫專案", welcome: "開始使用：先填寫專案", add: "新增專案", edit: "專案與公司設定" }[mode];
+  $("#setupHint").hidden = mode !== "first" && mode !== "welcome";
   $("#sName").value = mode === "edit" && cur ? cur.name : "";
   $("#sCompany").value = mode === "edit" && cur ? siteCompany(cur.id) : ls.get("company", "");
-  $("#sOk").textContent = mode === "first" ? "開始填表" : "儲存";
+  $("#sOk").textContent = mode === "first" || mode === "welcome" ? "開始填表" : "儲存";
   $("#sCancel").hidden = mode === "first";
   $("#sDel").hidden = !(mode === "edit" && cur);
   d.dataset.mode = mode;
@@ -176,24 +183,24 @@ $("#setupForm").addEventListener("submit", async e => {
 // 刪除工地：連同底下所有檢查表、點工單、缺失、澆置、材料進場、照片與附加檔案一併刪除
 $("#sDel").onclick = async () => {
   const cur = sites.find(x => x.id === siteId); if (!cur) return;
-  const blk = window.cloudSiteBlock?.(cur.id, "del"); if (blk) { alert(blk); return; }
+  const blk = window.cloudSiteBlock?.(cur.id, "del"); if (blk) { uiAlert(blk); return; }
   const stores = ["records", "workorders", "punch", "pours", "matrecs", "shots", "safety", "logs", "vols", "calcs"], mine = {}, ids = new Set();
   for (const st of stores) {
     mine[st] = (await DB.all(st)).filter(x => x.siteId === cur.id);
     for (const x of mine[st]) { ids.add(x.id); for (const t of x.trucks || []) ids.add(t.id); }
   }
   const total = stores.reduce((a, st) => a + mine[st].length, 0);
-  if (!confirm(`要刪除專案「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}、混凝土方數 ${mine.vols.filter(x => x.kind !== "tile").length}、磁磚計算 ${mine.vols.filter(x => x.kind === "tile").length}、結構計算 ${mine.calcs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`)) return;
-  const typed = prompt(`為了避免誤刪，請輸入專案名稱確認：\n${cur.name}`);
+  if (!(await uiConfirm(`要刪除專案「${cur.name}」嗎？\n\n底下共 ${total} 筆資料（檢查表 ${mine.records.length}、點工單 ${mine.workorders.length}、缺失 ${mine.punch.length}、澆置 ${mine.pours.length}、材料進場 ${mine.matrecs.length}、施工照片 ${mine.shots.length}、勤前教育 ${mine.safety.length}、施工日誌 ${mine.logs.length}、混凝土方數 ${mine.vols.filter(x => x.kind !== "tile").length}、磁磚計算 ${mine.vols.filter(x => x.kind === "tile").length}、結構計算 ${mine.calcs.length}）與其照片、附加檔案都會一併刪除，無法復原。\n\n建議先到「備份」匯出一份。`))) return;
+  const typed = await uiPrompt(`為了避免誤刪，請輸入專案名稱確認：\n${cur.name}`);
   if (typed === null) return;
-  if (typed.trim() !== cur.name) { alert("名稱不符，沒有刪除。"); return; }
+  if (typed.trim() !== cur.name) { uiAlert("名稱不符，沒有刪除。"); return; }
   for (const st of stores) for (const x of mine[st]) await DB.del(st, x.id);
   for (const ph of await DB.all("photos")) if (ids.has(ph.recId)) await DB.del("photos", ph.id);
   await attPurge([...ids]);
   await DB.del("sites", cur.id);
   $("#setup").close(); siteId = "";
   await loadSites();
-  if (!sites.length) { goReplace("#/"); openSetup("first"); } else route();
+  if (!sites.length) goReplace("#/"); route();
 };
 $("#addSiteBtn").onclick = () => openSetup("add");
 $("#setBtn").onclick = () => openSetup(siteId ? "edit" : "first");
@@ -245,7 +252,8 @@ async function route() {
   const [, page, a, b2, c2] = location.hash.split("/");
   $("#topbar").hidden = !page;
   // 第一次使用要先建立工地；但安裝教學、計算機、備份不需要工地，不要擋住
-  if (!sites.length && !["install", "calc", "struct", "backup", "cloud"].includes(page || "") && !$("#setup").open && !window.cloudFirst?.()) openSetup("first");
+  // 首頁不跳（2026-11-22 品牌識別 R9：第一次開啟先看到首頁，由首頁的歡迎卡片引導建立專案）
+  if (!sites.length && !["", "install", "calc", "struct", "backup", "cloud"].includes(page || "") && !$("#setup").open && !window.cloudFirst?.()) openSetup("first");
   window.scrollTo(0, 0);
   if (page === "checklist") {
     if (!a) return renderChecklist();
@@ -279,8 +287,10 @@ async function renderHome() {
     <div class="htop"><div class="hbak" id="hBak" hidden></div><div class="hbar"><span class="hbic" aria-hidden="true">${ic("folder")}</span>${sites.length
       ? `<span class="hblbl">所在專案：</span><span class="hbname"><b id="hName">${esc((sites.find(s => s.id === siteId) || sites[0]).name)}</b>${sites.length > 1 ? " ▾" : ""}<select id="hSite" aria-label="切換所在專案">${sites.map(s => `<option value="${esc(s.id)}" ${s.id === siteId ? "selected" : ""}>${esc(s.name)}</option>`).join("")}</select></span><span class="hbact"><button class="lnk" id="hEdit" aria-label="修改所在專案" title="修改所在專案">${ic("edit", "sm")}</button><button class="lnk" id="hAdd" aria-label="新增專案" title="新增專案">${ic("plus", "sm")}</button></span>`
       : `尚未建立專案，<button class="lnk t" id="hAdd">新增專案</button>`}</div></div>
-    ${!isStandalone() && !inAppName() && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
+    ${!isStandalone() && !inAppName() && appOpens() >= 2 && !(() => { try { return localStorage.getItem("installHint"); } catch { return ""; } })() ? `<div class="hint" id="instHint">把工具箱放到手機桌面，像 App 一樣使用、沒有網路也能開。<br><a href="#/install">看教學</a>　<button class="sec" id="instHide" style="min-height:34px;font-size:14px;padding:0 12px">不用提醒</button></div>` : ""}
     <section class="hero"><img src="brand/logo-mark.svg" alt=""><h1><img class="hword" src="brand/wordmark.svg" alt="三星蔥工具箱"></h1><p>粗糲的現場，需要最純粹的隨身器物</p></section>
+    ${sites.length ? "" : `<section class="panel hwel"><b>歡迎使用三星蔥工具箱</b><p>先建立第一個專案（工程名稱與公司），各表單的抬頭會自動帶入。工程計算機與結構計算不需要專案也能用。</p><button id="hWel">${ic("plus", "bi")}建立專案</button></section>`}
+    <h2 class="hsec">現場表單 <small>填寫・簽名・A4 單據</small></h2>
     <a class="card" href="#/checklist"><div class="ph">${ic("check")}</div><div><b>自主檢查表</b><small>施工自主檢查・手寫簽名・PDF 列印</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/safety"><div class="ph">${ic("hat")}</div><div><b>職安衛勤前教育／危害告知</b><small>全體合照・高風險作業・九宮格手寫簽到・A4 簽到表</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/log"><div class="ph">${ic("log")}</div><div><b>施工日誌</b><small>B14-4 格式・自動累計・帶入材料與取樣・A4 PDF</small></div><span class="arrow">›</span></a>
@@ -289,6 +299,7 @@ async function renderHome() {
     <a class="card" href="#/cure"><div class="ph">${ic("cyl")}</div><div><b>試體養護與拆模追蹤</b><small>${cuN ? `⚠️ ${cuN} 項待處理・` : ""}7／28 天試壓提醒・拆模齡期・強度台帳</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/punch"><div class="ph">${ic("pin")}</div><div><b>缺失改善追蹤</b><small>初複驗・位置拍照・期限・工班分派</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/workorder"><div class="ph">${ic("sign")}</div><div><b>點工單／機械出工</b><small>當場簽認・工時彙總・月結對帳</small></div><span class="arrow">›</span></a>
+    <h2 class="hsec">計算與照片</h2>
     <a class="card" href="#/calc"><div class="ph">${ic("calc")}</div><div><b>工程計算機</b><small>鋼筋稱號・鋼筋重量・混凝土方數・坡度高程・面積・磁磚計算・穿樑套管</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/shot"><div class="ph">${ic("cam")}</div><div><b>施工照片（電子黑板）</b><small>黑板合成在照片上・照片冊・分享 PDF</small></div><span class="arrow">›</span></a>
     <h2 class="hsec">結構計算 <small>假設工程檢核・A4 計算書</small></h2>
@@ -297,9 +308,10 @@ async function renderHome() {
     <a class="card" href="#/backup"><div class="ph">${ic("backup")}</div><div><b>備份與還原</b><small>下載備份檔・匯入備份檔</small></div><span class="arrow">›</span></a>
     <a class="card" href="#/install"><div class="ph">${ic("phone")}</div><div><b>加到手機桌面</b><small>像 App 一樣使用・教學</small></div><span class="arrow">›</span></a>
     <div class="card soon"><div class="ph">${ic("plus")}</div><div><b>更多工具開發中</b><small>敬請期待</small></div></div>
-    <details class="panel"><summary><b>📢 最新更新</b>${updates[0] ? ` <small style="color:var(--mut)">${esc(updates[0].date)}</small>` : ""}</summary>${updates.map(u => `<div class="d">${esc(u.date)}</div><ul>${u.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`).join("")}</details>`;
+    <details class="panel"><summary><b>最新更新</b>${updates[0] ? ` <small style="color:var(--mut)">${esc(updates[0].date)}</small>` : ""}</summary>${updates.map(u => `<div class="d">${esc(u.date)}</div><ul>${u.items.map(i => `<li>${esc(i)}</li>`).join("")}</ul>`).join("")}</details>`;
   $("#hSite")?.addEventListener("change", e => { siteId = e.target.value; ls.set("siteId", siteId); $("#siteSelect").value = siteId; $("#hName").textContent = sites.find(s => s.id === siteId)?.name || ""; });
   $("#hAdd")?.addEventListener("click", () => openSetup("add"));
+  $("#hWel")?.addEventListener("click", () => openSetup("welcome"));
   $("#hEdit")?.addEventListener("click", () => openSetup("edit"));
   $("#instHide")?.addEventListener("click", () => { try { localStorage.setItem("installHint", "1"); } catch {} $("#instHint").remove(); });
   checkBackup();
@@ -367,7 +379,7 @@ async function openCamera(title, onShot, onFiles) {
     c.getContext("2d").drawImage(v, 0, 0);
     const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.92));
     cam.classList.add("flash"); setTimeout(() => cam.classList.remove("flash"), 120);
-    try { await onShot(blob); n++; $("#camCount").textContent = `已拍 ${n} 張`; } catch { alert("存檔失敗"); }
+    try { await onShot(blob); n++; $("#camCount").textContent = `已拍 ${n} 張`; } catch { uiAlert("存檔失敗"); }
     busy = false;
   };
 }
@@ -477,7 +489,7 @@ async function renderChecklistPick() {
   const recent = [...new Set(recs.slice().sort((a, b) => b.updated - a.updated).map(r => r.templateId))].map(id => shown.find(t => t.id === id)).filter(Boolean).slice(0, 4);
   const row = t => {
     const mine = stat[t.id] || [];
-    return `<div class="trow"><div class="tinfo"><span class="tag">${esc(t.cat)}</span>${t.custom ? `<span class="tag" style="color:var(--g)">自訂</span>` : ""}<b>${esc(tplShort(t))}</b>
+    return `<div class="trow"><div class="tinfo"><span class="tag">${esc(t.cat)}</span>${t.custom ? `<span class="tag" style="color:var(--coffee)">自訂</span>` : ""}<b>${esc(tplShort(t))}</b>
       <small>${mine.length ? `已填 ${mine.length} 份・最近 ${esc(mine[0].date)}${mine[0].location ? "・" + esc(mine[0].location) : ""}` : `${t.items.length} 個檢查項目`}</small></div>
       ${t.custom ? `<a class="btnlink sm" href="#/template/${esc(t.id)}" aria-label="編輯範本">✎</a>` : ""}<button data-new="${esc(t.id)}">填這張</button></div>`;
   };
@@ -591,7 +603,7 @@ async function renderForm(id) {
       openLightbox(same, same.indexOf(cur)); return;
     }
     const id = e.target.dataset?.delph; if (!id || locked) return;
-    if (!confirm("刪除這張照片？")) return;
+    if (!(await uiConfirm("刪除這張照片？"))) return;
     const p = photos.find(x => x.id === id); await DB.del("photos", id);
     photos = photos.filter(x => x.id !== id); drawThumbs(p.itemIdx);
   };
@@ -602,12 +614,12 @@ async function renderForm(id) {
   };
   view.querySelectorAll("input[data-ph]").forEach(inp => inp.onchange = async () => {
     const i = +inp.dataset.ph, files = [...inp.files]; inp.value = "";
-    for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請換一張或重新拍攝"); } }
+    for (const f of files) { try { await addPhoto(i, f); } catch { uiAlert("這張照片無法讀取，請換一張或重新拍攝"); } }
   });
   view.querySelectorAll("[data-cam]").forEach(btn => btn.onclick = () => {
     const i = +btn.dataset.cam;
     openCamera(`第 ${i + 1} 項：${tpl.items[i].t}`, blob => addPhoto(i, blob),
-      async files => { for (const f of files) { try { await addPhoto(i, f); } catch { alert("這張照片無法讀取，請重新拍攝"); } } });
+      async files => { for (const f of files) { try { await addPhoto(i, f); } catch { uiAlert("這張照片無法讀取，請重新拍攝"); } } });
   });
   view.querySelectorAll("canvas").forEach(c => setupSig(c, rec, save));
   attBind(view, rec.id, { readonly: locked });
@@ -615,13 +627,13 @@ async function renderForm(id) {
   $("#lockBtn")?.addEventListener("click", async () => {
     const left = tpl.items.length - doneCount(rec), noSig = [["worker", "檢查人員"], ["manager", "工地主任"]].filter(([k]) => !rec.sigs[k]).map(([, l]) => l);
     const warn = [left > 0 ? `還有 ${left} 項沒有標記結果` : "", noSig.length ? `${noSig.join("、")}尚未簽名` : ""].filter(Boolean);
-    if (!confirm(`${warn.length ? "⚠ " + warn.join("；") + "。\n\n" : ""}確定完成檢查？\n完成後內容只能查看與列印，要改時可以按「修改」。`)) return;
+    if (!(await uiConfirm(`${warn.length ? "⚠ " + warn.join("；") + "。\n\n" : ""}確定完成檢查？\n完成後內容只能查看與列印，要改時可以按「修改」。`))) return;
     rec.locked = Date.now(); clDirty = rec;
-    try { await flush(); } catch { delete rec.locked; alert("儲存失敗，可能是手機儲存空間不足，還沒有完成。"); return; }
+    try { await flush(); } catch { delete rec.locked; uiAlert("儲存失敗，可能是手機儲存空間不足，還沒有完成。"); return; }
     renderForm(id);
   });
   $("#unlockBtn")?.addEventListener("click", async () => {
-    if (!confirm("這份已完成檢查。要修改內容嗎？\n簽名會保留，並記下修改時間；改好請再按一次「完成檢查」。")) return;
+    if (!(await uiConfirm("這份已完成檢查。要修改內容嗎？\n簽名會保留，並記下修改時間；改好請再按一次「完成檢查」。"))) return;
     delete rec.locked; rec.reopened = [...reo, Date.now()].slice(-20); clDirty = rec; await flush(); renderForm(id);
   });
   view.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => {
@@ -636,8 +648,8 @@ async function renderForm(id) {
     await DB.put("records", nr); goReplace("#/checklist/" + nr.id);
   };
   $("#delBtn")?.addEventListener("click", async () => {
-    if (locked) { alert("已完成的紀錄不能直接刪除，請先按「修改」。"); return; }
-    if (!confirm("確定刪除這份紀錄？")) return;
+    if (locked) { uiAlert("已完成的紀錄不能直接刪除，請先按「修改」。"); return; }
+    if (!(await uiConfirm("確定刪除這份紀錄？"))) return;
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(rec.id); await DB.del("records", rec.id); goBack("#/checklist");
   });
@@ -729,9 +741,9 @@ async function renderTemplateEditor(id) {
     $("#tSave").onclick = async () => {
       sync();
       const items = tpl.items.filter(i => i.t.trim());
-      if (!tpl.name.trim()) { alert("請輸入表單名稱"); return; }
-      if (!items.length) { alert("至少要有一個檢查項目"); return; }
-      if (used && items.length !== tpl.items.length) { alert("已有紀錄使用這張表，不能留下空白項目，請填寫或刪除空白列"); return; }
+      if (!tpl.name.trim()) { uiAlert("請輸入表單名稱"); return; }
+      if (!items.length) { uiAlert("至少要有一個檢查項目"); return; }
+      if (used && items.length !== tpl.items.length) { uiAlert("已有紀錄使用這張表，不能留下空白項目，請填寫或刪除空白列"); return; }
       tpl.name = tpl.name.trim(); tpl.cat = tpl.cat.trim() || "自訂"; tpl.sub = tpl.sub.trim() || tpl.name.replace(/施工自主檢查表|自主檢查表/, "");
       tpl.items = items.map(i => ({ t: i.t.trim(), std: i.std.trim() })); tpl.updated = Date.now();
       delete tpl.origLen;
@@ -739,8 +751,8 @@ async function renderTemplateEditor(id) {
       goBack("#/checklist/new");
     };
     $("#tDel")?.addEventListener("click", async () => {
-      if (used) { alert(`已有 ${used} 筆紀錄使用這張表，請先刪除那些紀錄`); return; }
-      if (!confirm("確定刪除這張檢查表？")) return;
+      if (used) { uiAlert(`已有 ${used} 筆紀錄使用這張表，請先刪除那些紀錄`); return; }
+      if (!(await uiConfirm("確定刪除這張檢查表？"))) return;
       await DB.del("templates", tpl.id); await loadTemplates(); goBack("#/checklist/new");
     });
   };
@@ -873,8 +885,8 @@ async function renderBackup() {
         x.siteId = map[x.siteId] || x.siteId; await DB.put("calcs", x); kn++;
       }
       await loadSites();
-      alert(`${d.dropped ? `（有 ${d.dropped} 筆資料格式不正確，已略過）\n` : ""}匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}${sn ? `、${sn} 張施工照片` : ""}${an ? `、${an} 筆勤前教育` : ""}${ln ? `、${ln} 張施工日誌` : ""}${vn ? `、${vn} 筆混凝土方數` : ""}${kn ? `、${kn} 筆結構計算` : ""}`);
-    } catch { alert("這不是有效的備份檔"); }
+      uiAlert(`${d.dropped ? `（有 ${d.dropped} 筆資料格式不正確，已略過）\n` : ""}匯入完成，更新了 ${n} 份檢查紀錄${wn ? `、${wn} 張點工單` : ""}${pn ? `、${pn} 筆缺失` : ""}${jn ? `、${jn} 次澆置抽驗` : ""}${mn ? `、${mn} 筆材料進場` : ""}${sn ? `、${sn} 張施工照片` : ""}${an ? `、${an} 筆勤前教育` : ""}${ln ? `、${ln} 張施工日誌` : ""}${vn ? `、${vn} 筆混凝土方數` : ""}${kn ? `、${kn} 筆結構計算` : ""}`);
+    } catch { uiAlert("這不是有效的備份檔"); }
     e.target.value = "";
   };
 }

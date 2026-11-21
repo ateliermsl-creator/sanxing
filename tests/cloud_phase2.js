@@ -1,3 +1,4 @@
+require('./uidlg');
 // cloud_phase2：第二期同步（缺失改善、施工日誌、材料進場、勤前教育、混凝土澆置、點工單、方數）＋結構計算存到專案。需先啟動 wrangler dev（見 tests/README.md）
 const { chromium } = require('playwright');
 const B = process.env.CLOUD_URL || 'http://localhost:8787';

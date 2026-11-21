@@ -15,6 +15,7 @@
 | `app.js` | 資料庫包裝、路由、首頁、自主檢查表、備份／匯入、相機、燈箱、工地設定。首頁最上方一行 `.htop`：左邊備份提醒小標籤 `#hBak`（`checkBackup` 同時寫它，首頁時 CSS 藏掉上方整條 `#backupWarn`）、右邊「所在專案」小標籤 `.hbar`（2026-11-17 使用者由「目前工程」改名）（色調同備份提醒；透明 `#hSite` 疊在名稱上點了切換，✎ 修改、＋ 新增；≤ 420px 藏「所在專案：」字樣、名稱過長省略；沒有工地時顯示「尚未建立專案，新增專案」；2026-11-17 使用者要求低調、窄、不擋主要功能，備份提醒一併排；標籤用「工程」是使用者選的，資料仍是工地），與內頁頂端 `#siteSelect` 共用 `siteId`（2026-11-17 使用者要求，「工程專案」就是既有的「工地」，不另建資料；2026-11-17 曾改成「名牌」樣式（朱印＋襯線字，PR #26），使用者覺得不好看已還原，不要再改回名牌） 自主檢查表入口 `#/checklist` 是所在專案的已填紀錄列表（狀態／表單或類別／搜尋篩選，`clFilter clTpl clQuery`），「＋ 新增檢查表」到 `#/checklist/new` 選表（最近用過＋類別＋搜尋），每次填表都是 `records` 一筆獨立紀錄；表單底部「同一張表再填一份」。回列表時 `clPurgeBlank` 清掉完全沒填的空白紀錄（廠商、日期是自動帶入不算；`clDirty` 先存未寫入的輸入）（2026-11-17 使用者要求）。表單底部「💾 儲存並返回」＋「✔ 完成檢查」：完成後 `rec.locked`（時間）整份唯讀、列表顯示 🔒 已完成、不能直接刪除、不會被當空白清掉；「✎ 修改這份紀錄」解除並把時間記進 `rec.reopened`（畫面顯示「完成後曾修改」，PDF 不印）。用語「完成檢查／修改」是 2026-11-17 使用者用決策卡選的（不要改回「鎖定／解除鎖定」，也不要加簽名時跳出詢問）。 |
 | `templates.js` | 內建自主檢查表範本（新增範本在這裡加一筆）。2026-11-16 依使用者提供的「土建自主檢查表」Word 轉入 37 張（id 依類別前綴 `fm_ rb_ cc_ tp_ mt_ fn_ me_ ls_`），原表紅字解說存在 `note`：填表點 ⓘ 才顯示、預覽／PDF 預設不印，勾「PDF 附解說」（localStorage `pvNotes`）才印。**紀錄以項目順序對應範本，已上線範本只能在最後加項目**。舊示範表（formwork、rebar、concrete、mep_embed）標 `retired: true`：使用者要求以新表為主，不列在選單，只留給舊紀錄開啟 |
 | `icons.js` | 統一線性圖示 `IC` 與 `ic(name, cls)`（品牌識別第二批），要在 `app.js`、`sidenav.js` 之前載入 |
+| `ui.js` | **站內對話框與提示**（品牌識別第三批 R5，取代原生 `alert／confirm／prompt`）：`uiAlert`、`uiConfirm`（Promise，要 `await`，所在函式要 `async`；訊息含「刪除／清除／移出／停權」時確定鈕自動改成該動詞、紅色）、`uiPrompt`（取消回 `null`；預設值有換行時是唯讀多行框給人複製）、`uiToast`（上方小提示，不用按）。**新程式不要再用 `alert／confirm／prompt`**。測試：`tests/uidlg.js` 把這些對話框轉成 Playwright 的 `dialog` 事件，測試檔最上面 `require('./uidlg')` 後照舊用 `p.on('dialog', d => d.accept())` |
 | `safe.js` | **匯入備份的驗證與清理**，以及 `safeImg` / `safeId` |
 | `attach.js` | 附加檔案（Blob，單檔 10 MB） |
 | `pdf.js` | 「分享 PDF」：html2canvas + jsPDF，把 `.paper` 轉成 A4 |
@@ -55,7 +56,9 @@
 - 內頁備份提醒 `#backupWarn` 和首頁 `#hBak` 一樣是紅點小標籤。
 - 主色 `--coral` 已由 #cf4e41 微調成 #c8493c（白字對比 4.7:1）。
 - **Logo 用 A 版（忠實描繪，2026-11-22 使用者選定）**，向量檔都在 `brand/`：`logo-mark.svg`（標誌）、`-mono`（單色深咖啡）、`-reverse`（反白）、`logo-horizontal*.svg`、`logo-vertical.svg`、`wordmark.svg`／`wordmark-reverse.svg`（標準字，Noto Serif TC 600 轉外框，OFL）、`favicon.svg`、`app-icon.svg`／`app-icon-maskable.svg`（`icon-180/192/512.png`、`icon-maskable-512.png` 由這兩個轉出）。首頁 hero 與電腦版側欄用 `logo-mark.svg`＋標準字圖。Logo 不當功能圖示用；舊 `leek.png` 保留但已不在畫面上。
-- **圖示一律用 `icons.js` 的 `ic(name)`，不要再用 emoji 當圖示**（24 px、線寬 1.75、單色）。首頁卡片、側欄、頂列、結構計算分類（`STRUCT_CATS.icon` 存圖示名稱）已換；表單內按鈕的 emoji（📂 💾 ✍ 等）尚未換，之後新做的按鈕用 `ic()`。
+- **圖示一律用 `icons.js` 的 `ic(name)`，不要再用 emoji 當圖示**（24 px、線寬 1.75、單色）。首頁卡片、側欄、頂列、結構計算分類（`STRUCT_CATS.icon` 存圖示名稱）已換。表單內按鈕（`button`、`.btnlink`、`label.phbtn`、`summary`）開頭的 emoji 由 `icons.js` 的 `icSwap`（MutationObserver）依 `IC_EMOJI` 自動換成圖示（2026-11-22 第三批），所以舊程式按鈕文字照舊寫 emoji 也會顯示成圖示；新按鈕建議直接寫 `ic("名稱","bi")`。`.paper`、`#topbar`、`.sym`（○ ✕ ／ 判定鈕）、`[data-noic]` 不換；✕ ✓ ← 是文字符號不換。狀態文字裡的 emoji（🔴 🕒 ⚠ 等）尚未換。
+- 首頁（第三批 R9、R10）：手機 hero 改橫式小版（< 768px），卡片分「現場表單／計算與照片／結構計算／備份與安裝」；**沒有專案時首頁不再自動跳出設定框**，改顯示歡迎卡片（`#hWel` → `openSetup("welcome")`，可取消）；其他表單頁沒有專案仍會跳 `first`。安裝到桌面的提示從第二次開啟才出現（`appOpens()`，localStorage `opens`）。iPhone 啟動畫面在 `brand/splash/`（11 種尺寸，`index.html` 的 `apple-touch-startup-image`，不進 sw 快取）。
+- 樣式 token（第三批 R7、R13）：字級 `--fs-note/cap/sm/body/h3/h2/h1`（12/13/15/17/20/24/30）、圓角 `--r-sm/--r-md/--r/--r-pill`（8/12/16/999），原本剛好是這些數值的地方已換成變數；舊綠色 `:root`、`--g`／`--g2` 已移除（改用 `--coffee`、`--coffee-mut`）。新樣式用 token，不要寫死。磁磚展開圖的顏色是 A4 計算書的一部分，維持寫死。
 
 ## 每次修改一定要做的事
 1. **`sw.js` 的 `VERSION` 加 1**（例如 `"v135"` → `"v136"`）。不加的話，已安裝的手機不會換新版。

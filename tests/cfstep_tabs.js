@@ -1,3 +1,4 @@
+require('./uidlg');
 // cfstep_tabs：計算機分步驟分頁（cfstep.js）見 tests/README.md
 const {chromium}=require('playwright');const S=require('path').join(__dirname,'out');require('fs').mkdirSync(S,{recursive:true});
 (async()=>{const b=await chromium.launch();

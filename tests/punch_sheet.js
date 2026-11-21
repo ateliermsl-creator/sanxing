@@ -1,3 +1,4 @@
+require('./uidlg');
 // punch_sheet：「回報已改善」浮出面板位置——手機貼底部；平板／電腦在畫面中央、整個面板看得到 見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});(async()=>{const b=await chromium.launch();let bad=0;
 for(const [w,h,tag] of [[1440,900,'desktop'],[1920,1000,'wide'],[1024,768,'tablet'],[390,844,'phone'],[320,568,'phone320']]){

@@ -1,3 +1,4 @@
+require('./uidlg');
 // tile_calc：磁磚計算（原泥作材料）：多面累積、扣開口、多種磁磚、片數／箱數、存檔／開啟、計算書簽名、方數清單不混入、舊網址轉址、窄螢幕。見 tests/README.md
 const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();let bad=0;
 const chk=(name,ok,info='')=>{if(!ok)bad++;console.log(ok?'OK':'NG',name,info)};

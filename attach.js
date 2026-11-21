@@ -55,17 +55,17 @@ async function attBind(root, recId, opt = {}) {
   input.onchange = async e => {
     const files = [...e.target.files]; e.target.value = "";
     const big = files.filter(f => f.size > ATT_MAX);
-    if (big.length) alert(`以下檔案超過 10 MB，沒有加入：\n${big.map(f => `${f.name}（${attMB(f.size)}）`).join("\n")}\n\n建議改用拍照，或先縮小檔案再附加。`);
+    if (big.length) uiAlert(`以下檔案超過 10 MB，沒有加入：\n${big.map(f => `${f.name}（${attMB(f.size)}）`).join("\n")}\n\n建議改用拍照，或先縮小檔案再附加。`);
     for (const f of files.filter(f => f.size <= ATT_MAX)) {
       try { await DB.put("files", { id: uid(), recId, name: f.name, type: f.type || "application/octet-stream", size: f.size, blob: f, created: Date.now() }); }
-      catch { alert(`「${f.name}」存不進去，可能是手機儲存空間不足。`); }
+      catch { uiAlert(`「${f.name}」存不進去，可能是手機儲存空間不足。`); }
     }
     await draw(); opt.onChange?.();
   };
   list.onclick = async e => {
     const btn = e.target.closest("[data-a]"); if (!btn) return;
     const id = btn.closest(".att").dataset.id, f = await DB.get("files", id); if (!f) return;
-    if (btn.dataset.a === "del") { if (!confirm(`刪除「${f.name}」？`)) return; await DB.del("files", id); await draw(); opt.onChange?.(); return; }
+    if (btn.dataset.a === "del") { if (!(await uiConfirm(`刪除「${f.name}」？`))) return; await DB.del("files", id); await draw(); opt.onChange?.(); return; }
     const url = URL.createObjectURL(f.blob);
     const download = () => { const a = document.createElement("a"); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); };
     if (btn.dataset.a === "share") {

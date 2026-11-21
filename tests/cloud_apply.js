@@ -1,3 +1,4 @@
+require('./uidlg');
 // cloud_apply：不在名單的同事自行申請加入 → 管理員在「雲端同步」頁核准。需先啟動 wrangler dev（見 tests/README.md）
 // SHOTS=資料夾 時另存畫面截圖
 const { chromium } = require('playwright');

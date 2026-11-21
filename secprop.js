@@ -310,7 +310,7 @@ function tabSection(box) {
     };
     const hb = $("#spHole"); if (hb) hb.onclick = () => { st.holes.push(""); draw(); box.querySelector(`[data-p="holes.${st.holes.length - 1}"]`)?.focus(); };
     box.querySelectorAll("[data-hdel]").forEach(b => b.onclick = () => { st.holes.splice(+b.dataset.hdel, 1); draw(); });
-    $("#spClear").onclick = () => { if (!confirm("清除斷面性質的輸入？")) return; Object.assign(st, secBlank(), { outer: "", holes: [] }); draw(); };
+    $("#spClear").onclick = async () => { if (!(await uiConfirm("清除斷面性質的輸入？"))) return; Object.assign(st, secBlank(), { outer: "", holes: [] }); draw(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
     $("#spSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/sec/sheet"; };
   };

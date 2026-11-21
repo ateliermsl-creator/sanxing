@@ -1,3 +1,4 @@
+require('./uidlg');
 // punch_report：缺失改善通知單有沒有產出資料（全部結案、只拍照的缺失、切換專案）見 tests/README.md
 const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();let bad=0;
 const chk=(name,ok,info='')=>{if(!ok)bad++;console.log(ok?'OK':'NG',name,info)};

@@ -1,3 +1,4 @@
+require('./uidlg');
 // narrow_overflow：見 tests/README.md
 const {chromium}=require('playwright');const fs=require('fs');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S+'pdfs',{recursive:true});require('fs').mkdirSync(S+'theme',{recursive:true});
 const seed=fs.readFileSync(__dirname+'/seed_all.txt','utf8');

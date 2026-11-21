@@ -256,7 +256,7 @@ function tabAnchor(box) {
     box.querySelectorAll("[data-c]").forEach(el => el.onchange = () => { st[el.dataset.c] = el.checked ? "1" : "0"; calc(); });
     $("#anBolt").onchange = e => { const b = ANC_BOLTS.find(([n]) => n === e.target.value); if (b) { setv("da", b[1]); setv("pitch", b[2]); } calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
-    $("#anClear").onclick = () => { if (!confirm("清除錨栓的輸入？")) return; Object.assign(st, ancBlank()); draw(); };
+    $("#anClear").onclick = async () => { if (!(await uiConfirm("清除錨栓的輸入？"))) return; Object.assign(st, ancBlank()); draw(); };
     $("#anSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/anc/sheet"; };
   };
   draw();

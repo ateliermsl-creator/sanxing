@@ -1,7 +1,8 @@
+require('./uidlg');
 // safety_signin：見 tests/README.md
 const {chromium}=require('playwright');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S+'pdfs',{recursive:true});require('fs').mkdirSync(S+'theme',{recursive:true});const fs=require('fs');
 (async()=>{const b=await chromium.launch({args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});const ctx=await b.newContext({viewport:{width:390,height:844},hasTouch:true,permissions:['camera']});const p=await ctx.newPage();const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
-await p.goto('http://localhost:8793/index.html');await p.waitForSelector('#setup[open]');await p.fill('#sName','宜蘭三星蔥新建工程');await p.fill('#sCompany','三星蔥營造有限公司');await p.click('#sOk');await p.waitForTimeout(500);
+await p.goto('http://localhost:8793/index.html');await p.click('#hWel');await p.waitForSelector('#setup[open]');await p.fill('#sName','宜蘭三星蔥新建工程');await p.fill('#sCompany','三星蔥營造有限公司');await p.click('#sOk');await p.waitForTimeout(500);
 console.log('首頁順序:',(await p.$$eval('a.card b',x=>x.map(y=>y.textContent))).slice(0,3).join(' > '));
 await p.goto('http://localhost:8793/index.html#/safety');await p.click('#saAdd');await p.waitForSelector('#saGrid .sasig');
 await p.fill('[data-f=place]','3F 樓板');await p.fill('[data-f=host]','王主任');await p.fill('[data-f=content]','柱鋼筋綁紮');

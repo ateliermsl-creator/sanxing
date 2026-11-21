@@ -135,14 +135,14 @@ async function renderLogForm(id) {
   // 帶入
   const lastLog = async () => (await DB.all("logs")).filter(x => x.siteId === r.siteId && x.id !== id && x.date <= r.date).sort((a, b) => b.date.localeCompare(a.date) || b.created - a.created)[0];
   $("#lgCarry").onclick = async () => {
-    const p = await lastLog(); if (!p) { alert("找不到更早的日誌。"); return; }
-    if (r.items.some(x => x.name || x.today) && !confirm("目前「施工概況」已有內容，重新帶入上次（含累計）會取代，確定嗎？")) return;
+    const p = await lastLog(); if (!p) { uiAlert("找不到更早的日誌。"); return; }
+    if (r.items.some(x => x.name || x.today) && !(await uiConfirm("目前「施工概況」已有內容，重新帶入上次（含累計）會取代，確定嗎？"))) return;
     for (const k of ["items", "specials", "mats", "labor", "machines"]) { r[k] = (p[k] || []).map(x => lgRow({ ...x, id: uid(), prev: lgSum(x.prev, x.today), today: "" })); if (!r[k].length && k !== "specials") r[k].push(lgRow()); draw(k); }
     save();
   };
   const dayRecs = async store => (await DB.all(store)).filter(x => x.siteId === r.siteId && x.date === r.date);
   $("#lgMat").onclick = async () => {
-    const ms = await dayRecs("matrecs"); if (!ms.length) { alert("這一天沒有材料進場驗收紀錄。"); return; }
+    const ms = await dayRecs("matrecs"); if (!ms.length) { uiAlert("這一天沒有材料進場驗收紀錄。"); return; }
     r.mats = r.mats.filter(x => x.name || x.today || x.prev);
     for (const m of ms) r.mats.push(lgRow({ name: [m.name, m.spec].filter(Boolean).join(" "), unit: m.unit, note: `進場 ${[m.qty, m.unit].filter(Boolean).join("")}${m.disp === "reject" ? "（退貨）" : m.disp === "pending" ? "（待確認）" : ""}` }));
     draw("mats"); save();
@@ -152,7 +152,7 @@ async function renderLogForm(id) {
     for (const b of ps) { const s = pourStats([b]); lines.push(`澆置 ${pourTitle(b)}：${s.trucks} 車、${pourVol(s.vol)} m³${s.rej ? `（退料 ${pourVol(s.rej)} m³）` : ""}${b.supplier ? "，" + b.supplier : ""}${b.fc ? "，fc' " + b.fc : ""}`);
       b.trucks.filter(t => t.sampled).forEach(t => lines.push(`　取樣試體 ${t.specimen || "（未編號）"}${t.slump ? "，坍度 " + t.slump + " cm" : ""}${t.chloride ? "，氯離子 " + t.chloride : ""}`)); }
     try { const { tests } = await cuBuild(); tests.filter(x => !x.done && x.due === lgDay(r.date)).forEach(x => lines.push(`今日滿 ${x.age} 天待壓：${x.loc} ${x.spec}`)); } catch {}
-    if (!lines.length) { alert("這一天沒有澆置或取樣紀錄。"); return; }
+    if (!lines.length) { uiAlert("這一天沒有澆置或取樣紀錄。"); return; }
     r.sampling = (r.sampling ? r.sampling + "\n" : "") + lines.join("\n"); $("[data-f=sampling]").value = r.sampling; save();
   };
   $("#lgImp").onclick = async () => {
@@ -161,7 +161,7 @@ async function renderLogForm(id) {
     const nw = pu.filter(x => x.siteId === r.siteId && x.foundDate === r.date), fx = pu.filter(x => x.siteId === r.siteId && x.fixedAt === r.date), open = pu.filter(x => x.siteId === r.siteId && x.status !== "closed").length;
     nw.forEach(x => lines.push(`新增缺失：${x.no ? x.no + " " : ""}${x.location || ""} ${x.desc || ""}`.trim())); fx.forEach(x => lines.push(`缺失完成改善：${x.no ? x.no + " " : ""}${x.location || ""} ${x.desc || ""}`.trim()));
     if (pu.some(x => x.siteId === r.siteId)) lines.push(`目前未結案缺失 ${open} 筆`);
-    if (!lines.length) { alert("這一天沒有自主檢查或缺失紀錄。"); return; }
+    if (!lines.length) { uiAlert("這一天沒有自主檢查或缺失紀錄。"); return; }
     r.important = (r.important ? r.important + "\n" : "") + lines.join("\n"); $("[data-f=important]").value = r.important; save();
   };
   // 勤前教育提示
@@ -173,7 +173,7 @@ async function renderLogForm(id) {
   attBind(view, id);
   svBindDone(sv, "#/log");
   $("#lgPrint").onclick = async () => { await flush(); location.hash = `#/log/${id}/print`; };
-  $("#lgDel").onclick = async () => { if (!confirm("確定刪除這張施工日誌？含附加檔案，無法復原。")) return; await attPurge(id); await DB.del("logs", id); goBack("#/log"); };
+  $("#lgDel").onclick = async () => { if (!(await uiConfirm("確定刪除這張施工日誌？含附加檔案，無法復原。"))) return; await attPurge(id); await DB.del("logs", id); goBack("#/log"); };
   dnBind(r, sv, { label: "完成日誌", del: "#lgDel", keep: "#lgPrint", rerender: () => renderLogForm(id), check: () => [!r.sig && "工地主任尚未簽章"] });
 }
 

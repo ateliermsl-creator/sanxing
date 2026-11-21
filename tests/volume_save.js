@@ -1,3 +1,4 @@
+require('./uidlg');
 // volume_save：混凝土方數「儲存的計算」：存、自動存回、新的計算、開啟、複製、刪除、換工地、XSS 名稱；見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:1});await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());

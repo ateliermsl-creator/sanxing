@@ -1,3 +1,4 @@
+require('./uidlg');
 // desktop_layout：電腦版自動排版（側欄、首頁格狀、計算機左右並排）見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});(async()=>{const b=await chromium.launch();
 for(const [w,h,tag] of [[1440,900,'desktop'],[1024,768,'tablet'],[390,844,'phone']]){

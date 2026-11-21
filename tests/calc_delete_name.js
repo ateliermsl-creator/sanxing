@@ -1,3 +1,4 @@
+require('./uidlg');
 // calc_delete_name：刪除開啟中的紀錄後，頁首「目前紀錄」與紀錄名稱欄要清掉、計算書不再印紀錄名稱（方數、磁磚、結構計算）；
 // 另測別台手機刪除（直接刪 DB 後重開頁面、或自動存回時發現已刪除）不會殘留名稱、也不會把紀錄存回去。見 tests/README.md
 const {chromium}=require('playwright');
