@@ -258,7 +258,7 @@ function renderSlabSheet() {
         <tr><td colspan="6">鋼管支撐：P = N × L2 × L3 = ${v(r.P, 1)} kgf；${sfLText(st, r, v)}；λ = KL／r = ${v(r.lam, 1)}（K = 1），Cc = ${v(r.Cc, 1)}，採${r.inel ? "非彈性" : "彈性"}挫曲公式求 Fa；fc = P／A</td></tr>${crow(r.sup)}
       </table>
       <table class="pt"><tr><th>檢核結果</th><td>${r.ng ? `${r.ng} 項超過容許值` : r.miss ? `尚有 ${r.miss} 項未完成` : "全部在容許值以內"}</td></tr>
-        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算，鋼管支撐以軸壓檢核挫曲。載重、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+        <tr><td colspan="2" style="font-size:9pt">註：構件以均布載重之梁計算，鋼管支撐以軸壓檢核挫曲。載重、材料容許值、撓度限制與支撐長由計算人員依材料規格、施工規範與契約確認，本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#sfBack").onclick = () => goBack("#/struct/slab");

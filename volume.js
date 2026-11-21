@@ -113,7 +113,7 @@ function tabVolume(box) {
       <div class="field"><label>預拌車容量（m³／車）</label><input id="vCap" data-c="cap" inputmode="decimal" value="${esc(st.cfg.cap)}"></div>
       <div class="field"><label>樓層／部位（計算書用）</label><input data-c="loc" placeholder="例：3F 梁板" value="${esc(st.cfg.loc)}"></div>
       <div class="field"><label>計算人員</label><input data-c="who" value="${esc(st.cfg.who)}"></div></div>
-      <p class="cnote">損耗率與車容量依你們的習慣填寫。計算書的工程名稱自動帶入目前選的工地。</p></div>
+      <p class="cnote">損耗率與車容量依你們的習慣填寫。計算書的工程名稱自動帶入目前選的專案。</p></div>
     <p class="cnote" style="margin:0 12px 12px">尺寸一律輸入<b>公尺</b>。梁長建議填柱面到柱面的淨長，避免和柱重複；梁與版一起計算時，梁可填「扣版厚」只算版底以下。樓梯 = 梯寬 ×〔級數 × 級高 × 級深 ÷ 2 ＋ 斜版厚 × 斜長〕，斜長 = √((級數×級深)² + (級數×級高)²)，平台請另以「版」計算。數值僅供估算叫料，實際以圖說與現場量測為準。資料會記在這支手機。</p>
     <section class="panel" id="vp3"><h2><span class="cfno">3</span>結果與存檔</h2><div id="vOut"></div>
       <div class="vsave"><div class="field" style="margin-bottom:4px"><label>紀錄名稱</label><input id="vTitle" placeholder="例：3F 版梁澆置" value="${esc(st.cfg.title)}" enterkeyhint="done"></div>
@@ -157,16 +157,16 @@ function tabVolume(box) {
     const c = $("#vCurSt"); c.textContent = rec ? `已存檔・${volStamp(rec.updated)}` : volHasData(st) ? "尚未存檔" : ""; c.classList.toggle("bad", !rec && volHasData(st));
   };
   const tip = () => { if (!live()) return; if (rec) svShow("saved", `✓ 已存檔 ${volStamp(rec.updated)}`); else if (volHasData(st)) svShow("unsaved", siteId ? "尚未存檔・按最下方「存檔」" : "輸入已保留在這支手機・尚未存檔"); else svHide(); };
-  const status = () => { head(); tip(); mark(!siteId ? "要存檔請先建立或選擇工地（右上角＋）。目前的輸入仍會暫存在這支手機。"
+  const status = () => { head(); tip(); mark(!siteId ? "要存檔請先建立或選擇專案（右上角＋）。目前的輸入仍會暫存在這支手機。"
     : rec ? `✓ 已存檔 ${volStamp(rec.updated)}，之後的修改會自動更新這筆紀錄` : volHasData(st) ? "尚未存檔：填紀錄名稱後按「存檔」，之後可從頁首「方數紀錄」開啟" : ""); };
   const list = async () => {
     const all = siteId ? (await DB.all("vols")).filter(x => x.siteId === siteId && x.kind !== "tile").sort((a, b) => (b.updated || 0) - (a.updated || 0)) : [];
     const el = live() && $("#vList"); if (!el) return;
     $("#vCount").textContent = all.length ? `（${all.length}）` : "";
-    el.innerHTML = all.length ? `<p class="cnote" style="margin:8px 0 4px">這個工地的方數紀錄（新的在前）：</p>` + all.map(x => { const T = volTotals(volNorm(x.rows, x.cfg)); return `<div class="vsrow${rec && rec.id === x.id ? " on" : ""}" data-id="${esc(x.id)}">
+    el.innerHTML = all.length ? `<p class="cnote" style="margin:8px 0 4px">這個專案的方數紀錄（新的在前）：</p>` + all.map(x => { const T = volTotals(volNorm(x.rows, x.cfg)); return `<div class="vsrow${rec && rec.id === x.id ? " on" : ""}" data-id="${esc(x.id)}">
         <div class="vsname"><b>${esc(x.name || "（未命名）")}</b>${rec && rec.id === x.id ? "（開啟中）" : ""}<small>${esc(volStamp(x.updated))}・淨 ${fmt(T.sub, 3)} m³・叫料 ${T.call > 0 ? fmt(T.call, 1) : "—"} m³</small></div>
         <div class="vsbtn"><button class="sec" data-vopen="1">開啟</button><button class="sec" data-vcopy="1">複製</button><button class="danger" data-vdel="1" aria-label="刪除「${esc(x.name)}」">刪除</button></div></div>`; }).join("")
-      : `<p class="cnote" style="margin:8px 0 0">${siteId ? "這個工地還沒有方數紀錄。算好後在頁面最下方「存檔」。" : "請先建立或選擇工地（右上角＋）。"}</p>`;
+      : `<p class="cnote" style="margin:8px 0 0">${siteId ? "這個專案還沒有方數紀錄。算好後在頁面最下方「存檔」。" : "請先建立或選擇專案（右上角＋）。"}</p>`;
   };
   const reopen = (rows, cfg) => { volSave(volNorm(rows, cfg)); tabVolume(box); };
   const doSave = async () => {
@@ -214,7 +214,7 @@ function tabVolume(box) {
       status(); list();
     }
   };
-  (async () => {   // 開啟中的那一筆要存在、且屬於目前工地，否則視為未儲存
+  (async () => {   // 開啟中的那一筆要存在、且屬於目前專案，否則視為未儲存
     const x = st.cfg.cur ? await DB.get("vols", st.cfg.cur) : null;
     if (x && x.siteId === siteId && x.kind !== "tile") rec = x; else if (st.cfg.cur) { if (!x) forget(); else { st.cfg.cur = ""; volSave(st); } }
     status(); list();
@@ -254,7 +254,7 @@ function renderVolSheet() {
         <tr><th colspan="4">一、基本資料</th></tr>
         <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(null))}</td></tr>
         ${st.cfg.title ? `<tr><td>紀錄名稱</td><td colspan="3">${esc(st.cfg.title)}</td></tr>` : ""}
-        <tr><td>樓層／部位</td><td>${esc(st.cfg.loc)}</td><td>計算日期</td><td>${esc(today())}</td></tr>
+        <tr><td>樓層／部位</td><td>${esc(st.cfg.loc)}</td><td>計算日期</td><td>${esc(rocYmd(today()))}</td></tr>
       </table>
       <table class="pt items">
         <tr><th colspan="5" style="text-align:left">二、構件數量（尺寸單位 m）</th></tr>

@@ -10,7 +10,7 @@ const WO_MACHINES = ["吊車", "怪手", "挖土機", "吊卡車", "發電機"];
 const woList = kind => (kind === "機械" ? WO_MACHINES : WO_LABOR);
 const woRoc = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || ""); return m ? String(+m[1] - 1911) + m[2] + m[3] : ""; };
 const woMin = t => { const m = /^(\d{1,2}):(\d{2})/.exec(t || ""); return m ? +m[1] * 60 + +m[2] : null; };
-const woStamp = iso => { if (!iso) return ""; const d = new Date(iso), p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+const woStamp = iso => { if (!iso) return ""; const d = new Date(iso), p = n => String(n).padStart(2, "0"); return `${d.getFullYear() - 1911}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };   // 民國年
 const woBlankLine = (kind = "人力") => ({ kind, name: "", other: false, spec: "", qty: "1", start: "08:00", end: "17:00", brk: "1", price: "", unit: "day" });
 // 每個單位的工時 = 結束 − 開始 − 休息（跨午夜自動 +24 小時）
 function woUnitHours(l) {
@@ -49,7 +49,7 @@ async function woNew() {
 /* ---------- 列表 ---------- */
 let woFilter = "all";
 async function renderWorkorderList() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const all = (await DB.all("workorders")).filter(o => o.siteId === siteId).sort((a, b) => b.date.localeCompare(a.date) || b.updated - a.updated);
   const list = all.filter(o => woFilter === "all" || (woFilter === "draft" ? o.status !== "signed" : o.status === "signed"));
   const n = f => all.filter(o => f === "all" || (f === "draft" ? o.status !== "signed" : o.status === "signed")).length;
@@ -61,7 +61,7 @@ async function renderWorkorderList() {
       const t = woTotals(o), names = (o.lines || []).filter(l => l.name).map(l => l.name).slice(0, 3).join("、");
       return `<a class="rec" href="#/workorder/${esc(o.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(o.vendor || "（未填廠商）")}</b><span class="st ${o.status === "signed" ? "st-已完成" : "st-填寫中"}">${o.status === "signed" ? "✔ 已簽認" : "未簽認"}</span></div>
         <small>${esc(o.date)}・${esc(o.docNo)}${names ? "・" + esc(names) : ""}<br>${t.man ? `人力 ${woH(t.man)} 工時` : ""}${t.man && t.mac ? "　" : ""}${t.mac ? `機械 ${woH(t.mac)} 台時` : ""}${!t.man && !t.mac ? "尚未填工時" : ""}${woAmount(o) ? "　" + woMoney(woAmount(o)) : ""}${o.location ? "・" + esc(o.location) : ""}</small></a>`;
-    }).join("") : `<div class="panel" style="color:var(--mut)">${all.length ? "這個分類沒有單據" : "這個工地還沒有點工單。現場臨時叫吊車、怪手或點工時，按「新增點工單」，收工前請廠商代表當場簽名。"}</div>`}`;
+    }).join("") : `<div class="panel" style="color:var(--mut)">${all.length ? "這個分類沒有單據" : "這個專案還沒有點工單。現場臨時叫吊車、怪手或點工時，按「新增點工單」，收工前請廠商代表當場簽名。"}</div>`}`;
   $("#woAdd").onclick = async () => { location.hash = "#/workorder/" + await woNew(); };
   view.querySelectorAll("[data-f]").forEach(b => b.onclick = () => { woFilter = b.dataset.f; renderWorkorderList(); });
 }
@@ -201,7 +201,7 @@ async function renderWorkorderPreview(id) {
   if (!rec) { goReplace("#/workorder"); return; }
   const site = sites.find(s => s.id === rec.siteId), company = siteCompany(rec.siteId), t = woTotals(rec), signed = rec.status === "signed";
   const showPrice = ls.get("woShowPrice", "") === "1", amt = woAmount(rec), cols = showPrice ? 10 : 8;
-  const d = rec.date ? rec.date.replace(/^(\d+)-(\d+)-(\d+)$/, "$1 年 $2 月 $3 日") : "";
+  const d = rocLong(rec.date);
   view.innerHTML = `
     <div class="noprint pvbar"><button class="sec" id="pvBack">← 返回</button><button id="pvPrint">🖨 列印／存成 PDF</button></div>
     <label class="noprint" style="display:flex;gap:8px;align-items:center;margin:0 12px 8px;font-size:15px"><input type="checkbox" id="pvPrice" style="width:22px;height:22px" ${showPrice ? "checked" : ""}> 顯示單價與金額（預設不印，因單價不在簽認範圍）</label>

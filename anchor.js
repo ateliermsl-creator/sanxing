@@ -291,7 +291,7 @@ function renderAncSheet() {
         ${r.checks.map(c => `<tr><td colspan="6" style="font-size:9pt">${c.t}：${c.f}</td></tr><tr><td>${c.t}</td><td class="c">${v(c.v, c.d)}</td><td class="c">${c.a > 0 ? v(c.a, c.d) : "—"}</td><td class="c">${c.u}</td><td class="c">${c.a > 0 ? v(c.v / c.a, 2) : "—"}</td><td class="c">${colJudge(c)[0]}</td></tr>`).join("")}`}
       </table>
       <table class="pt"><tr><th>檢核結果</th><td>${r.miss.length ? "資料未完整" : r.ng ? `${r.ng} 項超過設計強度` : "已檢核項目都在設計強度以內"}${r.nmiss ? `（${r.nmiss} 項未填資料不檢核）` : ""}</td></tr>
-        <tr><td colspan="2" style="font-size:9pt">註：依 ACI 318-19 第 17 章架構，SI 公式係數換算為 kgf、cm（非規範原文）。受力分配假設剛性鋼承板且只計錨栓。黏結式錨栓、地震設計額外要求、產品最小間距與邊距、鋼承板與構材未檢核；後置式錨栓應依產品評估報告。本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+        <tr><td colspan="2" style="font-size:9pt">註：依 ACI 318-19 第 17 章架構，SI 公式係數換算為 kgf、cm（非規範原文）。受力分配假設剛性鋼承板且只計錨栓。黏結式錨栓、地震設計額外要求、產品最小間距與邊距、鋼承板與構材未檢核；後置式錨栓應依產品評估報告。本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#anBack").onclick = () => goBack("#/struct/anc");

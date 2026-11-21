@@ -44,7 +44,7 @@ async function renderSafety(a, b) {
 
 /* ---------- 列表 ---------- */
 async function renderSafetyList() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const all = (await DB.all("safety")).filter(x => x.siteId === siteId).sort((x, y) => y.date.localeCompare(x.date) || y.created - x.created);
   view.innerHTML = `
     <h2 class="t">職安衛勤前教育／危害告知</h2>

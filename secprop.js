@@ -340,7 +340,7 @@ function renderSecSheet() {
       <table class="pt">
         ${r.ok ? `${sec("二、面積與形心", rows.basic)}${sec("三、慣性矩與主軸（對形心軸）", rows.inertia)}${sec("四、彈性斷面模數", rows.modulus)}` : `<tr><th>二、計算結果</th></tr><tr><td>待補：${r.err.map(esc).join("、")}</td></tr>`}
       </table>
-      <table class="pt"><tr><td style="font-size:9pt">註：以多邊形頂點依格林定理計算，理想化直角斷面、不含圓角；圓形以內接正 ${SEC_CIRC_N} 邊形近似。θu 為 x 軸逆時針轉至最大主慣性矩軸的角度；Sx± = Ix／cy±、Sy± = Iy／cx±。Jc = Ix + Iy 為極慣性矩，非扭轉常數。型鋼與鋼管請以產品型錄或規範表列值為準，本計算書僅供施工規劃參考。計算日期：${esc(today())}</td></tr></table>
+      <table class="pt"><tr><td style="font-size:9pt">註：以多邊形頂點依格林定理計算，理想化直角斷面、不含圓角；圓形以內接正 ${SEC_CIRC_N} 邊形近似。θu 為 x 軸逆時針轉至最大主慣性矩軸的角度；Sx± = Ix／cy±、Sy± = Iy／cx±。Jc = Ix + Iy 為極慣性矩，非扭轉常數。型鋼與鋼管請以產品型錄或規範表列值為準，本計算書僅供施工規劃參考。計算日期：${esc(rocYmd(today()))}</td></tr></table>
       <div class="psigs">${["計算人員" + (st.info.who ? "：" + esc(st.info.who) : ""), "工地主任"].map(l => `<div><br><br>${l}</div>`).join("")}</div>
     </div>`;
   $("#spBack").onclick = () => goBack("#/struct/sec");

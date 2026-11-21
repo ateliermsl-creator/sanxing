@@ -56,7 +56,7 @@ async function renderPour(a, b, c) {
 
 /* ---------- 列表 ---------- */
 async function renderPourList() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const all = (await DB.all("pours")).filter(x => x.siteId === siteId).sort((x, y) => y.date.localeCompare(x.date) || y.created - x.created);
   const tot = pourStats(all);
   view.innerHTML = `

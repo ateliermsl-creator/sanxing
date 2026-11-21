@@ -167,16 +167,16 @@ function tabTile(box) {
     const c = $("#tlCurSt"); c.textContent = rec ? `已存檔・${volStamp(rec.updated)}` : tileHasData(st) ? "尚未存檔" : ""; c.classList.toggle("bad", !rec && tileHasData(st));
   };
   const tip = () => { if (!live()) return; if (rec) svShow("saved", `✓ 已存檔 ${volStamp(rec.updated)}`); else if (tileHasData(st)) svShow("unsaved", siteId ? "尚未存檔・按最下方「存檔」" : "輸入已保留在這支手機・尚未存檔"); else svHide(); };
-  const status = () => { head(); tip(); mark(!siteId ? "要存檔請先建立或選擇工地（右上角＋）。目前的輸入仍會暫存在這支手機。"
+  const status = () => { head(); tip(); mark(!siteId ? "要存檔請先建立或選擇專案（右上角＋）。目前的輸入仍會暫存在這支手機。"
     : rec ? `✓ 已存檔 ${volStamp(rec.updated)}，之後的修改會自動更新這筆紀錄` : tileHasData(st) ? "尚未存檔：填紀錄名稱後按「存檔」，之後可從頁首「磁磚紀錄」開啟" : ""); };
   const list = async () => {
     const all = siteId ? (await DB.all("vols")).filter(x => x.siteId === siteId && x.kind === "tile").sort((a, b) => (b.updated || 0) - (a.updated || 0)) : [];
     const el = live() && $("#tlList"); if (!el) return;
     $("#tlCount").textContent = all.length ? `（${all.length}）` : "";
-    el.innerHTML = all.length ? `<p class="cnote" style="margin:8px 0 4px">這個工地的磁磚紀錄（新的在前）：</p>` + all.map(x => { const T = tileTotals(tileNorm(x.rows, x.cfg)); return `<div class="vsrow${rec && rec.id === x.id ? " on" : ""}" data-id="${esc(x.id)}">
+    el.innerHTML = all.length ? `<p class="cnote" style="margin:8px 0 4px">這個專案的磁磚紀錄（新的在前）：</p>` + all.map(x => { const T = tileTotals(tileNorm(x.rows, x.cfg)); return `<div class="vsrow${rec && rec.id === x.id ? " on" : ""}" data-id="${esc(x.id)}">
         <div class="vsname"><b>${esc(x.name || "（未命名）")}</b>${rec && rec.id === x.id ? "（開啟中）" : ""}<small>${esc(volStamp(x.updated))}・淨面積 ${fmt(T.A, 2)} m²・${T.n} 面</small></div>
         <div class="vsbtn"><button class="sec" data-topen="1">開啟</button><button class="sec" data-tcopy="1">複製</button><button class="danger" data-tdel="1" aria-label="刪除「${esc(x.name)}」">刪除</button></div></div>`; }).join("")
-      : `<p class="cnote" style="margin:8px 0 0">${siteId ? "這個工地還沒有磁磚紀錄。算好後在頁面下方「存檔」。" : "請先建立或選擇工地（右上角＋）。"}</p>`;
+      : `<p class="cnote" style="margin:8px 0 0">${siteId ? "這個專案還沒有磁磚紀錄。算好後在頁面下方「存檔」。" : "請先建立或選擇專案（右上角＋）。"}</p>`;
   };
   const reopen = (rows, cfg) => { tileSave(tileNorm(rows, cfg)); tabTile(box); };
   const doSave = async () => { if (!rec) return; clearTimeout(timer); timer = 0; if (!(await DB.get("vols", rec.id))) { forget(); return; } rec = tileRec(st, rec); await DB.put("vols", rec); status(); list(); };
@@ -296,7 +296,7 @@ function renderTileSheet() {
         <tr><th colspan="4">一、基本資料</th></tr>
         <tr><td>工程名稱</td><td colspan="3">${esc(calcProjName(null))}</td></tr>
         ${st.cfg.title ? `<tr><td>紀錄名稱</td><td colspan="3">${esc(st.cfg.title)}</td></tr>` : ""}
-        <tr><td>位置／部位</td><td>${esc(st.cfg.loc)}</td><td>計算日期</td><td>${esc(today())}</td></tr>
+        <tr><td>位置／部位</td><td>${esc(st.cfg.loc)}</td><td>計算日期</td><td>${esc(rocYmd(today()))}</td></tr>
       </table>
       <table class="pt items">
         <tr><th colspan="5" style="text-align:left">二、各面面積（尺寸單位 m）</th></tr>

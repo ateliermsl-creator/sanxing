@@ -117,7 +117,7 @@ async function renderShot(a, b) {
   return renderShotDetail(a);
 }
 async function renderShotList() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const all = (await DB.all("shots")).filter(x => x.siteId === siteId).sort((x, y) => y.created - x.created);
   const dates = [...new Set(all.map(x => x.date))].sort().reverse(), items = [...new Set(all.map(x => x.item).filter(Boolean))].sort((x, y) => x.localeCompare(y, "zh-Hant"));
   if (!dates.includes(shotFDate)) shotFDate = ""; if (!items.includes(shotFItem)) shotFItem = "";

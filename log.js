@@ -43,7 +43,7 @@ async function renderLog(a, b) {
 
 /* ---------- 列表 ---------- */
 async function renderLogList() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const all = (await DB.all("logs")).filter(x => x.siteId === siteId).sort((x, y) => y.date.localeCompare(x.date) || y.created - x.created);
   view.innerHTML = `
     <h2 class="t">施工日誌</h2>

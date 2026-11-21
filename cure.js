@@ -75,7 +75,7 @@ async function renderCure(a, b, c) {
 /* ---------- 待辦清單 ---------- */
 let cuShowLater = false;
 async function renderCureList() {
-  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立工地。</div>`; return; }
+  if (!siteId) { view.innerHTML = `<div class="panel">請先按上方 ✎ 建立專案。</div>`; return; }
   const { cfg, tests, strips } = await cuBuild();
   const todoT = tests.filter(x => !x.done).sort((p, q) => p.diff - q.diff), todoS = strips.filter(x => !x.stripped);
   const urgent = [...todoT.filter(x => x.diff <= 1).map(x => ({ k: "t", x, o: x.diff })), ...todoS.filter(x => !Number.isNaN(x.ready) && x.diff <= 0).map(x => ({ k: "s", x, o: x.diff }))].sort((p, q) => p.o - q.o);
