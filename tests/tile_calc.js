@@ -4,7 +4,7 @@ const chk=(name,ok,info='')=>{if(!ok)bad++;console.log(ok?'OK':'NG',name,info)};
 const out=require('path').join(__dirname,'out');require('fs').mkdirSync(out,{recursive:true});
 const U='http://localhost:8793/index.html';
 for(const [w,h,tag] of [[390,844,'phone'],[320,568,'phone320'],[1280,900,'desktop']]){
-const ctx=await b.newContext({viewport:{width:w,height:h},hasTouch:true});const p=await ctx.newPage();const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
+const ctx=await b.newContext({viewport:{width:w,height:h},hasTouch:true});const p=await ctx.newPage();await p.addInitScript(()=>{try{localStorage.setItem('cfStepAll','1')}catch{}});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());
 await p.goto(U);await p.waitForTimeout(500);
 await p.evaluate(async()=>{await DB.put('sites',{id:'s1',name:'甲工程',company:'順風營造'});
  await DB.put('vols',{id:'vl1',siteId:'s1',name:'3F 柱',rows:[{name:'C1',type:'rect',a:'1',b:'1',c:'1',n:'1',op:[]}],cfg:{loss:'5',cap:'6'},created:1,updated:1});

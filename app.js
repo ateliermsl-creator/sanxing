@@ -55,8 +55,8 @@ function renderInstall() {
     <li>回到桌面，點<b>三星蔥圖示</b>開啟。</li></ol>
     <p class="cnote">Samsung Internet：點選單 ≡ →「新增頁面到」→「主畫面」。</p>`;
   view.innerHTML = `<h2 class="t">📲 加到手機桌面</h2>
-    ${isStandalone() ? `<div class="legend" style="background:#e6f4e6;border-color:#bfe0bf;color:#1d5c1d">✓ 你現在就是從桌面圖示開啟的，已經安裝好了。</div>` : ""}
-    ${iab ? `<div class="legend" style="background:#ffe9d6;border-color:#f3c79f;color:#7a3b00">⚠ 你現在在 <b>${iab} 內建瀏覽器</b>，無法加入主畫面。請先改用 ${ios ? "Safari" : "Chrome"} 開啟：點${inAppHelp().where}。<br><button class="sec" id="inCopy" style="min-height:36px;font-size:14px;padding:0 12px;margin-top:6px">複製網址</button></div>` : ""}
+    ${isStandalone() ? `<div class="legend" style="background:var(--ok-lt);border-color:transparent;color:var(--ok)">✓ 你現在就是從桌面圖示開啟的，已經安裝好了。</div>` : ""}
+    ${iab ? `<div class="legend" style="background:var(--warn-lt);border-color:transparent;color:var(--warn)">⚠ 你現在在 <b>${iab} 內建瀏覽器</b>，無法加入主畫面。請先改用 ${ios ? "Safari" : "Chrome"} 開啟：點${inAppHelp().where}。<br><button class="sec" id="inCopy" style="min-height:36px;font-size:14px;padding:0 12px;margin-top:6px">複製網址</button></div>` : ""}
     <div class="panel"><b>為什麼要加到桌面？</b><ul style="margin:6px 0 0;padding-left:20px;line-height:1.7"><li>點一下圖示就開，像一般 App，沒有網址列。</li><li>第一次要有網路載入，之後<b>沒有網路也能用</b>。</li><li>不會被當成一般網頁，手機比較不會清掉資料。</li></ul></div>
     ${android && deferredInstall ? `<div class="row"><button id="instNow">⬇ 一鍵安裝到桌面</button></div>` : ""}
     <div class="panel"><h2 style="margin:0 0 6px;font-size:18px">${ios ? "🍎 iPhone／iPad（你的裝置）" : android ? "🤖 Android 手機（你的裝置）" : "📱 手機"}</h2>${ios ? iosSteps : android ? andSteps : iosSteps}</div>
@@ -441,7 +441,7 @@ async function renderChecklist() {
   });
   view.innerHTML = `
     <h2 class="t">自主檢查表</h2>
-    <div class="row" style="margin-top:0"><a class="btnlink" id="clAdd" href="#/checklist/new" style="background:var(--g);color:#f5f1e8">＋ 新增檢查表</a></div>
+    <div class="row" style="margin-top:0"><a class="btnlink pri" id="clAdd" href="#/checklist/new">＋ 新增檢查表</a></div>
     ${all.length ? `<div class="chips">${chips.map(([k, l]) => `<button class="chip ${k === clFilter ? "on" : ""}" data-cf="${k}">${l}（${all.filter(fit[k]).length}）</button>`).join("")}</div>
     <div class="panel" style="padding:10px 12px"><div class="grid2" style="gap:0 8px">
       <div class="field" style="margin:0"><input id="clQ" placeholder="搜尋位置／編號／表名" value="${esc(clQuery)}"></div>
@@ -524,7 +524,7 @@ async function renderForm(id) {
   const inp = (k, lab, ph) => `<div class="field"><label>${lab}</label><input data-f="${k}" value="${esc(rec[k])}" placeholder="${ph || ""}" ${dis}></div>`;
   view.innerHTML = `
     <h2 class="t" style="margin-bottom:0">${esc(tpl.name)}</h2>
-    <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:#7a5418;font-weight:700">${prog()}</span></div>
+    <div style="margin:0 12px;color:var(--mut);font-size:14px">${esc(tpl.cat)}・<span id="prog" style="color:var(--warn);font-weight:700">${prog()}</span></div>
     ${ro ? `<div class="cllock reopen">👁 ${esc(ro)}<small>${rec.locked ? `已完成檢查・${esc(clStamp(rec.locked))}` : "填寫中"}</small></div>` : locked ? `<div class="cllock">✔ 已完成檢查・${esc(clStamp(rec.locked))}<small>內容只能查看、預覽與列印；${canReopen ? "要改請按最下方「✎ 修改」" : "要修改請找工程主管或管理員"}。${reo.length ? `<br>完成後曾修改：${reo.map(x => esc(clStamp(x))).join("、")}` : ""}</small></div>`
       : reo.length ? `<div class="cllock reopen">✎ 修改中（這份曾完成過）<small>${esc(clStamp(reo[reo.length - 1]))} 開啟修改，改好請按最下方「✔ 完成檢查」。</small></div>` : ""}
     <div class="panel">

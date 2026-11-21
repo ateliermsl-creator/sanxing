@@ -4,6 +4,7 @@ const U = 'http://localhost:8793/index.html';
 const out = []; const ok = (n, c, x) => out.push(`${c ? '✓' : '✗'} ${n}${c ? '' : ' ' + JSON.stringify(x)}`);
 (async () => {
   const b = await chromium.launch(), p = await b.newPage({ viewport: { width: 390, height: 844 } }), errs = [];
+  await p.addInitScript(() => { try { localStorage.setItem('cfStepAll', '1'); } catch {} });
   p.on('pageerror', e => errs.push(e.message)); p.on('dialog', d => d.accept());
   await p.goto(U); await p.waitForTimeout(500);
   await p.evaluate(async () => { await DB.put('sites', { id: 'sA', name: '甲工地' }); await DB.put('sites', { id: 'sB', name: '乙工地' }); localStorage.setItem('siteId', 'sA'); localStorage.removeItem('calcColForm2'); localStorage.removeItem('calcCur'); });
