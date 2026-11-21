@@ -564,3 +564,11 @@ body.pmkOpen{overflow:hidden}
 /* 計算書簽名（calcsig.js） */
 .csgbar{max-width:210mm;margin:8px auto 16px}
 .csgbar .csgold{color:var(--bad);margin:0 12px 6px}
+/* 磁磚計算（tile.js）：沿用方數紀錄的樣式 */
+#tlOpen.on{background:var(--g);color:var(--card)}
+#tlList{flex-basis:100%}
+.tlspec+.tlspec{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.tlsz{margin:8px 0 0;align-items:center}.tlsz .chip{min-height:34px;padding:0 10px;font-size:13px}
+.tlper{font-size:12px;color:var(--mut);margin-left:auto}
+#tlSpecAdd{margin-top:12px}
+.pt tr.tlwrap th{white-space:normal}

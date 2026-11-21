@@ -95,13 +95,19 @@ const CLEAN = {
       pre: tri(x.pre, ["yes", "no"]), newLabor: tri(x.newLabor, ["yes", "no", "none"]), ppe: tri(x.ppe, ["yes", "no"]),
       other: cs(x.other, 3000), sampling: cs(x.sampling, 6000), notify: cs(x.notify, 3000), important: cs(x.important, 6000), sig: safeImg(x.sig), signer: cs(x.signer, 50), created: cn(x.created), updated: cn(x.updated) };
   })(),
-  vols: x => safeId(x.id) && safeId(x.siteId) && {   // 混凝土方數儲存的計算（volume.js）
+  vols: x => safeId(x.id) && safeId(x.siteId) && (x.kind === "tile" ? {   // 磁磚計算（tile.js）也存在 vols，以 kind 區分
+    id: x.id, siteId: x.siteId, kind: "tile", name: cs(x.name, 100),
+    rows: arr(x.rows, 300).map(r => ({ name: cs(obj(r).name, 100), ...Object.fromEntries(["s", "a", "b", "v", "n"].map(k => [k, cs(obj(r)[k], 30)])),
+      op: arr(obj(r).op, 12).map(o => ({ w: cs(obj(o).w, 30), h: cs(obj(o).h, 30), n: cs(obj(o).n, 30) })) })),
+    cfg: { specs: arr(obj(x.cfg).specs, 8).map(p => Object.fromEntries([["name", cs(obj(p).name, 60)], ...["L", "W", "j", "loss", "box"].map(k => [k, cs(obj(p)[k], 30)])])),
+      glue: cs(obj(x.cfg).glue, 30), bag: cs(obj(x.cfg).bag, 30), loc: cs(obj(x.cfg).loc, 100), who: cs(obj(x.cfg).who, 50), ...(Object.keys(ccsg(obj(x.cfg).sigs)).length ? { sigs: ccsg(obj(x.cfg).sigs) } : {}) },
+    created: cn(x.created), updated: cn(x.updated) } : {   // 混凝土方數儲存的計算（volume.js）
     id: x.id, siteId: x.siteId, name: cs(x.name, 100),
     rows: arr(x.rows, 300).map(r => ({ name: cs(obj(r).name, 100), type: ce(obj(r).type, ["rect", "cyl", "wall", "slab", "beam", "ftg", "gb", "stair", "oth"], "rect"),
       ...Object.fromEntries(["a", "b", "c", "d", "e", "v", "n"].map(k => [k, cs(obj(r)[k], 30)])),
       op: arr(obj(r).op, 8).map(o => ({ w: cs(obj(o).w, 30), h: cs(obj(o).h, 30), n: cs(obj(o).n, 30) })) })),
     cfg: { loss: cs(obj(x.cfg).loss, 30), cap: cs(obj(x.cfg).cap, 30), loc: cs(obj(x.cfg).loc, 100), who: cs(obj(x.cfg).who, 50), ...(Object.keys(ccsg(obj(x.cfg).sigs)).length ? { sigs: ccsg(obj(x.cfg).sigs) } : {}) },
-    created: cn(x.created), updated: cn(x.updated) },
+    created: cn(x.created), updated: cn(x.updated) }),
   files: x => safeId(x.id) && safeId(x.recId) && typeof x.data === "string" && x.data.length < 20e6 && SAFE_DATA.test(x.data) && {
     id: x.id, recId: x.recId, name: cname(x.name) || "檔案", type: SAFE_FILE_TYPES.includes(x.type) ? x.type : "application/octet-stream", size: cn(x.size), created: cn(x.created), data: x.data }
 };

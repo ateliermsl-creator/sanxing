@@ -4,9 +4,7 @@ const {chromium}=require('playwright');const S=require('path').join(__dirname,'o
 await p.goto('http://localhost:8793/index.html#/calc/lap');await p.waitForSelector('#lM');
 await p.fill('#lM','50');await p.fill('#lN','測試組合');console.log('D25長度:',await p.$$eval('#lOut tr',r=>r.filter(x=>x.innerText.startsWith('D25')).map(x=>x.innerText.replace(/\s+/g,' '))[0]));
 await p.click('#lSave');await p.waitForTimeout(200);console.log('常用組合:',await p.$$eval('[data-p]',x=>x.map(y=>y.textContent)));
-await p.goto('http://localhost:8793/index.html#/calc/mas');await p.waitForSelector('#mL');await p.fill('#mL','10');await p.fill('#mH','3');
-await p.fill('[data-o="0"][data-k="w"]','1');await p.fill('[data-o="0"][data-k="h"]','2');await p.fill('#sU','4');await p.fill('#sB','25');
-console.log('面積',(await p.innerText('#mArea')).replace(/\s+/g,' '),'|紅磚',(await p.innerText('#bOut')).replace(/\s+/g,' '),'|磁磚',(await p.innerText('#tOut')).replace(/\s+/g,' '),'|砂漿',(await p.innerText('#sOut')).replace(/\s+/g,' '));
+// 原「泥作材料」分頁已改成磁磚計算，見 tile_calc.js
 await p.goto('http://localhost:8793/index.html#/calc/sleeve');await p.waitForSelector('#vH');
 for(const [k,v] of [['vH','60'],['vL','600'],['vD','18'],['vX','300'],['vS','70']]) await p.fill('#'+k,v);
 console.log('套管OK:',(await p.innerText('#vOut')).replace(/\s+/g,' '));
