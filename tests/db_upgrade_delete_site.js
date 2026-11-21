@@ -1,3 +1,4 @@
+require('./uidlg');
 // db_upgrade_delete_site：見 tests/README.md
 const {chromium}=require('playwright');
 (async()=>{const b=await chromium.launch(),c=await b.newContext({viewport:{width:390,height:844}});const p=await c.newPage();const errs=[];p.on('pageerror',x=>errs.push(x.message));p.on('dialog',d=>d.accept(d.type()==='prompt'?'舊資料工地':undefined));

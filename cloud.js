@@ -340,17 +340,17 @@ async function renderCloud() {
     return j;
   };
   const bindState = () => {
-    $("#clLogin")?.addEventListener("click", () => { if (!navigator.onLine) { alert("登入需要網路。"); return; } location.href = "api/login"; });
+    $("#clLogin")?.addEventListener("click", () => { if (!navigator.onLine) { uiAlert("登入需要網路。"); return; } location.href = "api/login"; });
     $("#clMyName")?.addEventListener("click", async () => {
-      const n = prompt("你的姓名（同事看到的名字）", CLOUD.me?.name || ""); if (n === null) return;
-      if (!n.trim()) { alert("姓名不能空白。"); return; }
-      try { const j = await api("profile", { name: n.trim() }); CLOUD.me = { ...CLOUD.me, name: j.name }; ls.set("cloudMe", JSON.stringify(CLOUD.me)); clPaint(); $("#clUsers") && drawUsers(); } catch (er) { alert(er.message); }
+      const n = await uiPrompt("你的姓名（同事看到的名字）", CLOUD.me?.name || ""); if (n === null) return;
+      if (!n.trim()) { uiAlert("姓名不能空白。"); return; }
+      try { const j = await api("profile", { name: n.trim() }); CLOUD.me = { ...CLOUD.me, name: j.name }; ls.set("cloudMe", JSON.stringify(CLOUD.me)); clPaint(); $("#clUsers") && drawUsers(); } catch (er) { uiAlert(er.message); }
     });
     $("#clNow")?.addEventListener("click", () => cloudSync());
-    $("#clOut")?.addEventListener("click", () => { if (confirm("要登出嗎？這支手機上已下載的資料會保留，下次登入繼續同步。")) { ls.set("cloudMe", "null"); CLOUD.me = null; location.href = "/cdn-cgi/access/logout"; } });
+    $("#clOut")?.addEventListener("click", async () => { if (await uiConfirm("要登出嗎？這支手機上已下載的資料會保留，下次登入繼續同步。")) { ls.set("cloudMe", "null"); CLOUD.me = null; location.href = "/cdn-cgi/access/logout"; } });
     $("#clApply")?.addEventListener("click", async e => {
       const name = $("#clAName").value.trim(), note = $("#clANote").value.trim();
-      if (!name) { alert("請填姓名，管理員才認得出你。"); $("#clAName").focus(); return; }
+      if (!name) { uiAlert("請填姓名，管理員才認得出你。"); $("#clAName").focus(); return; }
       e.target.disabled = true;
       try {
         const r = await fetch("api/apply", { method: "POST", redirect: "manual", credentials: "same-origin", cache: "no-store", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, note }) });
@@ -358,8 +358,8 @@ async function renderCloud() {
         const j = await r.json().catch(() => ({}));
         if (r.status === 403) { clDenied(j); clToast(j.applied === "pending" ? "已送出申請，等管理員核准" : "沒有送出"); return; }
         if (r.ok) { cloudSync(); return; }   // 送出時剛好已被加入名單
-        alert(j.msg || "送出失敗，請稍後再試"); e.target.disabled = false;
-      } catch { alert("送出失敗，請確認網路後再試"); e.target.disabled = false; }
+        uiAlert(j.msg || "送出失敗，請稍後再試"); e.target.disabled = false;
+      } catch { uiAlert("送出失敗，請確認網路後再試"); e.target.disabled = false; }
     });
   };
   bindState();
@@ -367,9 +367,9 @@ async function renderCloud() {
   // 上傳舊資料
   view.querySelectorAll("[data-impgo]").forEach(b => b.onclick = async () => {
     const sid = b.dataset.impgo, to = view.querySelector(`[data-imp="${CSS.escape(sid)}"]`).value, s = await DB.get("sites", sid);
-    if (!to) { alert("請先選擇要放到哪個專案。"); return; }
+    if (!to) { uiAlert("請先選擇要放到哪個專案。"); return; }
     const tgt = to === "__new" ? s.name : projs.find(p => p.id === to)?.name;
-    if (!confirm(`把「${s.name}」的 ${cnt(sid)} 份自主檢查表上傳到雲端專案「${tgt}」？\n\n會先下載一份備份檔。上傳後同專案的同事都看得到。`)) return;
+    if (!(await uiConfirm(`把「${s.name}」的 ${cnt(sid)} 份自主檢查表上傳到雲端專案「${tgt}」？\n\n會先下載一份備份檔。上傳後同專案的同事都看得到。`))) return;
     b.disabled = true;
     try {
       if (!clToast.bk) { await downloadBackup(); clToast.bk = true; }
@@ -387,7 +387,7 @@ async function renderCloud() {
       if (CLOUD.me.admin || Object.values(CLOUD.me.roles || {}).includes("lead"))
         for (const t of await DB.all("templates")) if (used.has(t.id)) await DB.put("templates", t);
       await loadSites(); await cloudSync(); renderCloud();
-    } catch (e) { alert("上傳沒有完成：" + (e.message || e)); b.disabled = false; }
+    } catch (e) { uiAlert("上傳沒有完成：" + (e.message || e)); b.disabled = false; }
   });
   // 專案成員
   const drawMem = async () => {
@@ -401,9 +401,9 @@ async function renderCloud() {
   };
   if ($("#clMP")) {
     $("#clMP").onchange = drawMem; drawMem();
-    $("#clMem").onchange = async e => { const s = e.target.closest("[data-mrole]"); if (!s) return; try { await api(`projects/${encodeURIComponent($("#clMP").value)}/members`, { email: s.dataset.mrole, role: s.value }); } catch (er) { alert(er.message); } drawMem(); };
-    $("#clMem").onclick = async e => { const b = e.target.closest("[data-mdel]"); if (!b || !confirm(`把 ${b.dataset.mdel} 移出這個專案？`)) return; try { await api(`projects/${encodeURIComponent($("#clMP").value)}/members`, { email: b.dataset.mdel, role: null }); } catch (er) { alert(er.message); } drawMem(); };
-    $("#clMAdd").onclick = async () => { try { await api(`projects/${encodeURIComponent($("#clMP").value)}/members`, { email: $("#clMEmail").value.trim(), role: $("#clMRole").value }); $("#clMEmail").value = ""; } catch (er) { alert(er.message); } drawMem(); };
+    $("#clMem").onchange = async e => { const s = e.target.closest("[data-mrole]"); if (!s) return; try { await api(`projects/${encodeURIComponent($("#clMP").value)}/members`, { email: s.dataset.mrole, role: s.value }); } catch (er) { uiAlert(er.message); } drawMem(); };
+    $("#clMem").onclick = async e => { const b = e.target.closest("[data-mdel]"); if (!b || !(await uiConfirm(`把 ${b.dataset.mdel} 移出這個專案？`))) return; try { await api(`projects/${encodeURIComponent($("#clMP").value)}/members`, { email: b.dataset.mdel, role: null }); } catch (er) { uiAlert(er.message); } drawMem(); };
+    $("#clMAdd").onclick = async () => { try { await api(`projects/${encodeURIComponent($("#clMP").value)}/members`, { email: $("#clMEmail").value.trim(), role: $("#clMRole").value }); $("#clMEmail").value = ""; } catch (er) { uiAlert(er.message); } drawMem(); };
   }
   // 人員管理
   const drawUsers = async () => {
@@ -416,8 +416,8 @@ async function renderCloud() {
         const a = e.target.closest("[data-uadm],[data-udis]"); if (!a) return;
         const u = users.find(x => x.email === (a.dataset.uadm || a.dataset.udis));
         const next = { email: u.email, name: u.name, admin: a.dataset.uadm ? !u.admin : u.admin, disabled: a.dataset.udis ? !u.disabled : u.disabled };
-        if (a.dataset.udis && !u.disabled && !confirm(`停權 ${u.email}？他會立刻不能同步。`)) return;
-        try { await api("users", next); } catch (er) { alert(er.message); } drawUsers();
+        if (a.dataset.udis && !u.disabled && !(await uiConfirm(`停權 ${u.email}？他會立刻不能同步。`))) return;
+        try { await api("users", next); } catch (er) { uiAlert(er.message); } drawUsers();
       };
     } catch (e) { box.innerHTML = `<p class="cnote">${esc(e.message)}</p>`; }
   };
@@ -436,14 +436,14 @@ async function renderCloud() {
     $("#clReqs").onclick = async e => {
       const b = e.target.closest("[data-rok],[data-rno]"); if (!b) return;
       const email = b.dataset.rok || b.dataset.rno, ok = !!b.dataset.rok;
-      if (!ok && !confirm(`不核准 ${email}？之後這個 Email 不能再送申請，要加入請你在下方「人員管理」直接加。`)) return;
-      try { await api("requests", { email, action: ok ? "approve" : "reject" }); if (ok) clToast(`已加入人員名單。請到「專案成員」把 ${email} 加進專案。`); } catch (er) { alert(er.message); }
+      if (!ok && !(await uiConfirm(`不核准 ${email}？之後這個 Email 不能再送申請，要加入請你在下方「人員管理」直接加。`))) return;
+      try { await api("requests", { email, action: ok ? "approve" : "reject" }); if (ok) clToast(`已加入人員名單。請到「專案成員」把 ${email} 加進專案。`); } catch (er) { uiAlert(er.message); }
       drawReqs(); drawUsers();
     };
   }
   if ($("#clUsers")) {
     drawUsers();
-    $("#clUAdd").onclick = async () => { try { await api("users", { email: $("#clUEmail").value.trim(), name: $("#clUName").value.trim(), admin: $("#clUAdmin").checked }); $("#clUEmail").value = $("#clUName").value = ""; $("#clUAdmin").checked = false; } catch (er) { alert(er.message); } drawUsers(); };
+    $("#clUAdd").onclick = async () => { try { await api("users", { email: $("#clUEmail").value.trim(), name: $("#clUName").value.trim(), admin: $("#clUAdmin").checked }); $("#clUEmail").value = $("#clUName").value = ""; $("#clUAdmin").checked = false; } catch (er) { uiAlert(er.message); } drawUsers(); };
   }
   if (!CLOUD.busy && navigator.onLine && (CLOUD.state !== "login" || !me)) cloudSync();
 }

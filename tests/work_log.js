@@ -1,7 +1,8 @@
+require('./uidlg');
 // work_log：見 tests/README.md
 const {chromium}=require('playwright');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S+'pdfs',{recursive:true});require('fs').mkdirSync(S+'theme',{recursive:true});
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844}});const e=[];p.on('pageerror',x=>e.push(x.stack.split('\n').slice(0,2).join('|')));p.on('dialog',d=>d.accept());
-await p.goto('http://localhost:8793/index.html');await p.waitForSelector('#setup[open]');await p.fill('#sName','宜蘭三星蔥新建工程');await p.fill('#sCompany','三星蔥營造有限公司');await p.click('#sOk');await p.waitForTimeout(400);
+await p.goto('http://localhost:8793/index.html');await p.click('#hWel');await p.waitForSelector('#setup[open]');await p.fill('#sName','宜蘭三星蔥新建工程');await p.fill('#sCompany','三星蔥營造有限公司');await p.click('#sOk');await p.waitForTimeout(400);
 const iso=n=>{const d=new Date();d.setDate(d.getDate()-n);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 const td=iso(0);
 await p.evaluate(async td=>{const sid=localStorage.getItem('siteId');

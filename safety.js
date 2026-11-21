@@ -70,7 +70,7 @@ async function renderSafetyForm(id) {
       ${f("place", "地點／作業區域", "例：3F 樓板、地下室開挖區")}${f("host", "主持人（工地負責人）", "姓名")}${f("content", "今日工作內容", "例：3F 柱鋼筋綁紮、模板組立")}</div>
     <div class="panel"><b>今日高風險作業</b> <small style="color:var(--mut)">有就勾，會自動勾下方相關的危害告知（工具預設，非法規原文，可自行增減）</small>
       <div class="chips" style="margin:8px 0 0" id="saRisks">${[...cfg.risks, ...r.risks.filter(x => !cfg.risks.includes(x))].map(x => `<button type="button" class="chip ${r.risks.includes(x) ? "on" : ""}" data-risk="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>
-    <div class="panel"><b>危害告知項目</b> <small style="color:var(--mut)">已告知的打勾</small><small id="saAuto" role="status" style="display:block;color:var(--g);min-height:1em"></small>
+    <div class="panel"><b>危害告知項目</b> <small style="color:var(--mut)">已告知的打勾</small><small id="saAuto" role="status" style="display:block;color:var(--coffee);min-height:1em"></small>
       <div class="timing" style="flex-direction:column;gap:10px;margin-top:8px" id="saHaz">${[...cfg.hazards, ...r.hazards.filter(x => !cfg.hazards.includes(x))].map(x => `<label><input type="checkbox" data-haz="${esc(x)}" ${r.hazards.includes(x) ? "checked" : ""}> ${esc(x)}</label>`).join("")}</div>
       <div class="field" style="margin-top:10px"><label>其他告知事項（可空白）</label><input data-f="extra" placeholder="例：今日有吊車作業，下方禁止進入" value="${esc(r.extra)}"></div></div>
     <div class="panel"><b>全體合照</b><div class="phrow"><button type="button" class="phbtn" id="saCam">📷 拍照</button><label class="phbtn alt">🖼 相簿<input type="file" accept="image/*" multiple hidden id="saFile"></label><div class="thumbs" id="saTh"></div></div></div>
@@ -101,20 +101,20 @@ async function renderSafetyForm(id) {
   // 全體合照
   const drawTh = () => { $("#saTh").innerHTML = photos.map(p => `<span class="th"><img src="${safeImg(p.data)}" alt="照片"><button data-pdel="${esc(p.id)}" aria-label="刪除照片">✕</button></span>`).join(""); };
   const addPhoto = async file => { const p = { id: uid(), recId: id, itemIdx: 0, data: await makePhoto(file, `${r.date} ${shotSiteName()}`.trim()), created: Date.now() }; await DB.put("photos", p); photos.push(p); drawTh(); };
-  const many = async files => { for (const x of files) { try { await addPhoto(x); } catch { alert("這張照片無法讀取"); } } };
+  const many = async files => { for (const x of files) { try { await addPhoto(x); } catch { uiAlert("這張照片無法讀取"); } } };
   drawTh();
   $("#saCam").onclick = () => openCamera("勤前教育全體合照", blob => addPhoto(blob), many);
   $("#saFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; await many(fs); };
   $("#saTh").onclick = async e => {
     const img = e.target.closest("img"); if (img) { openLightbox(photos, photos.findIndex(x => x.id === img.parentElement.querySelector("[data-pdel]").dataset.pdel)); return; }
-    const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
+    const del = e.target.dataset?.pdel; if (!del || !(await uiConfirm("刪除這張照片？"))) return;
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
   // 九宮格簽到
   // 簽名不直接畫在清單上（捲動時容易誤觸），點「點此簽名」才跳出大簽名框
   const sigBtn = (btn, sig) => { btn.innerHTML = sig ? `<img src="${safeImg(sig)}" alt="簽名">` : "<span>✍ 點此簽名</span>"; btn.classList.toggle("on", !!sig); };
-  const askSign = (title, cur, done) => {
-    if (cur && !confirm(`${title}已經簽過了，要重新簽名嗎？`)) return;
+  const askSign = async (title, cur, done) => {
+    if (cur && !(await uiConfirm(`${title}已經簽過了，要重新簽名嗎？`))) return;
     saSigPad(title, cur, done);
   };
   // 不分頁、一格一格加：最後一格有人填姓名或簽名，就自動在後面多開一格空白的
@@ -136,7 +136,7 @@ async function renderSafetyForm(id) {
       const no = r.people.indexOf(p) + 1;
       askSign(p.name ? `${p.name}` : `第 ${no} 格`, p.sig, sig => { p.sig = sig; sigBtn(sb, sig); autoMore(p); save(); });
     };
-    $("[data-rm]", cell).onclick = () => { if ((p.name || p.sig) && !confirm("刪除這一格（含姓名與簽名）？")) return; r.people = r.people.filter(x => x.id !== p.id); if (!r.people.length) r.people = saCells(); drawGrid(); save(); };
+    $("[data-rm]", cell).onclick = async () => { if ((p.name || p.sig) && !(await uiConfirm("刪除這一格（含姓名與簽名）？"))) return; r.people = r.people.filter(x => x.id !== p.id); if (!r.people.length) r.people = saCells(); drawGrid(); save(); };
   };
   const drawGrid = () => {
     $("#saGrid").innerHTML = `<div class="sagrid">${r.people.map(cellHtml).join("")}</div>`;
@@ -144,11 +144,11 @@ async function renderSafetyForm(id) {
   };
   drawGrid();
   $("#saMore").onclick = () => { addCell(); const c = $("#saGrid .sagrid").lastElementChild; c.scrollIntoView({ block: "center" }); $("[data-n=name]", c).focus({ preventScroll: true }); save(); };
-  $("#saPrev").onclick = () => {
+  $("#saPrev").onclick = async () => {
     const prev = all[0]; if (!prev) return;
     const names = prev.people.filter(p => p.name).map(p => ({ id: uid(), name: p.name, co: p.co, sig: "" }));
-    if (!names.length) { alert("上次紀錄沒有填姓名。"); return; }
-    if (r.people.some(p => p.name || p.sig) && !confirm(`目前這張已經有人填寫，帶入上次的 ${names.length} 人（不含簽名）會取代目前名單，確定嗎？`)) return;
+    if (!names.length) { uiAlert("上次紀錄沒有填姓名。"); return; }
+    if (r.people.some(p => p.name || p.sig) && !(await uiConfirm(`目前這張已經有人填寫，帶入上次的 ${names.length} 人（不含簽名）會取代目前名單，確定嗎？`))) return;
     r.people = [...names, ...saCells(1)]; drawGrid(); save();
   };
   // 主持人簽名
@@ -162,7 +162,7 @@ async function renderSafetyForm(id) {
   svBindDone(sv, "#/safety");
   $("#saPrint").onclick = async () => { await flush(); location.hash = `#/safety/${id}/print`; };
   $("#saDel").onclick = async () => {
-    if (!confirm("確定刪除這筆勤前教育紀錄？含合照、簽名與附加檔案，無法復原。")) return;
+    if (!(await uiConfirm("確定刪除這筆勤前教育紀錄？含合照、簽名與附加檔案，無法復原。"))) return;
     for (const p of photos) await DB.del("photos", p.id);
     await attPurge(id); await DB.del("safety", id); goBack("#/safety");
   };
@@ -215,12 +215,12 @@ function saSigPad(title, cur, done) {
   const onKey = e => { if (e.key === "Escape") close(); };
   window.addEventListener("popstate", onPop); window.addEventListener("resize", fit); document.addEventListener("keydown", onKey);
   history.pushState({ sapad: 1 }, "");   // Android 返回鍵＝取消
-  ov.querySelector(".sapadbar").onclick = e => {
+  ov.querySelector(".sapadbar").onclick = async e => {
     const k = e.target.closest("[data-k]")?.dataset.k;
     if (k === "cancel") close();
     else if (k === "clear") { g.clearRect(0, 0, c.width, c.height); inked = false; box = null; }
     else if (k === "ok") {
-      if (!inked) { if (cur && !confirm("框內是空白的，要清除原本的簽名嗎？")) return; if (!cur) { close(); return; } }
+      if (!inked) { if (cur && !(await uiConfirm("框內是空白的，要清除原本的簽名嗎？"))) return; if (!cur) { close(); return; } }
       const sig = inked ? out() : ""; close(); done(sig);
     }
   };
@@ -266,5 +266,5 @@ async function renderSafetySet() {
   const lines = v => v.split("\n").map(x => x.trim()).filter(Boolean).slice(0, 40).map(x => x.slice(0, 60));
   const sv = svAuto(() => DB.put("matcats", { id: "__safety", risks: lines($("#ssRisks").value), hazards: lines($("#ssHaz").value), statement: $("#ssSt").value.trim().slice(0, 300), updated: Date.now() }), 400), save = sv.save;
   ["#ssRisks", "#ssHaz", "#ssSt"].forEach(s => $(s).oninput = save);
-  $("#ssReset").onclick = async () => { if (!confirm("還原成內建的預設項目與聲明？")) return; await DB.del("matcats", "__safety"); renderSafetySet(); };
+  $("#ssReset").onclick = async () => { if (!(await uiConfirm("還原成內建的預設項目與聲明？"))) return; await DB.del("matcats", "__safety"); renderSafetySet(); };
 }

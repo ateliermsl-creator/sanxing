@@ -47,7 +47,7 @@ function svBindDone(sv, back, id = "svDone") {
   const b = document.getElementById(id); if (!b) return;
   b.onclick = async () => {
     b.disabled = true;
-    try { await sv.flush(); goBack(back); } catch { alert("儲存失敗，可能是手機儲存空間不足。資料還在畫面上，請先清出空間再試一次。"); }
+    try { await sv.flush(); goBack(back); } catch { uiAlert("儲存失敗，可能是手機儲存空間不足。資料還在畫面上，請先清出空間再試一次。"); }
     finally { b.disabled = false; }
   };
 }
@@ -95,16 +95,16 @@ function dnBind(r, sv, o = {}) {
   const done = document.getElementById("dnDone");
   if (done) done.onclick = async () => {
     const warn = (o.check ? o.check() : []).filter(Boolean), label = (o.label || "完成").replace(/^✔\s*/, "");
-    if (!confirm(`${warn.length ? "⚠ " + warn.join("；") + "。\n\n" : ""}確定${label}？\n完成後內容只能查看與列印，要改時可以按「修改」。`)) return;
+    if (!(await uiConfirm(`${warn.length ? "⚠ " + warn.join("；") + "。\n\n" : ""}確定${label}？\n完成後內容只能查看與列印，要改時可以按「修改」。`))) return;
     r.locked = Date.now();
-    try { await sv.flush(); } catch { delete r.locked; alert("儲存失敗，可能是手機儲存空間不足，還沒有完成。"); return; }
+    try { await sv.flush(); } catch { delete r.locked; uiAlert("儲存失敗，可能是手機儲存空間不足，還沒有完成。"); return; }
     o.rerender();
   };
   const edit = document.getElementById("dnEdit");
   if (edit) edit.onclick = async () => {
-    if (!confirm("這份已完成。要修改內容嗎？\n簽名會保留，並記下修改時間；改好請再按一次「完成」。")) return;
+    if (!(await uiConfirm("這份已完成。要修改內容嗎？\n簽名會保留，並記下修改時間；改好請再按一次「完成」。"))) return;
     delete r.locked; r.reopened = [...dnReo(r), Date.now()].slice(-20);
-    try { await sv.flush(); } catch { r.locked = Date.now(); alert("儲存失敗，可能是手機儲存空間不足。"); return; }
+    try { await sv.flush(); } catch { r.locked = Date.now(); uiAlert("儲存失敗，可能是手機儲存空間不足。"); return; }
     o.rerender();
   };
 }
@@ -113,7 +113,7 @@ document.addEventListener("click", e => {
   const b = e.target.closest?.("[data-dndel]");
   if (!b || !document.getElementById("view")?.classList.contains("dnlock")) return;
   e.preventDefault(); e.stopImmediatePropagation();
-  alert("已完成的紀錄不能直接刪除，請先按「✎ 修改這份紀錄」。");
+  uiAlert("已完成的紀錄不能直接刪除，請先按「✎ 修改這份紀錄」。");
 }, true);
 // 換頁時拿掉唯讀樣式（#view 是共用的容器）
 window.addEventListener("hashchange", () => document.getElementById("view")?.classList.remove("dnlock"));

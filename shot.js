@@ -59,7 +59,7 @@ async function shotSave(src, sw, sh, extra = {}) {
 async function shotOpenCamera(onSaved) {
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }); }
-  catch (err) { alert(`無法開啟內建相機（${err?.name || "未知錯誤"}）。\n請在瀏覽器允許相機權限；或改用「🖼 相簿照片加黑板」選手機拍好的照片。`); return; }
+  catch (err) { uiAlert(`無法開啟內建相機（${err?.name || "未知錯誤"}）。\n請在瀏覽器允許相機權限；或改用「🖼 相簿照片加黑板」選手機拍好的照片。`); return; }
   const past = (await DB.all("shots")).filter(x => x.siteId === siteId);
   const uniq = k => [...new Set(past.sort((a, b) => b.created - a.created).map(x => x[k]).filter(Boolean))].slice(0, 12);
   const f = { site: shotSiteName(), date: shotLocalDate(new Date()), time: shotNowTime(), ...shotFieldsGet() }, o = shotOptGet();
@@ -104,7 +104,7 @@ async function shotOpenCamera(onSaved) {
       const rec = { id: uid(), siteId, date: f.date, time: f.time, lat: f.lat, lng: f.lng, acc: f.acc, item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, data: r.data, raw: r.raw, thumb: await shotThumb(r.data), created: Date.now(), updated: Date.now() };
       await DB.put("shots", rec); n++; $("#scCount", box).textContent = `已拍 ${n} 張`;
       box.classList.add("flash"); setTimeout(() => box.classList.remove("flash"), 120);
-    } catch { alert("存檔失敗，可能是手機儲存空間不足。"); }
+    } catch { uiAlert("存檔失敗，可能是手機儲存空間不足。"); }
     busy = false;
   };
 }
@@ -141,7 +141,7 @@ async function renderShotList() {
       try { const bmp = await createImageBitmap(file, { imageOrientation: "from-image" }); await shotSave(bmp, bmp.width, bmp.height, { date: shotLocalDate(new Date(file.lastModified || Date.now())), time: shotNowTime(new Date(file.lastModified || Date.now())) }); ok++; }
       catch { /* 讀不出來的檔案略過 */ }
     }
-    if (ok < files.length) alert(`有 ${files.length - ok} 張無法讀取，已略過。`);
+    if (ok < files.length) uiAlert(`有 ${files.length - ok} 張無法讀取，已略過。`);
     renderShotList();
   };
   if (all.length) {
@@ -155,11 +155,11 @@ async function renderShotList() {
       $("#shShare").onclick = async () => {
         const fl = picked().map(fileOf);
         try { if (navigator.canShare?.({ files: fl })) { await navigator.share({ files: fl, title: "施工照片" }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-        alert("這個瀏覽器不能一次分享多張，改為逐張下載。"); for (const f of fl) { pdfDownload(f); await new Promise(r => setTimeout(r, 400)); }
+        uiAlert("這個瀏覽器不能一次分享多張，改為逐張下載。"); for (const f of fl) { pdfDownload(f); await new Promise(r => setTimeout(r, 400)); }
       };
       $("#shDl").onclick = async () => { const fl = picked().map(fileOf); for (const f of fl) { pdfDownload(f); await new Promise(r => setTimeout(r, 400)); } };
       $("#shRm").onclick = async () => {
-        const n = shotSel.size; if (!n || !confirm(`確定刪除選取的 ${n} 張照片？無法復原。\n\n建議先按「下載存查」或「分享」留存。`)) return;
+        const n = shotSel.size; if (!n || !(await uiConfirm(`確定刪除選取的 ${n} 張照片？無法復原。\n\n建議先按「下載存查」或「分享」留存。`))) return;
         for (const id of [...shotSel]) await DB.del("shots", id);
         shotSel.clear(); shotSelMode = false; renderShotList();
       };
@@ -204,7 +204,7 @@ async function renderShotDetail(id) {
     const im = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = safeImg(x.raw || x.data); });
     const r = shotCompose(im, im.width, im.height, f, o);
     Object.assign(x, { item: f.item, part: f.part, spec: f.spec, vendor: f.vendor, note: f.note, date: f.date, time: f.time || "", data: r.data, thumb: await shotThumb(r.data), updated: Date.now() });
-    await DB.put("shots", x); $("#sdImg").src = x.data; alert("黑板已更新");
+    await DB.put("shots", x); $("#sdImg").src = x.data; uiToast("黑板已更新");
   };
   const file = () => new File([dataURLtoBlob(x.data)], `施工照片_${x.date}_${(x.item || "").replace(/[\\/:*?"<>|]/g, "")}.jpg`, { type: "image/jpeg" });
   $("#sdShare").onclick = async () => {
@@ -213,7 +213,7 @@ async function renderShotDetail(id) {
     pdfDownload(fl);
   };
   $("#sdDl").onclick = () => pdfDownload(file());
-  $("#sdDel").onclick = async () => { if (!confirm("刪除這張照片？無法復原。")) return; await DB.del("shots", id); goBack("#/shot"); };
+  $("#sdDel").onclick = async () => { if (!(await uiConfirm("刪除這張照片？無法復原。"))) return; await DB.del("shots", id); goBack("#/shot"); };
 }
 
 /* ---------- 施工照片冊（A4，每頁 2／4／6 格，可列印、分享 PDF） ---------- */

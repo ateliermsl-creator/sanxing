@@ -1,3 +1,4 @@
+require('./uidlg');
 // cure_set_link：澆置頁拆模追蹤「未設定天數」連到設定頁，填完回來顯示可拆日（見 tests/README.md）
 const {chromium}=require('playwright');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S,{recursive:true});
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844},deviceScaleFactor:2});const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());

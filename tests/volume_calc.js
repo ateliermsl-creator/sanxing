@@ -1,3 +1,4 @@
+require('./uidlg');
 // volume_calc：混凝土方數各構件、開口、扣版厚、樓梯、壞資料、計算書、窄螢幕與電腦版；見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});
 (async()=>{const b=await chromium.launch();const e=[];

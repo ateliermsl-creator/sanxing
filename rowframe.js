@@ -175,7 +175,7 @@ function tabRowFrame(box) {
     $("#rfDeck").onchange = e => { const f = SC_DECKS.find(x => x.id === e.target.value); if (f) setv("deckKg", f.kg); calc(); };
     $("#rfCmat").onchange = e => { const f = SC_COLMAT.find(x => x.id === e.target.value); if (f) setv("col.fy", f.fy); calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
-    $("#rfClear").onclick = () => { if (!confirm("清除排架的輸入？")) return; Object.assign(st, rfBlank()); draw(); };
+    $("#rfClear").onclick = async () => { if (!(await uiConfirm("清除排架的輸入？"))) return; Object.assign(st, rfBlank()); draw(); };
     $("#rfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/row/sheet"; };
   };
   draw();

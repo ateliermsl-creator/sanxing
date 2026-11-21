@@ -1,3 +1,4 @@
+require('./uidlg');
 // cure_backup_xss：見 tests/README.md
 const {chromium}=require('playwright');const fs=require('fs');
 (async()=>{const b=await chromium.launch(),p=await b.newPage();const e=[];p.on('pageerror',x=>e.push(x.message));p.on('dialog',d=>d.accept());

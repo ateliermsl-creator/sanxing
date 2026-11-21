@@ -310,15 +310,15 @@ function tabColForm(box) {
       const p = colNewMat(b.dataset.ladd); lib.push(p); colLibSave(lib); draw();
       box.querySelector(".cflibbox").open = true; box.querySelector(`[data-card="${p.id}"] input`)?.focus();
     });
-    box.querySelectorAll("[data-ldel]").forEach(b => b.onclick = () => {
-      const p = lib.find(x => x.id === b.dataset.ldel); if (!p || !confirm(`刪除材料「${p.n || "未命名"}」？`)) return;
+    box.querySelectorAll("[data-ldel]").forEach(b => b.onclick = async () => {
+      const p = lib.find(x => x.id === b.dataset.ldel); if (!p || !(await uiConfirm(`刪除材料「${p.n || "未命名"}」？`))) return;
       lib = lib.filter(x => x !== p); colLibSave(lib); for (const k in st.sel) if (st.sel[k] === p.id) st.sel[k] = ""; draw(); box.querySelector(".cflibbox").open = true;
     });
     $("#cfDefP").onchange = e => { const v = e.target.value; if (!v) return; st.defP = v === "a3" ? { n: "", a: "3" } : { n: "240", a: "" }; box.querySelector('[data-p="defP.n"]').value = st.defP.n; box.querySelector('[data-p="defP.a"]').value = st.defP.a; calc(); };
     $("#cfTierAdd") && ($("#cfTierAdd").onclick = () => { const last = st.tiers[st.tiers.length - 1]; st.tiers.push({ ...last, top: "" }); draw(); });
     $("#cfTierDel") && ($("#cfTierDel").onclick = () => { st.tiers.pop(); st.tiers[st.tiers.length - 1].top = ""; draw(); });
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
-    $("#cfClear").onclick = () => { if (!confirm("清除柱模板的輸入？（材料庫會保留）")) return; Object.assign(st, colBlank()); draw(); };
+    $("#cfClear").onclick = async () => { if (!(await uiConfirm("清除柱模板的輸入？（材料庫會保留）"))) return; Object.assign(st, colBlank()); draw(); };
     $("#cfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/col/sheet"; };
   };
   draw();

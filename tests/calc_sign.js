@@ -1,3 +1,4 @@
+require('./uidlg');
 // calc_sign：計算書簽名（混凝土方數＋九種結構計算書）：簽名存放、印在計算書含日期、改了內容舊簽名不印、清理器、窄螢幕。見 tests/README.md
 const {chromium}=require('playwright');(async()=>{const b=await chromium.launch();let bad=0;
 const chk=(name,ok,info='')=>{if(!ok)bad++;console.log(ok?'OK':'NG',name,info)};
@@ -18,7 +19,7 @@ const st=()=>p.evaluate(()=>({imgs:document.querySelectorAll('.paper .psigs img'
 await p.goto(U+'#/calc/vol/sheet');await p.reload();await p.waitForTimeout(700);
 let r=await st();chk(tag+' 方數未簽',r.imgs===0&&r.btn.includes('計算人員簽名')&&r.wide<=w,JSON.stringify(r));
 await sign('calc');await sign('boss');r=await st();
-const day=await p.evaluate(()=>today());
+const day=await p.evaluate(()=>rocYmd(today()));
 chk(tag+' 方數簽名印出含日期',r.imgs===2&&r.sig.includes('計算人員：王　'+day)&&r.sig.includes('工地主任　'+day)&&r.btn.includes('重簽')&&r.wide<=w,JSON.stringify(r));
 let db=await p.evaluate(async()=>{const x=await DB.get('vols','vl1');return Object.keys(x.cfg.sigs||{}).join(',')});
 chk(tag+' 方數簽名存進該筆紀錄',db==='calc,boss',db);

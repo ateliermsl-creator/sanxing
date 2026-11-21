@@ -161,14 +161,14 @@ async function renderWorkorderForm(id) {
       if (!rec.lines.some(l => l.name.trim() && woLineHours(l) > 0)) miss.push("出工明細（名稱與工時）");
       if (!rec.names.vendor?.trim()) miss.push("廠商代表姓名");
       if (!rec.sigs.vendor) miss.push("廠商代表簽名");
-      if (miss.length) { alert("還缺少：" + miss.join("、")); return; }
-      if (!confirm(`確定完成簽認？\n廠商：${rec.vendor}\n人力 ${woH(t.man)} 工時／機械 ${woH(t.mac)} 台時\n簽認後內容只能查看與列印，要改時可以按「修改」。`)) return;
+      if (miss.length) { uiAlert("還缺少：" + miss.join("、")); return; }
+      if (!(await uiConfirm(`確定完成簽認？\n廠商：${rec.vendor}\n人力 ${woH(t.man)} 工時／機械 ${woH(t.mac)} 台時\n簽認後內容只能查看與列印，要改時可以按「修改」。`))) return;
       rec.status = "signed"; rec.signedAt = new Date().toISOString(); rec.log.push({ at: rec.signedAt, text: "完成簽認" });
       await flush(); renderWorkorderForm(id);
     };
   } else {
     $("#woUnlock").onclick = async () => {
-      if (!confirm("這張已簽認。要修改內容嗎？\n原簽名仍保留，且會留下異動紀錄；改好請再按一次「完成簽認」。")) return;
+      if (!(await uiConfirm("這張已簽認。要修改內容嗎？\n原簽名仍保留，且會留下異動紀錄；改好請再按一次「完成簽認」。"))) return;
       rec.status = "draft"; rec.log.push({ at: new Date().toISOString(), text: "簽認後修改" }); await flush(); renderWorkorderForm(id);
     };
   }
@@ -178,11 +178,11 @@ async function renderWorkorderForm(id) {
   $("#woShare").onclick = async () => {
     const text = woSummaryText(rec);
     try { if (navigator.share) { await navigator.share({ title: "點工單 " + rec.docNo, text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(text); alert("已複製摘要，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下摘要", text); }
+    try { await navigator.clipboard.writeText(text); uiToast("已複製摘要，可貼到 LINE 或訊息。"); } catch { await uiPrompt("請複製以下摘要", text); }
   };
   $("#woDel").onclick = async () => {
-    if (locked) { alert("已簽認的單據不能直接刪除，請先按「✎ 修改這份紀錄」。"); return; }
-    if (!confirm("確定刪除這張點工單？")) return;
+    if (locked) { uiAlert("已簽認的單據不能直接刪除，請先按「✎ 修改這份紀錄」。"); return; }
+    if (!(await uiConfirm("確定刪除這張點工單？"))) return;
     await attPurge(id); await DB.del("workorders", id); goBack("#/workorder");
   };
 }

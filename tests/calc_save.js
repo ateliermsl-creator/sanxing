@@ -1,3 +1,4 @@
+require('./uidlg');
 // calc_save：結構計算「存到專案」（calcsave.js）：存、自動存回、開啟、複製、新計算、刪除、換專案、XSS 名稱、320 寬；見 tests/README.md
 const { chromium } = require('playwright');
 const U = 'http://localhost:8793/index.html';

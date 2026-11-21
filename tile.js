@@ -194,7 +194,7 @@ function tabTile(box) {
     await DB.put("vols", rec); status(); list();
   };
   $("#tlNew").onclick = async () => {
-    if (!rec && tileHasData(st) && !confirm("目前的輸入還沒存檔，要清空開始新計算嗎？")) return;
+    if (!rec && tileHasData(st) && !(await uiConfirm("目前的輸入還沒存檔，要清空開始新計算嗎？"))) return;
     if (timer) await doSave();
     reopen([], { specs: st.cfg.specs, glue: st.cfg.glue, bag: st.cfg.bag, who: st.cfg.who });   // 新計算沿用目前的磁磚規格
   };
@@ -202,7 +202,7 @@ function tabTile(box) {
     const b = e.target.closest("button"), id = b?.closest("[data-id]")?.dataset.id; if (!id) return;
     const x = await DB.get("vols", id); if (!x) { list(); return; }
     if (b.dataset.topen) {
-      if (!rec && tileHasData(st) && !confirm("目前的輸入還沒存檔，開啟後會被取代。要繼續嗎？")) return;
+      if (!rec && tileHasData(st) && !(await uiConfirm("目前的輸入還沒存檔，開啟後會被取代。要繼續嗎？"))) return;
       if (timer) await doSave();
       if (window.cloudRO && await cloudRO("vols", x)) {   // 雲端版：同事建立的只能看，載入成未存檔的新計算
         reopen(x.rows, { ...x.cfg, cur: "", title: x.name + "（同事的紀錄，另存才會保留）" }); return;
@@ -214,7 +214,7 @@ function tabTile(box) {
       const c = { ...x, cfg, id: uid(), name: (x.name || "") + "（複本）", created: Date.now(), updated: Date.now() };
       await DB.put("vols", c); reopen(c.rows, { ...c.cfg, cur: c.id, title: c.name });
     } else if (b.dataset.tdel) {
-      if (!confirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`)) return;
+      if (!(await uiConfirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`))) return;
       await DB.del("vols", id);
       if (rec && rec.id === id) forget();
       status(); list();
@@ -247,13 +247,13 @@ function tabTile(box) {
     if (k === "name") box.querySelectorAll(`#tlRows select[data-k="s"] option[value="${i}"]`).forEach(o => o.textContent = el.value || "磁磚 " + (i + 1));
     sum();
   };
-  $("#tlSpecs").onclick = e => {
+  $("#tlSpecs").onclick = async e => {
     const el = e.target.closest("button"); if (!el) return;
     const i = +el.closest("[data-si]")?.dataset.si;
     if (el.dataset.sz !== undefined) { const [, l, w] = TILE_SIZES[+el.dataset.sz]; Object.assign(st.cfg.specs[i], { L: String(l), W: String(w) }); drawSpecs(); sum(); }
     else if (el.dataset.sdel !== undefined) {
       const d = +el.dataset.sdel, used = st.rows.filter(r => +r.s === d).length;
-      if (used && !confirm(`有 ${used} 面使用「${st.cfg.specs[d].name}」，刪除後這些面會改用第一種磁磚。要刪除嗎？`)) return;
+      if (used && !(await uiConfirm(`有 ${used} 面使用「${st.cfg.specs[d].name}」，刪除後這些面會改用第一種磁磚。要刪除嗎？`))) return;
       st.cfg.specs.splice(d, 1);
       st.rows.forEach(r => { const s = +r.s; r.s = String(s === d ? 0 : s > d ? s - 1 : s); });
       drawSpecs(); draw();
@@ -268,7 +268,7 @@ function tabTile(box) {
     st.rows.push(tileBlank(last ? last.s : "0")); draw();
     box.querySelector(`.vrow[data-i="${st.rows.length - 1}"] [data-k="name"]`)?.focus();
   };
-  $("#tlClear").onclick = () => { if (!confirm("清除全部的面？（磁磚規格保留）")) return; st.rows = [tileBlank()]; draw(); };
+  $("#tlClear").onclick = async () => { if (!(await uiConfirm("清除全部的面？（磁磚規格保留）"))) return; st.rows = [tileBlank()]; draw(); };
   box.oninput = e => { const k = e.target.dataset.c; if (!k) return; st.cfg[k] = e.target.value; sum(); };   // 用 oninput（重新開啟紀錄時不會重複掛）
 
   // 紅磚（原泥作材料，不存檔）

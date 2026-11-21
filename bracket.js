@@ -325,7 +325,7 @@ function tabBracket(box) {
     $("#bkMat").onchange = e => { st.mat = e.target.value; autoFy(); calc(); };
     const w = $("#bkWmat"); if (w) w.onchange = e => { st.wmat = e.target.value; autoFy(); calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
-    $("#bkClear").onclick = () => { if (!confirm("清除三角架的輸入？")) return; Object.assign(st, bkBlank()); draw(); };
+    $("#bkClear").onclick = async () => { if (!(await uiConfirm("清除三角架的輸入？"))) return; Object.assign(st, bkBlank()); draw(); };
     $("#bkSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/brk/sheet"; };
   };
   draw();

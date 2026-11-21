@@ -1,3 +1,4 @@
+require('./uidlg');
 // xss_render：見 tests/README.md
 // 直接把惡意字串寫進 DB（繞過匯入清理器），並拿掉 CSP，測試各頁面「顯示時」的轉義
 const {chromium}=require('playwright');const fs=require('fs');

@@ -1,3 +1,4 @@
+require('./uidlg');
 // home_site：首頁標題下方「目前工地」切換／新增（見 tests/README.md）
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});(async()=>{const b=await chromium.launch();let bad=0;const ok=(c,m)=>{console.log(c?'OK ':'NG ',m);if(!c)bad++;};
 for(const [w,h,tag] of [[1440,900,'desktop'],[320,640,'phone320'],[390,844,'phone']]){

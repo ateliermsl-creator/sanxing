@@ -1,3 +1,4 @@
+require('./uidlg');
 // backup_shot_raw：見 tests/README.md
 const {chromium}=require('playwright');const fs=require('fs');
 (async()=>{const b=await chromium.launch();const errs=[];

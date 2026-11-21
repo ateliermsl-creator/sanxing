@@ -87,7 +87,7 @@ function tabRebarWt(box) {
   $("#wRows").oninput = $("#wRows").onchange = e => { const k = e.target.dataset.k, i = e.target.closest(".vrow")?.dataset.i; if (!k) return; rows[+i][k] = e.target.value; if (k === "d") draw(); else sum(); };
   $("#wRows").onclick = e => { const d = e.target.dataset.del; if (d === undefined) return; rows.splice(+d, 1); if (!rows.length) rows.push(blank()); draw(); };
   $("#wAdd").onclick = () => { rows.push({ ...blank(), d: rows[rows.length - 1]?.d || "D13" }); draw(); };
-  $("#wClear").onclick = () => { if (!confirm("清除全部列？")) return; rows = [blank()]; draw(); };
+  $("#wClear").onclick = async () => { if (!(await uiConfirm("清除全部列？"))) return; rows = [blank()]; draw(); };
   $("#wLoss").oninput = sum;
   draw();
 }
@@ -180,7 +180,7 @@ function tabLap(box) {
     };
     box.querySelectorAll("input").forEach(el => el.oninput = calc); calc();
     $("#lSave").onclick = () => {
-      const m = num($("#lM")), n = $("#lN").value.trim(); if (!(m > 0) || !n) { alert("請填倍數和名稱"); return; }
+      const m = num($("#lM")), n = $("#lN").value.trim(); if (!(m > 0) || !n) { uiAlert("請填倍數和名稱"); return; }
       const list = lapPresets().filter(p => p.n !== n); list.push({ n: n.slice(0, 40), m: String(m) }); ls.set("calcLap", JSON.stringify(list)); draw();
     };
     box.querySelectorAll("[data-p]").forEach(b => b.onclick = () => { const p = lapPresets()[+b.dataset.p]; st.m = p.m; st.n = p.n; draw(); });

@@ -137,16 +137,16 @@ async function renderCureTest(truckId, ageStr) {
   attBind(view, recId);
   $("#ctSave").onclick = async () => {
     const clean = vals.map(v => String(v).trim()).filter(v => cuNum(v) !== null);
-    if (!clean.length && !confirm("還沒有填任何強度值，仍要儲存嗎？")) return;
+    if (!clean.length && !(await uiConfirm("還沒有填任何強度值，仍要儲存嗎？"))) return;
     t.tests = { ...(t.tests || {}), [age]: { date: $("#ctDate").value || cuLocalIso(), vals: clean, note: $("#ctNote").value.trim() } };
     b.updated = Date.now(); await DB.put("pours", b); goBack("#/cure");
   };
   $("#ctSkip")?.addEventListener("click", async () => {
-    if (!confirm(`這個 ${age} 天齡期不試壓（例如改用別的齡期）？之後不會再提醒。`)) return;
+    if (!(await uiConfirm(`這個 ${age} 天齡期不試壓（例如改用別的齡期）？之後不會再提醒。`))) return;
     t.tests = { ...(t.tests || {}), [age]: { date: "", vals: [], note: "", skip: true } }; b.updated = Date.now(); await DB.put("pours", b); goBack("#/cure");
   });
   $("#ctClear")?.addEventListener("click", async () => {
-    if (!confirm("清除這筆試壓結果？（已附的實驗室報告檔案不會刪除）")) return;
+    if (!(await uiConfirm("清除這筆試壓結果？（已附的實驗室報告檔案不會刪除）"))) return;
     delete t.tests[age]; b.updated = Date.now(); await DB.put("pours", b); renderCureTest(truckId, ageStr);
   });
 }

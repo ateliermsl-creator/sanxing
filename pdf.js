@@ -42,7 +42,7 @@ async function pdfMake(papers, landscape) {
   return doc.output("blob");
 }
 
-// 頁尾（2026-11-22 品牌識別 R6）：左「三星蔥工具箱」、中「第 x 頁／共 y 頁」，小字灰色印在下方留白內。
+// 頁尾（2026-11-22 品牌識別 R6）：左「三星蔥工具箱」、中「第 x 頁／共 y 頁」、右列印日期（民國），小字灰色印在下方留白內。
 // jsPDF 內建字型沒有中文，所以先用 canvas 畫成小圖再貼上。
 function pdfFooter(doc, pageW, pageH, m, contentW) {
   const n = doc.getNumberOfPages(), hMm = 4, k = 12, c = document.createElement("canvas");   // k：每 mm 幾個像素
@@ -53,6 +53,7 @@ function pdfFooter(doc, pageW, pageH, m, contentW) {
     g.fillStyle = "#666"; g.font = `${2.6 * k}px ${font}`; g.textBaseline = "middle";
     g.textAlign = "left"; g.fillText("三星蔥工具箱", 0, c.height / 2);
     g.textAlign = "center"; g.fillText(`第 ${i} 頁／共 ${n} 頁`, c.width / 2, c.height / 2);
+    g.textAlign = "right"; g.fillText(`列印 ${rocYmd(today())}`, c.width, c.height / 2);
     doc.setPage(i);
     doc.addImage(c.toDataURL("image/png"), "PNG", m, pageH - m + 3, contentW, hMm);
   }
@@ -67,7 +68,7 @@ async function pdfShare(btn) {
   const label = "📤 分享 PDF";
   if (btn._file) { await pdfSend(btn, btn._file); return; }   // 上次已產生好，只差分享（需要再點一次）
   const papers = [...view.querySelectorAll(".paper")];
-  if (!papers.length) { alert("沒有可以轉成 PDF 的內容"); return; }
+  if (!papers.length) { uiAlert("沒有可以轉成 PDF 的內容"); return; }
   btn.disabled = true; btn.textContent = "⏳ 產生 PDF 中…";
   try {
     const blob = await pdfMake(papers, !!document.getElementById("psumPrint"));
@@ -75,19 +76,19 @@ async function pdfShare(btn) {
     btn._file = new File([blob], `${title}_${woRoc(today())}.pdf`, { type: "application/pdf" });
     btn.disabled = false; btn.textContent = label;
     await pdfSend(btn, btn._file);
-  } catch (e) { btn.disabled = false; btn.textContent = label; alert("產生 PDF 失敗：" + (e?.message || e)); }
+  } catch (e) { btn.disabled = false; btn.textContent = label; uiAlert("產生 PDF 失敗：" + (e?.message || e)); }
 }
 async function pdfSend(btn, file) {
   const label = "📤 分享 PDF";
   btn.textContent = label;
   try {
     if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: file.name.replace(/\.pdf$/, "") }); btn._file = null; return; }
-    pdfDownload(file); btn._file = null; alert("這個瀏覽器不能直接分享檔案，已改為下載 PDF，再從「檔案」App 傳到 LINE。");
+    pdfDownload(file); btn._file = null; uiAlert("這個瀏覽器不能直接分享檔案，已改為下載 PDF，再從「檔案」App 傳到 LINE。");
   } catch (e) {
     if (e?.name === "AbortError") { btn._file = null; return; }
     // 產生 PDF 花了一些時間，手機要求「再點一次」才允許開啟分享選單
     if (e?.name === "NotAllowedError") { btn.textContent = "✓ PDF 已產生，點此分享"; return; }
-    btn._file = null; pdfDownload(file); alert("無法開啟分享，已改為下載 PDF。");
+    btn._file = null; pdfDownload(file); uiAlert("無法開啟分享，已改為下載 PDF。");
   }
 }
 

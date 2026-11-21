@@ -1,3 +1,4 @@
+require('./uidlg');
 // cloud_e2e：雲端版手機畫面（cloud.js）兩人同步、離線合併、唯讀、舊資料上傳。需先啟動 wrangler dev（見 tests/README.md）
 const { chromium } = require('playwright');
 const B = process.env.CLOUD_URL || 'http://localhost:8787';

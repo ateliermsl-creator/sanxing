@@ -1,3 +1,4 @@
+require('./uidlg');
 // punch_marks：缺失照片標記（圖釘＋編號＋說明）見 tests/README.md
 const {chromium}=require('playwright');const O=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(O,{recursive:true});(async()=>{const b=await chromium.launch();let bad=0;
 const chk=(name,ok,info='')=>{if(!ok)bad++;console.log(ok?'OK':'NG',name,info)};

@@ -1,8 +1,9 @@
+require('./uidlg');
 // save_status：各表單右下角儲存狀態、換頁立刻寫入、「儲存並返回」、結構計算「輸入已自動保留」（見 tests/README.md）
 const {chromium}=require('playwright');const S=require('path').join(__dirname,'out')+'/';require('fs').mkdirSync(S,{recursive:true});
 (async()=>{const b=await chromium.launch(),p=await b.newPage({viewport:{width:390,height:844}});const e=[];p.on('pageerror',x=>e.push(x.stack.split('\n').slice(0,2).join('|')));p.on('dialog',d=>d.accept());
 const U='http://localhost:8793/index.html';const tip=async()=>(await p.$eval('#saveTip',x=>x.hidden?'(隱藏)':x.className+' '+x.textContent).catch(()=>'(無)'));
-await p.goto(U);await p.waitForSelector('#setup[open]');await p.fill('#sName','宜蘭三星蔥新建工程');await p.click('#sOk');await p.waitForTimeout(400);
+await p.goto(U);await p.click('#hWel');await p.waitForSelector('#setup[open]');await p.fill('#sName','宜蘭三星蔥新建工程');await p.click('#sOk');await p.waitForTimeout(400);
 const forms=[['施工日誌','#/log','#lgAdd','[data-f=other]','logs','other','#/log'],['材料進場','#/material','#mAdd','[data-f=vendor]','matrecs','vendor','#/material'],
  ['澆置','#/pour','#pjAdd','[data-f=supplier]','pours','supplier','#/pour'],['缺失','#/punch','#pAdd','[data-f=desc]','punch','desc','#/punch'],
  ['點工單','#/workorder','#woAdd','[data-f=vendor]','workorders','vendor','#/workorder'],['勤前教育','#/safety','#saAdd','[data-f=place]','safety','place','#/safety']];

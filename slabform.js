@@ -204,15 +204,15 @@ function tabSlabForm(box) {
       const p = colNewMat(b.dataset.ladd); lib.push(p); colLibSave(lib); redrawKeep();
       box.querySelector(`[data-card="${p.id}"] input`)?.focus();
     });
-    box.querySelectorAll("[data-ldel]").forEach(b => b.onclick = () => {
-      const p = lib.find(x => x.id === b.dataset.ldel); if (!p || !confirm(`刪除材料「${p.n || "未命名"}」？（柱模板、牆模板也會一併刪除）`)) return;
+    box.querySelectorAll("[data-ldel]").forEach(b => b.onclick = async () => {
+      const p = lib.find(x => x.id === b.dataset.ldel); if (!p || !(await uiConfirm(`刪除材料「${p.n || "未命名"}」？（柱模板、牆模板也會一併刪除）`))) return;
       lib = lib.filter(x => x !== p); colLibSave(lib); for (const k in st.sel) if (st.sel[k] === p.id) st.sel[k] = ""; redrawKeep();
     });
     $("#sfDefP").onchange = e => { const v = e.target.value; if (!v) return; st.defP = v === "a3" ? { n: "", a: "3" } : { n: "240", a: "" }; box.querySelector('[data-p="defP.n"]').value = st.defP.n; box.querySelector('[data-p="defP.a"]').value = st.defP.a; calc(); };
     $("#sfPipe").onchange = e => { const p = WF_PIPES.find(x => x.id === e.target.value); if (!p) return; st.pipe = { D: p.D, t: p.t }; box.querySelector('[data-p="pipe.D"]').value = p.D; box.querySelector('[data-p="pipe.t"]').value = p.t; calc(); };
     $("#sfLoadDef").onclick = () => { Object.assign(st, SF_LOAD_DEF); for (const k in SF_LOAD_DEF) box.querySelector(`[data-p="${k}"]`).value = SF_LOAD_DEF[k]; calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
-    $("#sfClear").onclick = () => { if (!confirm("清除板模板的輸入？（材料庫會保留）")) return; Object.assign(st, sfBlank()); draw(); };
+    $("#sfClear").onclick = async () => { if (!(await uiConfirm("清除板模板的輸入？（材料庫會保留）"))) return; Object.assign(st, sfBlank()); draw(); };
     $("#sfSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/slab/sheet"; };
   };
   draw();

@@ -297,7 +297,7 @@ function tabScaffold(box) {
     $("#scTmat").onchange = e => { const f = SC_TIEMAT.find(x => x.id === e.target.value); if (f) setv("tie.fy", f.fy); calc(); };
     $("#scPhiDef").onclick = () => { for (const k in SC_PHI_DEF) setv(k, SC_PHI_DEF[k]); setv("cvr", "0.5"); calc(); };
     box.querySelectorAll(".cfsteps a").forEach(a => a.onclick = e => { e.preventDefault(); box.querySelector(a.getAttribute("href"))?.scrollIntoView({ behavior: "smooth", block: "start" }); });
-    $("#scClear").onclick = () => { if (!confirm("清除施工架的輸入？")) return; Object.assign(st, scBlank()); draw(); };
+    $("#scClear").onclick = async () => { if (!(await uiConfirm("清除施工架的輸入？"))) return; Object.assign(st, scBlank()); draw(); };
     $("#scSheet").onclick = e => { e.preventDefault(); location.hash = "#/struct/scaf/sheet"; };
   };
   draw();

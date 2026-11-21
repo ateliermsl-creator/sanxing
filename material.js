@@ -168,7 +168,7 @@ async function renderMatForm(id) {
   $("#mNow").onclick = () => { r.time = pourNow(); view.querySelector('[data-f="time"]').value = r.time; save(); };
   $("#mCat").onchange = async e => {
     const cat = cats.find(c => c.id === e.target.value); if (!cat) return;
-    if (r.checks.some(c => c.r) && !confirm("換類別會重設檢查項目與已填的結果，確定嗎？")) { e.target.value = r.catId; return; }
+    if (r.checks.some(c => c.r) && !(await uiConfirm("換類別會重設檢查項目與已填的結果，確定嗎？"))) { e.target.value = r.catId; return; }
     r.catId = cat.id; r.catName = cat.name; r.checks = cat.checks.map(t => ({ t, r: "", note: "" })); ls.set("matCat", cat.id); await flush(); renderMatForm(id);
   };
   view.querySelectorAll("[data-d]").forEach(el => el.onchange = () => { r.docs[+el.dataset.d].v = el.checked; save(); });
@@ -188,19 +188,19 @@ async function renderMatForm(id) {
   view.querySelectorAll("canvas").forEach(c => setupSig(c, r, save));
   view.querySelectorAll("[data-clear]").forEach(b => b.onclick = () => { const c = $(`canvas[data-sig=${b.dataset.clear}]`); c.getContext("2d").clearRect(0, 0, c.width, c.height); delete r.sigs[b.dataset.clear]; save(); });
   const addPhoto = async file => { const p = { id: uid(), recId: r.id, itemIdx: 0, data: await makePhoto(file, `${r.date} ${site?.name || ""}`.trim()), created: Date.now() }; await DB.put("photos", p); photos.push(p); drawTh(); };
-  $("#mCam").onclick = () => openCamera(`材料進場：${matName(r)}`, blob => addPhoto(blob), async files => { for (const f of files) { try { await addPhoto(f); } catch { alert("這張照片無法讀取"); } } });
-  $("#mFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; for (const f of fs) { try { await addPhoto(f); } catch { alert("這張照片無法讀取"); } } };
+  $("#mCam").onclick = () => openCamera(`材料進場：${matName(r)}`, blob => addPhoto(blob), async files => { for (const f of files) { try { await addPhoto(f); } catch { uiAlert("這張照片無法讀取"); } } });
+  $("#mFile").onchange = async e => { const fs = [...e.target.files]; e.target.value = ""; for (const f of fs) { try { await addPhoto(f); } catch { uiAlert("這張照片無法讀取"); } } };
   view.onclick = async e => {
     const img = e.target.closest?.(".th img");
     if (img) { const pid = img.parentElement.querySelector("[data-pdel]").dataset.pdel; openLightbox(photos, photos.findIndex(x => x.id === pid)); return; }
-    const del = e.target.dataset?.pdel; if (!del || !confirm("刪除這張照片？")) return;
+    const del = e.target.dataset?.pdel; if (!del || !(await uiConfirm("刪除這張照片？"))) return;
     await DB.del("photos", del); photos = photos.filter(x => x.id !== del); drawTh();
   };
   attBind(view, r.id);
   svBindDone(sv, "#/material", "mDone");
   $("#mPrint").onclick = async () => { await flush(); location.hash = "#/material/" + id + "/print"; };
   $("#mNext").onclick = async () => { await flush(); const n = await matNew({ catId: r.catId, vendor: r.vendor, date: r.date, location: r.location, names: { deliver: "", inspector: r.names.inspector || "" } }); goReplace("#/material/" + n.id); };
-  $("#mDel").onclick = async () => { if (!confirm("確定刪除這筆進場紀錄？（含照片）")) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("matrecs", id); goBack("#/material"); };
+  $("#mDel").onclick = async () => { if (!(await uiConfirm("確定刪除這筆進場紀錄？（含照片）"))) return; for (const p of photos) await DB.del("photos", p.id); await attPurge(id); await DB.del("matrecs", id); goBack("#/material"); };
   dnBind(r, sv, { label: "完成驗收", del: "#mDel", keep: "#mPrint, #mNext", rerender: () => renderMatForm(id),
     check: () => [r.checks.some(c => !c.r) && `還有 ${r.checks.filter(c => !c.r).length} 項沒有檢查`, !r.sigs.inspector && "驗收人員尚未簽名"] });
 }
@@ -266,10 +266,10 @@ async function renderMatCfg() {
   view.querySelectorAll("[data-cn],[data-cc]").forEach(el => el.oninput = () => { dirty.add(el.closest("[data-id]")); sv.save(); });
   $("#cDocs").oninput = () => { docsDirty = true; sv.save(); };
   view.querySelectorAll("[data-cdel]").forEach(b => b.onclick = async () => {
-    const box = b.closest("[data-id]"); if (!confirm("刪除這個類別？已建立的進場紀錄不受影響。")) return;
+    const box = b.closest("[data-id]"); if (!(await uiConfirm("刪除這個類別？已建立的進場紀錄不受影響。"))) return;
     await DB.del("matcats", box.dataset.id); await DB.put("matcats", { id: "__deleted", updated: Date.now() }); renderMatCfg();   // __deleted：避免之後又自動補回內建類別
   });
-  $("#cAdd").onclick = async () => { const n = prompt("新類別名稱"); if (!n || !n.trim()) return; await DB.put("matcats", { id: uid(), name: n.trim(), checks: [], order: 99, created: Date.now(), updated: Date.now() }); renderMatCfg(); };
+  $("#cAdd").onclick = async () => { const n = await uiPrompt("新類別名稱"); if (!n || !n.trim()) return; await DB.put("matcats", { id: uid(), name: n.trim(), checks: [], order: 99, created: Date.now(), updated: Date.now() }); renderMatCfg(); };
 }
 
 /* ---------- 進場台帳（統計） ---------- */
@@ -312,9 +312,9 @@ async function renderMatSummary() {
     a.download = `材料進場台帳_${woRoc(today())}.csv`; document.body.appendChild(a); a.click(); a.remove();
   };
   $("#sShare").onclick = async () => {
-    if (!all.length) { alert("這個期間沒有進場紀錄"); return; }
+    if (!all.length) { uiAlert("這個期間沒有進場紀錄"); return; }
     const text = [`【材料進場台帳】${site?.name || ""}　${pRoc(today())}`, ...keys.map(k => { const c = st(all.filter(x => keyOf(x) === k)); return `${k}：${c.n} 次（${c.qty}）｜合格${c.ok}${c.ng ? `｜不合格${c.ng}` : ""}${c.reject ? `｜退貨${c.reject}` : ""}${c.pending ? `｜待確認${c.pending}` : ""}`; }), `合計：${tot.n} 次，合格率 ${tot.rate}`].join("\n");
     try { if (navigator.share) { await navigator.share({ title: "材料進場台帳", text }); return; } } catch (e) { if (e?.name === "AbortError") return; }
-    try { await navigator.clipboard.writeText(text); alert("已複製，可貼到 LINE 或訊息。"); } catch { prompt("請複製以下內容", text); }
+    try { await navigator.clipboard.writeText(text); uiToast("已複製，可貼到 LINE 或訊息。"); } catch { await uiPrompt("請複製以下內容", text); }
   };
 }

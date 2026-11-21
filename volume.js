@@ -189,7 +189,7 @@ function tabVolume(box) {
     await DB.put("vols", rec); status(); list();
   };
   $("#vNew").onclick = async () => {
-    if (!rec && volHasData(st) && !confirm("目前的輸入還沒存檔，要清空開始新計算嗎？")) return;
+    if (!rec && volHasData(st) && !(await uiConfirm("目前的輸入還沒存檔，要清空開始新計算嗎？"))) return;
     if (timer) await doSave();
     reopen([], { loss: st.cfg.loss, cap: st.cfg.cap, who: st.cfg.who });
   };
@@ -197,7 +197,7 @@ function tabVolume(box) {
     const b = e.target.closest("button"), id = b?.closest("[data-id]")?.dataset.id; if (!id) return;
     const x = await DB.get("vols", id); if (!x) { list(); return; }
     if (b.dataset.vopen) {
-      if (!rec && volHasData(st) && !confirm("目前的輸入還沒存檔，開啟後會被取代。要繼續嗎？")) return;
+      if (!rec && volHasData(st) && !(await uiConfirm("目前的輸入還沒存檔，開啟後會被取代。要繼續嗎？"))) return;
       if (timer) await doSave();
       if (window.cloudRO && await cloudRO("vols", x)) {   // 雲端：同事建立的只能看，載入成未存檔的新計算，不會改到原紀錄
         reopen(x.rows, { ...x.cfg, cur: "", title: x.name + "（同事的紀錄，另存才會保留）" }); return;
@@ -208,7 +208,7 @@ function tabVolume(box) {
       const c = { ...x, id: uid(), name: (x.name || "") + "（複本）", created: Date.now(), updated: Date.now() };
       await DB.put("vols", c); reopen(c.rows, { ...c.cfg, cur: c.id, title: c.name });
     } else if (b.dataset.vdel) {
-      if (!confirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`)) return;
+      if (!(await uiConfirm(`刪除「${x.name || "（未命名）"}」？刪除後無法復原。`))) return;
       await DB.del("vols", id);
       if (rec && rec.id === id) forget();
       status(); list();
@@ -236,7 +236,7 @@ function tabVolume(box) {
     else if (el.dataset.opdel !== undefined) { r.op.splice(+el.dataset.opdel, 1); draw(); }
   };
   $("#vAdd").onclick = () => { st.rows.push(volBlank($("#vAddType").value)); draw(); box.querySelector(`.vrow[data-i="${st.rows.length - 1}"] [data-k="name"]`)?.focus(); };
-  $("#vClear").onclick = () => { if (!confirm("清除全部列？")) return; st.rows = [volBlank()]; draw(); };
+  $("#vClear").onclick = async () => { if (!(await uiConfirm("清除全部列？"))) return; st.rows = [volBlank()]; draw(); };
   $("#vp2").oninput = e => { const k = e.target.dataset.c; if (!k) return; st.cfg[k] = e.target.value; sum(); };
   draw();
 }

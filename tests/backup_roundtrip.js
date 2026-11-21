@@ -1,3 +1,4 @@
+require('./uidlg');
 // backup_roundtrip：見 tests/README.md
 // 備份→匯入 往返：找出被清理器丟掉的欄位
 const {chromium}=require('playwright');const fs=require('fs');
