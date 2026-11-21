@@ -561,3 +561,6 @@ body.pmkOpen{overflow:hidden}
 .pmfig img{display:block;max-width:26mm;max-height:30mm}
 .pmfig .pmpin{min-width:4mm;height:4mm;border-radius:2mm;font-size:8px;line-height:calc(4mm - 2px);border-width:1px;padding:0 1px}
 .pmnote{color:#333!important}
+/* 計算書簽名（calcsig.js） */
+.csgbar{max-width:210mm;margin:8px auto 16px}
+.csgbar .csgold{color:var(--bad);margin:0 12px 6px}

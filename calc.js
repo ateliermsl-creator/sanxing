@@ -295,7 +295,7 @@ function renderCalc(tab, sub) {
   cur[2]($("#calcBox"));
 }
 function renderStruct(tab, sub) {
-  if (tab && sub === "sheet" && STRUCT_SHEETS[tab]) return STRUCT_SHEETS[tab]();
+  if (tab && sub === "sheet" && STRUCT_SHEETS[tab]) { STRUCT_SHEETS[tab](); csgBind(csgLs(tab), () => renderStruct(tab, sub)); return; }   // 計算書簽名（calcsig.js）
   const cat = structCatOf(tab);
   const cur = cat && STRUCT_TABS.find(t => t[0] === tab);
   if (!cur) {   // 結構計算總覽：四類，每類列出它的計算
